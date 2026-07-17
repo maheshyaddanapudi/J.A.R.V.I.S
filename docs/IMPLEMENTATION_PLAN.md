@@ -10,13 +10,13 @@
 
 | Field | Value |
 |---|---|
-| **Current phase** | **Phase 0 — Research & Architecture** |
-| **Current slice** | Phase 0 check-in in progress (2026-07-17): **architecture Option A APPROVED (D-0002); voice stack APPROVED with listening-demo condition (D-0004); parity matrix IN DISCUSSION (D-0003)** |
-| **Production code written** | None (correct for Phase 0) |
-| **Blocking decision** | DECISION_LOG D-0003 (parity matrix approval — user requested walkthrough/discussion) |
-| **Next action after approval** | Begin Phase 1 slice 1.1 (repo scaffold + infra) per plan below |
+| **Current phase** | **Phase 1 — Functional Core** (Phase 0 completed 2026-07-17: D-0002 Option A approved; D-0003 matrix approved with amendments D-0018/19/20; D-0004 voice stack approved w/ listening-demo condition) |
+| **Current slice** | **1.1 Scaffold & infra** — in progress |
+| **Production code written** | Phase 1 scaffold begun 2026-07-17 |
+| **Blocking decision** | None. Upcoming in-phase check-ins: memory architecture + local security model (before 1.4/1.6); voice listening demo (before 1.3 hardens); visual design system (before 1.7 hardens) |
+| **Development environment note** | Development happens in a Linux remote session; macOS-specific builds (Tauri companion, MLX speech, VPIO) are compiled/verified on the user's Mac via documented commands — every slice's acceptance run happens on the real machine (R-VER-04) |
 
-### Phase 0 exit checklist
+### Phase 0 exit checklist ✅ COMPLETE 2026-07-17
 - [x] Binding docs read (`docs/01`–`docs/07`, README)
 - [x] Repo inspected (docs-only repo; no existing code)
 - [x] Spatial-platform input/privacy APIs verified with sources → `docs/RESEARCH_VERIFICATION.md`
@@ -29,7 +29,7 @@
 - [x] `docs/DECISION_LOG.md` created
 - [x] `docs/REQUIREMENTS_TRACEABILITY.md` created
 - [x] Root `CLAUDE.md` created (module-level CLAUDE.md files are created with their modules from Phase 1 on — surfaced at check-in)
-- [ ] **Phase 0 check-in held; architecture + parity matrix approved** ← WAITING ON USER
+- [x] **Phase 0 check-in held 2026-07-17; architecture (Option A) + parity matrix (with amendments D-0018/19/20) approved**
 
 ---
 
@@ -84,10 +84,11 @@ Home Assistant integration, device gateway, hardware catalog + plugin SDK, room 
 ## Deferred items (deferral ≠ removal; docs/05)
 | Item | Reason | Prerequisites | Target phase | Resume criteria |
 |---|---|---|---|---|
-| Affect/emotion inference (matrix B4) | High error risk; consent design needed | Opt-in design; labeling UX | Revisit ≥ Phase 6 | User opts in at a check-in |
-| Personal health telemetry (B5) | Needs wearable + HealthKit authorization | Apple Watch pairing; Phase 11 stack | 11 | Device configured |
-| Module-level CLAUDE.md files | No modules exist in Phase 0 (docs-only repo) | Phase 1 scaffold | 1.1 | Created with each module |
+| ~~Affect/emotion inference (B4)~~ | **Rescheduled 2026-07-17 (D-0019)** — now a planned opt-in capability | Prosody pipeline | 4 (voice) / 6 (camera) | — |
+| Personal health telemetry (B5) | Needs HealthKit authorization + Phase 11 stack (Watch **owned**, D-0020) | iPhone/Watch pairing; Phase 11 stack | 11 | Phase 11 begins |
+| Module-level CLAUDE.md files | No modules existed in Phase 0 | Phase 1 scaffold | 1.1 | Created with each module (in progress) |
 | Multi-user support | Spec is single-user | — | Out of current scope | Explicit user request |
+| visionOS native client | No Vision Pro owned (D-0020) | Device acquired (purchase = check-in) | 11 | Device available; APIs re-verified |
 
 ## Risks (top; full register grows per phase)
 | Risk | Impact | Mitigation |
@@ -101,7 +102,7 @@ Home Assistant integration, device gateway, hardware catalog + plugin SDK, room 
 
 ## Hardware prerequisites by phase
 - P1–P4: none beyond the Mac (built-in mic/speakers; headset recommended for best barge-in).
-- P5: Home Assistant-compatible devices (or simulator-only), optional webcam.
+- P5: Home Assistant-compatible devices (**none owned** — simulator-first per D-0020), optional webcam.
 - P6: optional webcam for gesture; multi-display optional.
-- P7: Quest 3/3S. P8: projector(s) + calibration camera. P9: light-field/volumetric display. P11: iPhone/Watch/Vision Pro. P12: room sensors/nodes.
+- P7: Quest 3/3S — **Quest 3S owned (D-0020)**. P8: projector(s) + calibration camera (none owned). P9: light-field/volumetric display (none owned). P11: iPhone + Watch **owned**; Vision Pro **not owned** (deferred item). P12: room sensors/nodes (none owned).
 - Every purchase recommendation goes through a check-in with current availability verification (R-HW-03).

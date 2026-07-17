@@ -16,7 +16,7 @@ Statuses below marked PROPOSED are **awaiting the Phase 0 check-in** — nothing
 - **Scope of approval:** the Option A component table in `docs/ARCHITECTURE.md §3`, which adopts D-0006 (Valkey deferred), D-0008 (thin in-house gateway), D-0009 (LangGraph behind AgentRuntime), D-0010 (Jaeger v2), D-0013 (encryption approach), D-0014 (Tauri 2) as its parts. Any of these may be reopened at a future check-in; until then they are binding.
 
 ## D-0003 — Capability parity matrix approval
-- **Date:** 2026-07-16 · **Status:** IN DISCUSSION — at the 2026-07-17 check-in the user chose "discuss first"; walkthrough in progress. Production code remains blocked until this is approved.
+- **Date:** 2026-07-16 · **Status:** **APPROVED 2026-07-17** after walkthrough discussion, with amendments D-0018 (full-suite simulators), D-0019 (B4 scheduled opt-in), D-0020 (hardware inventory). Production code is now unblocked; Phase 1 begins.
 - **Decision requested:** approve `docs/CAPABILITY_PARITY_MATRIX.md` classifications, notably: the PROHIBITED rows (weapons targeting F2, unauthorized access C5, actor-voice cloning A3, Marvel IP I2, empty-air holography claims D2, covert persistence G4b, core self-modification G3), the SIMULATED rows (armor/flight/threat-assessment F4–F7, element synthesis D7), and the DEFERRED rows (affect inference B4, personal health telemetry B5).
 
 ## D-0004 — Voice stack picks
@@ -73,6 +73,18 @@ Statuses below marked PROPOSED are **awaiting the Phase 0 check-in** — nothing
 ## D-0016 — Spatial input model pinned to verified platform constraints
 - **Date:** 2026-07-16 · **Status:** PROPOSED (constraint restatement; binding docs already require it)
 - **Decision:** Core interaction model uses: visionOS look-and-pinch/hover (no raw gaze — none exists for third-party apps, verified 2026-07-16); Quest hand tracking + controllers (no eye tracking hardware on Quest 3/3S); WebXR hands + transient-pointer; webcam MediaPipe (Apache-2.0, Apple Silicon wheel verified) for desktop gestures. OpenXR targeted on Quest/PC runtimes; **no production macOS OpenXR runtime exists** — macOS spatial output uses WebXR-to-headset, native visionOS client (Phase 11), and flat-screen 3D fallback. Re-verify all of this before Phases 6/7/11 per R-SPA-03.
+
+## D-0018 — Simulator depth: full suite
+- **Date:** 2026-07-17 · **Status:** APPROVED (user selection at Phase 0 check-in)
+- **Decision:** All SIMULATED capabilities (flight dynamics F4, remote piloting F5, combat-scenario analysis F6, suit-up F7, rescue/structural scenarios F8, element synthesis D7) are built as **physics-grade, first-class simulation products**, deeply integrated with the HUD and Mission Control in Phase 10 — not lightweight placeholders. The relevance-tiered alternative was presented and declined. SIMULATION labeling (R-CLASS-02) applies regardless of depth.
+
+## D-0019 — Affect/state inference (B4) scheduled as constrained opt-in
+- **Date:** 2026-07-17 · **Status:** APPROVED (user selection at Phase 0 check-in)
+- **Decision:** B4 reclassified DEFERRED → REAL (scheduled): voice-prosody state inference ships with Phase 4 proactivity; camera-based inference revisited at Phase 6. Hard constraints baked into the capability contract: **opt-in; always labeled `inferred`; local-only; modulates tone/timing/proactivity ONLY — never gates, triggers, or justifies consequential actions;** camera-based variant requires the always-on privacy indicator. Rationale discussion (error rates, health-adjacent labeling rule, surveillance adjacency) recorded at the check-in.
+
+## D-0020 — User hardware inventory (2026-07-17)
+- **Date:** 2026-07-17 · **Status:** RECORDED
+- **Owned:** Quest 3S (Phase 7 real-hardware target), Apple Watch + iPhone (Phase 11 health telemetry + cross-device). **Not owned:** Home Assistant/smart-home devices (E1/B2 stay simulator-first per plan), Apple Vision Pro (Phase 11 visionOS client is hardware-dependent until acquired; architecture keeps it first-class per R-SPA-01). Re-inventory at each hardware-relevant phase gate.
 
 ## D-0017 — Session continuity mechanics
 - **Date:** 2026-07-16 · **Status:** PROPOSED

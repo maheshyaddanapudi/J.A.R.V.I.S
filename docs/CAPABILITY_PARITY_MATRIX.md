@@ -38,8 +38,8 @@
 | B1 | Knows what Tony is working on right now (IM1/IM2 workshop) | Active app/window/selection context via Accessibility + screen understanding | **REAL** | 2 | Permission-scoped; TCC-gated (screen recording permission). |
 | B2 | Sees the room / where people are (IM1 mansion) | Camera-based room presence via webcam/room cameras with always-on indicators | **HARDWARE-DEPENDENT** | 5+ | Owner has no room cameras yet; simulator + typed CameraProvider contract first; privacy rules T13. |
 | B3 | Understands objects shown to camera (IM1 suit parts) | Local vision models on webcam/screen images | **REAL** | 2 | Vision role in model gateway. |
-| B4 | Reads Tony's emotional state (implied, IM3) | Affect inference | **DEFERRED** | — (revisit ≥ 6) | High error risk; if ever built: labeled `inferred`, never fact, opt-in. Health-adjacent constraint R-UI (no inferred health as fact). |
-| B5 | Tracks Tony's vitals in the suit (IM3 HUD) | Wearable vitals via HealthKit/Apple Watch, authorized data only | **HARDWARE-DEPENDENT** | 11 | No medical diagnosis; never presents inferred health as fact. |
+| B4 | Reads Tony's emotional state (implied, IM3) | Affect/state inference — **opt-in, constrained**: voice-prosody at Phase 4 (modulates tone/timing/proactivity ONLY — never gates or triggers consequential actions), camera-based revisited at Phase 6; always labeled `inferred`; local-only; privacy indicator when camera-based | **REAL** (scheduled, opt-in) | 4 (voice) / 6 (camera revisit) | Reclassified from DEFERRED at the 2026-07-17 check-in (D-0019). Health-adjacent constraint stands: never presented as fact. |
+| B5 | Tracks Tony's vitals in the suit (IM3 HUD) | Wearable vitals via HealthKit/Apple Watch, authorized data only | **HARDWARE-DEPENDENT** | 11 | No medical diagnosis; never presents inferred health as fact. **User owns Apple Watch + iPhone (recorded 2026-07-17)** — buildable at Phase 11 without purchase. |
 | B6 | Whole-home hearing/presence (IM1 house-wide) | Satellite mic/speaker nodes | **HARDWARE-DEPENDENT** | 5/12 | Typed AudioNode contract + simulator until hardware. |
 
 ## C. Computer operations & information work
@@ -127,6 +127,20 @@
 Autonomous weapons/targeting (F2); unauthorized system access/hacking (C5); bypassing access controls; covert surveillance (incl. F6 real-world variant); credential theft; malware; hidden persistence (G4 covert variant); disabling safety mechanisms (G3); undisclosed impersonation of the user; unauthorized purchases/communication/physical control; actor-voice cloning (A3); Marvel IP reuse (I2); claiming empty-air holography (D2); autonomous core-security self-modification (G3).
 
 ---
+
+## Approval & amendments
+
+**APPROVED at the Phase 0 check-in, 2026-07-17 (D-0003)**, with these amendments:
+1. **Simulator depth = FULL SUITE (D-0018):** all SIMULATED rows (F4, F5, F6, F7, F8 scenarios, D7) are built as physics-grade, first-class simulation products integrated with HUD/Mission Control in Phase 10 — not lightweight placeholders. SIMULATION labeling rules unchanged.
+2. **B4 reclassified** DEFERRED → REAL (scheduled, opt-in, constrained) — see row B4 (D-0019).
+3. **Owned hardware recorded (D-0020):** Quest 3S (Phase 7 real-hardware target; no eye tracking per RESEARCH_VERIFICATION §1.2), Apple Watch + iPhone (Phase 11), no Home Assistant/smart devices or Vision Pro yet (E1/B2 remain simulator-first; Phase 11 visionOS client is HARDWARE-DEPENDENT until a device exists).
+
+### Change log
+| Date | Row | Change | Reason |
+|---|---|---|---|
+| 2026-07-17 | B4 | DEFERRED → REAL (scheduled, opt-in, constrained) | User decision at Phase 0 check-in (D-0019) |
+| 2026-07-17 | F4–F8, D7 | Scope note: full-suite depth | User decision at Phase 0 check-in (D-0018) |
+| 2026-07-17 | B5, G7, I5 | Hardware-ownership notes | Inventory recorded (D-0020) |
 
 ## Change control
 

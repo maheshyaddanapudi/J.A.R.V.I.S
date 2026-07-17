@@ -32,7 +32,7 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 | R-VOICE-08 | Spoken approvals/warnings/summaries | 2.1 V8 | A8 | 1/4 | AT1.8 (visual+spoken path) | SPEC | — |
 | R-VOICE-09 | Measured latency/false-wake/interruption/accuracy metrics | 2.1 V9 | I-telemetry | 1 | PRODUCT_SPEC §2.4 budget | SPEC | — |
 | R-VOICE-10 | Offline voice fallback | 2.1 V10 | G7 | 1 | AT1.11–12 | SPEC | — |
-| R-VOICE-11 | Distinct restrained British synthetic voice; NO actor cloning | 2.2 | A2, A3 | 1 | voice check-in | PENDING-CHECKIN | D-0004 |
+| R-VOICE-11 | Distinct restrained British synthetic voice; NO actor cloning | 2.2 | A2, A3 | 1 | voice check-in | SPEC (stack approved 2026-07-17; identity fixed after listening demo) | D-0004 |
 | R-VOICE-12 | Every voice engine replaceable OSS behind typed interface | 2.3 | — | 1 | contract review at gate | SPEC | D-0004 |
 
 ## Model gateway (docs/02 §Gateway)
@@ -109,7 +109,7 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 
 | ID | Requirement | Spec § | Parity | Phase | Acceptance | Status | Decisions |
 |---|---|---|---|---|---|---|---|
-| R-CLASS-01 | Living five-state matrix, every capability exactly one state, sourced | 14 | whole doc | 0→ | matrix exists; check-in | PENDING-CHECKIN | D-0003 |
+| R-CLASS-01 | Living five-state matrix, every capability exactly one state, sourced | 14 | whole doc | 0→ | matrix exists; check-in | **VERIFIED (approved 2026-07-17)** | D-0003, D-0018/19/20 |
 | R-CLASS-02 | Simulation modules permanently display SIMULATION; never confusable with live | 14 | D7, F4–F7 | 1→ | invariant #8 | SPEC | — |
 | R-CLASS-03 | No capability disappears without explanation | 14 | change control | all | matrix change log | SPEC | — |
 
@@ -185,9 +185,9 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 
 AT1.1 install & start via documented commands · AT1.2 "Jarvis"/push-to-talk · AT1.3 natural interruption · AT1.4 streamed spoken+visual answer · AT1.5 Command Center shows objective/state/model/tools/approval/result · AT1.6 one real read-only tool · AT1.7 reversible Mac action with disclosure · AT1.8 approve one action, deny another · AT1.9 remember a preference · AT1.10 view/correct/delete that memory · AT1.11 restart retains approved memory · AT1.12 local-only + offline workflow (Ollama/local STT/TTS/embeddings; providers disconnected) · AT1.13 review complete audit trail · AT1.14 emergency stop halts execution.
 
-## Omissions surfaced at the Phase 0 check-in (none dropped)
+## Omissions surfaced at the Phase 0 check-in (none dropped) — check-in held 2026-07-17
 
-1. **Module-level CLAUDE.md files** — deferred to Phase 1 slice 1.1 because no code modules exist yet (D-0005).
-2. **Affect/emotion inference (B4)** — DEFERRED with revisit gate (parity matrix).
-3. **Personal health telemetry (B5)** — HARDWARE-DEPENDENT, Phase 11.
-4. Everything else in the binding docs is mapped above with no exclusions.
+1. **Module-level CLAUDE.md files** — deferred to Phase 1 slice 1.1 (D-0005) — accepted; now being created with modules.
+2. **Affect/emotion inference (B4)** — was DEFERRED; user rescheduled it as a constrained opt-in capability, P4/P6 (D-0019).
+3. **Personal health telemetry (B5)** — HARDWARE-DEPENDENT, Phase 11 — accepted (Watch owned, D-0020).
+4. Everything else in the binding docs is mapped above with no exclusions. Phase 0 check-in outcome: architecture Option A, matrix approved with amendments, voice stack approved with demo condition.
