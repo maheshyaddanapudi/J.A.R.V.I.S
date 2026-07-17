@@ -3,7 +3,7 @@
 **Recorded:** 2026-07-17 · **Environment:** Linux dev container (NOT the target Mac).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
-**Result:** **22 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
+**Result:** **23 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
 (against an online kernel; P-OFFLINE-01 is a live PASS when the kernel runs with
 `JARVIS_OFFLINE=1` **and a local model is up** — its offline *gating*, i.e. remote
 providers refused, is confirmed live regardless). Re-confirmed 2026-07-17 with the
@@ -22,7 +22,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 
 | Check | Status | Evidence |
 |---|---|---|
-| P-CORE-01 kernel health + migrations | PASS | status=ok, 10 migrations applied |
+| P-CORE-01 kernel health + migrations | PASS | status=ok, 12 migrations applied |
 | P-CORE-02 audit hash-chain integrity | PASS | chain intact |
 | P-CORE-03 emergency stop halts + resumes | PASS | engaged→blocked, resumed→ok |
 | P-GW-01 model gateway status + roles | PASS | role table live |
@@ -35,6 +35,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-RESEARCH-01 research: gated multi-source gather + per-claim provenance | PASS | REAL browser over local sources; approved `research.gather` returns ranked passages each citing its source URL+line; out-of-policy source → clean denial (SKIP if no Chromium) |
 | P-ENTMEM-01 semantic memory: entities/facts/relations + recall + secret refusal | PASS | remember entity/fact/relation → `memory.recall` returns decrypted facts + relations; content `v1.gcm.*` at rest (0 plaintext); secret-shaped fact refused (R-MEM-06) |
 | P-EPISODE-01 episodic memory: recall + auto-record real actions + READ_ONLY excluded + forget | PASS | recorded note → `memory.recallEpisodes` returns it; a real `workspace.writeNote` **auto-records** as an `action` event (loop-driven, D-0041); READ_ONLY `system.info`/`recallEpisodes` NOT recorded; content `v1.gcm.*` at rest; forget excludes immediately; feeds "Recently: …" into `/context` |
+| P-SEMANTIC-01 semantic (vector) recall over memory + graceful fallback | PASS | `?semantic=1` recalls episodes by MEANING via pgvector + the gateway embeddings role (D-0042); with an embedder the reactor episode ranks first for a reactor query, without one it falls back to REAL lexical recall (never errors). **Live (6/6):** real 768-dim vectors stored via the actual `router.embed`→HTTP path; meaning-ranking correct for two lexically-distinct queries |
 | P-MEM-01 remember + retrieve preference | PASS | stored + read back |
 | P-MEM-02 memory refuses secrets (R-MEM-06) | PASS | secret-shaped value refused |
 | P-SEC-01 secrets vault names-only + value never leaks | PASS | listed name only, value absent from listing + audit; ciphertext at rest |

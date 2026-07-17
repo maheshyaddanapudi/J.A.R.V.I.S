@@ -63,13 +63,14 @@ export function episodeMemoryTools(mem: EpisodicMemory): Tool[] {
   const recall: Tool = {
     name: "memory.recallEpisodes",
     description:
-      "Recall J.A.R.V.I.S.'s timeline of past events — optionally filter by free-text query, kind, tag, linked entity, or a since-time. Read-only.",
+      "Recall J.A.R.V.I.S.'s timeline of past events. Filter by free-text query, kind, tag, linked entity, or a since-time; set semantic=true to recall by MEANING (nearest embeddings) rather than substring. Read-only.",
     riskClass: "READ_ONLY",
     action: "recall episodic timeline",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: "free-text substring match over the event text" },
+        query: { type: "string", description: "free-text query (substring, or semantic when semantic=true)" },
+        semantic: { type: "boolean", description: "recall by meaning (embeddings) instead of substring" },
         kind: { type: "string", enum: ["observation", "action", "decision", "note", "milestone"] },
         tag: { type: "string" },
         entity: { type: "string", description: "only events about this known entity" },
@@ -81,27 +82,31 @@ export function episodeMemoryTools(mem: EpisodicMemory): Tool[] {
     async run(args: unknown): Promise<ToolResult> {
       const a = args as {
         query?: string;
+        semantic?: boolean;
         kind?: EpisodeKind;
         tag?: string;
         entity?: string;
         since?: string;
         limit?: number;
       };
-      const since = a.since ? new Date(a.since) : undefined;
-      const episodes = await mem.recall({
-        ...(a.query ? { query: a.query } : {}),
-        ...(a.kind ? { kind: a.kind } : {}),
-        ...(a.tag ? { tag: a.tag } : {}),
-        ...(a.entity ? { entityName: a.entity } : {}),
-        ...(since && !Number.isNaN(since.getTime()) ? { since } : {}),
-        ...(a.limit !== undefined ? { limit: a.limit } : {}),
-      });
+      // Semantic mode: recall by meaning (falls back to lexical inside semanticRecall
+      // when no embedder is available, so it's always at least substring-good).
+      const episodes = a.semantic && a.query
+        ? await mem.semanticRecall(a.query, a.limit ?? 10)
+        : await mem.recall({
+            ...(a.query ? { query: a.query } : {}),
+            ...(a.kind ? { kind: a.kind } : {}),
+            ...(a.tag ? { tag: a.tag } : {}),
+            ...(a.entity ? { entityName: a.entity } : {}),
+            ...(a.since && !Number.isNaN(new Date(a.since).getTime()) ? { since: new Date(a.since) } : {}),
+            ...(a.limit !== undefined ? { limit: a.limit } : {}),
+          });
       if (episodes.length === 0) {
         return { ok: true, summary: "no matching events on the timeline", data: [], detail: "The timeline has no matching events." };
       }
       return {
         ok: true,
-        summary: `${episodes.length} event(s) recalled`,
+        summary: `${episodes.length} event(s) recalled${a.semantic ? " (by meaning)" : ""}`,
         data: episodes,
         detail: renderTimeline(episodes),
       };

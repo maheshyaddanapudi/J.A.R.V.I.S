@@ -2,6 +2,7 @@ import type pg from "pg";
 import { redactSecrets } from "../core/audit.js";
 import type { AuditLog } from "../core/audit.js";
 import type { Vault } from "../crypto/vault.js";
+import type { SemanticMemory } from "./semantic.js";
 import type { EpistemicStatus, Sensitivity } from "./memory.js";
 
 /**
@@ -66,6 +67,8 @@ export class EpisodicMemory {
     private readonly pool: pg.Pool,
     private readonly audit: AuditLog,
     private readonly vault?: Vault,
+    /** optional vector index — enables recall-by-meaning (H1); best-effort */
+    private readonly semantic?: SemanticMemory,
   ) {}
 
   private enc(plaintext: string): string {
@@ -132,7 +135,14 @@ export class EpisodicMemory {
       event: "episode_recorded",
       payload: { kind, provenance: input.provenance, importance },
     });
-    return this.hydrate(rows[0]);
+    const episode = this.hydrate(rows[0]);
+    // Best-effort semantic indexing (recall-by-meaning, H1). Uses the redacted
+    // plaintext (not the ciphertext); a missing embedder is a no-op — the episode
+    // is still fully recallable lexically. Never blocks the write.
+    if (this.semantic) {
+      void this.semantic.index("episode", episode.id, [summary, detail].filter(Boolean).join(". "));
+    }
+    return episode;
   }
 
   /**
@@ -212,8 +222,36 @@ export class EpisodicMemory {
       `UPDATE memory_episodes SET status = 'deleted' WHERE id = $1 AND status <> 'deleted'`,
       [id],
     );
-    if (rowCount) await this.audit.append({ actor: "user", event: "episode_forgotten", payload: { id } });
+    if (rowCount) {
+      await this.audit.append({ actor: "user", event: "episode_forgotten", payload: { id } });
+      if (this.semantic) void this.semantic.remove("episode", id); // drop from the vector index too
+    }
     return (rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Recall by MEANING (H1). Embeds the query and returns the nearest episodes by
+   * cosine distance. Falls back to lexical `recall({query})` when no embedder is
+   * available or nothing is indexed yet — so this is always at least as good as
+   * substring recall, and better when an embedding model is present.
+   */
+  async semanticRecall(query: string, limit = 10): Promise<Episode[]> {
+    if (!this.semantic) return this.recall({ query, limit });
+    const hits = await this.semantic.search(query, { kinds: ["episode"], limit });
+    if (hits.length === 0) return this.recall({ query, limit }); // no embedder / empty index → lexical
+    const ids = hits.map((h) => h.sourceId);
+    const { rows } = await this.pool.query(
+      `SELECT e.id, e.occurred_at, e.kind, e.summary, e.detail, e.entity_id,
+              e.importance, e.tags, e.status, e.provenance, e.sensitivity, e.created_at,
+              ent.name AS entity_name
+       FROM memory_episodes e
+       LEFT JOIN memory_entities ent ON ent.id = e.entity_id
+       WHERE e.id = ANY($1) AND e.status <> 'deleted'`,
+      [ids],
+    );
+    const byId = new Map(rows.map((r) => [String(r.id), this.hydrate(r)]));
+    // preserve nearest-first order from the vector search; drop any now-deleted
+    return ids.map((id) => byId.get(id)).filter((e): e is Episode => Boolean(e));
   }
 
   private hydrate(r: Record<string, unknown>): Episode {

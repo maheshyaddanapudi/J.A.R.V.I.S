@@ -29,6 +29,7 @@ import { EntityMemory } from "../memory/entities.js";
 import { entityMemoryTools } from "../memory/entityTools.js";
 import { EpisodicMemory } from "../memory/episodes.js";
 import { episodeMemoryTools } from "../memory/episodeTools.js";
+import { SemanticMemory } from "../memory/semantic.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -143,8 +144,16 @@ export async function buildCore(opts: {
   const memory = new MemoryService(opts.pool, audit, opts.vault);
   // Semantic knowledge store (entities/facts/relations) — encrypted at rest.
   const entityMemory = new EntityMemory(opts.pool, audit, opts.vault);
+  // Semantic (vector) index over memory — recall-by-meaning (H1). Embeds via the
+  // model gateway's embeddings role; best-effort, so a missing embedder never
+  // blocks a write (recall falls back to lexical). Verified in-container against a
+  // live embeddings endpoint; nomic-embed-text on the Mac (D-0012).
+  const semanticMemory = new SemanticMemory(
+    opts.pool,
+    (texts) => opts.gateway.embed(texts, "LOCAL_ONLY", "memory").then((r) => r.embeddings),
+  );
   // Episodic memory — the recallable timeline of notable events, encrypted at rest.
-  const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault);
+  const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault, semanticMemory);
 
   const control = opts.control ?? new SimulatedDesktop();
   const devices = opts.devices ?? new StarkResidence();

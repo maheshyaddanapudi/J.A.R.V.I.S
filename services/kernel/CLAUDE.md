@@ -150,6 +150,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   READ_ONLY + `memory.*` excluded. Feeds `ContextService` ("Recently: …"). Content
   encrypted at rest + secret-**redacted** (masked, not rejected — never breaks the
   loop); `recentForContext` non-sensitive only. 7 tests; live 11/11 + `P-EPISODE-01`.
+- Semantic (vector) recall ✅ (Phase 2 "full memory store set", parity H1, D-0042):
+  `src/memory/semantic.ts` + migration 0012 (`memory_embeddings`, pgvector `vector(768)`)
+  — recall **by meaning**, finally using the gateway's `embeddings` role (`router.embed`)
+  and pgvector (both previously idle). `SemanticMemory` (index/search/remove/count/
+  available) does exact cosine KNN; **decoupled** index (keyed by source_kind/id/model)
+  so a write never blocks on the embedder. Wired into `EpisodicMemory`: auto-index on
+  record, drop on forget, `semanticRecall(query)` → `memory.recallEpisodes {semantic}` +
+  `GET /memory/episodes?semantic=1`. **Best-effort/honest fallback:** no embedder →
+  no-op index, `[]` search, **lexical fallback** (never a mock, never a throw); embedded
+  from redacted plaintext (secrets never reach the vector store). nomic-embed-text on the
+  Mac gives real semantic quality with no code change. 6 tests + live 6/6 (real
+  embeddings endpoint through the gateway) + `P-SEMANTIC-01`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

@@ -322,6 +322,28 @@ def main() -> int:
     except Exception as e:
         record("P-EPISODE-01", "episodic memory", "FAIL", str(e))
 
+    # ---- Semantic (vector) recall over memory (H1 "perfect recall") ----
+    try:
+        sm = uuid.uuid4().hex[:8]
+        post("/core/run-tool", {"tool": "memory.recordEpisode",
+             "args": {"summary": f"SEMMARK-{sm} calibrated the arc reactor palladium core", "kind": "note"},
+             "source": "accept", "delegatedAutomation": True})
+        post("/core/run-tool", {"tool": "memory.recordEpisode",
+             "args": {"summary": f"SEMMARK-{sm} watered the rooftop garden plants", "kind": "note"},
+             "source": "accept", "delegatedAutomation": True})
+        # semantic mode: recall-by-meaning when an embedder is present, graceful
+        # lexical fallback otherwise — either way the reactor event must come back
+        # for a reactor query (this asserts the endpoint + fallback contract; the
+        # full meaning-ranking is verified live against a real embeddings endpoint).
+        r = get(f"/memory/episodes?semantic=1&q=reactor%20core%20work&limit=5")
+        eps = r.get("episodes", [])
+        hit = any("arc reactor" in e.get("summary", "") for e in eps)
+        record("P-SEMANTIC-01", "semantic (vector) recall over memory + graceful fallback",
+               "PASS" if (r.get("mode") == "semantic" and hit) else "FAIL",
+               f"mode={r.get('mode')} reactor_recalled={hit} (meaning-ranked with an embedder; lexical fallback without)")
+    except Exception as e:
+        record("P-SEMANTIC-01", "semantic recall", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

@@ -15,9 +15,13 @@ export function registerMemoryRoutes(
   // `q` filters after decryption. Forget soft-deletes (excluded immediately).
   if (episodes) {
     app.get("/memory/episodes", async (req) => {
-      const q = req.query as { q?: string; kind?: string; tag?: string; since?: string; entity?: string; limit?: string };
+      const q = req.query as { q?: string; semantic?: string; kind?: string; tag?: string; since?: string; entity?: string; limit?: string };
       const since = q.since ? new Date(q.since) : undefined;
       const limit = q.limit ? Number(q.limit) : undefined;
+      // Semantic (recall-by-meaning) mode falls back to lexical inside semanticRecall.
+      if (q.semantic && q.semantic !== "0" && q.q) {
+        return { episodes: await episodes.semanticRecall(q.q, limit && !Number.isNaN(limit) ? limit : 10), mode: "semantic" };
+      }
       return {
         episodes: await episodes.recall({
           ...(q.q ? { query: q.q } : {}),
