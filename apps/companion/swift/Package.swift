@@ -12,6 +12,13 @@ let package = Package(
         .executableTarget(
             name: "JarvisAudio",
             path: "Sources/JarvisAudio"
+        ),
+        // Real macOS computer-control adapter (AXUIElement/CGEvent). Same typed
+        // contract as the kernel's SIMULATION adapter; activated only after the
+        // "enable computer control" check-in (docs/06).
+        .target(
+            name: "JarvisControl",
+            path: "Sources/JarvisControl"
         )
     ]
 )

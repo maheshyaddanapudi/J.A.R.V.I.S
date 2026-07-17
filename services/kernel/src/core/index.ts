@@ -11,6 +11,9 @@ import { systemInfoTool } from "./tools/systemInfo.js";
 import { workspaceNoteTool } from "./tools/workspaceNote.js";
 import { rememberPreferenceTool } from "./tools/rememberPreference.js";
 import { MemoryService } from "../memory/memory.js";
+import { SimulatedDesktop } from "../control/simulator.js";
+import { computerControlTools } from "../control/tools.js";
+import type { ComputerControl } from "../control/contract.js";
 
 export interface Core {
   audit: AuditLog;
@@ -28,6 +31,12 @@ export async function buildCore(opts: {
   pool: pg.Pool;
   gateway: GatewayRouter;
   workspaceRoot: string;
+  /**
+   * Computer-control backend. Defaults to the SIMULATION adapter (safe in the
+   * container / before the "enable computer control" check-in). The real macOS
+   * adapter is injected only on the Mac after that check-in (docs/06).
+   */
+  control?: ComputerControl;
 }): Promise<Core> {
   const audit = new AuditLog(opts.pool);
   const estop = new EmergencyStop(opts.pool, audit);
@@ -38,10 +47,13 @@ export async function buildCore(opts: {
   const activity = new ActivityBus();
   const memory = new MemoryService(opts.pool, audit);
 
+  const control = opts.control ?? new SimulatedDesktop();
+
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
   tools.register(rememberPreferenceTool(memory));
+  for (const t of computerControlTools(control)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
