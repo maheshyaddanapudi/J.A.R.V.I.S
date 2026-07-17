@@ -5,10 +5,12 @@ import type {
   CommitmentContext,
   ContextProvider,
   ContextSnapshot,
+  EpisodeSource,
   KnownEntity,
   KnowledgeSource,
   PinnedFact,
   ProactiveContext,
+  RecentEpisode,
 } from "./contract.js";
 
 const SOON_MS = 2 * 60 * 60 * 1000; // "due soon" window: 2 hours
@@ -28,6 +30,8 @@ export class ContextService {
       mcpCount?: () => number;
       /** semantic memory read model — surfaces what J.A.R.V.I.S. knows (non-sensitive) */
       knowledge?: KnowledgeSource;
+      /** episodic memory read model — surfaces recent events (non-sensitive) */
+      episodes?: EpisodeSource;
     },
     private readonly providers: ContextProvider[] = [],
   ) {}
@@ -37,11 +41,12 @@ export class ContextService {
   }
 
   async snapshot(now: Date = new Date()): Promise<ContextSnapshot> {
-    const [commitments, proactive, pinnedFacts, knownEntities] = await Promise.all([
+    const [commitments, proactive, pinnedFacts, knownEntities, recentEpisodes] = await Promise.all([
       this.commitments(now),
       this.proactive(),
       this.pinnedFacts(),
       this.knownEntities(),
+      this.recentEpisodes(),
     ]);
 
     const pending = this.deps.approvals.list();
@@ -62,6 +67,7 @@ export class ContextService {
       proactive,
       pinnedFacts,
       knownEntities,
+      recentEpisodes,
       pendingApprovals: { count: pending.length, tools: [...new Set(pending.map((p) => p.tool))] },
       emergencyStop: this.deps.estop.isEngaged,
       mcpServers: this.deps.mcpCount ? this.deps.mcpCount() : 0,
@@ -99,6 +105,10 @@ export class ContextService {
         return `${e.kind} ${e.name}${facts}`;
       });
       lines.push(`You know about: ${parts.join("; ")}.`);
+    }
+    if (s.recentEpisodes.length) {
+      const parts = s.recentEpisodes.map((e) => `${e.summary} (${relativeTime(e.when, now)})`);
+      lines.push(`Recently: ${parts.join("; ")}.`);
     }
     for (const [k, v] of Object.entries(s.extra)) lines.push(`${k}: ${v}.`);
 
@@ -173,6 +183,30 @@ export class ContextService {
       return []; // knowledge is best-effort; never break context assembly
     }
   }
+
+  private async recentEpisodes(): Promise<RecentEpisode[]> {
+    if (!this.deps.episodes) return [];
+    try {
+      return await this.deps.episodes.recentForContext(4);
+    } catch {
+      return []; // episodic memory is best-effort; never break context assembly
+    }
+  }
+}
+
+/** Compact human-friendly relative time ("12m ago", "3h ago", "2d ago"). */
+function relativeTime(iso: string, now: Date): string {
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return iso;
+  const secs = Math.round((now.getTime() - then) / 1000);
+  if (secs < 0) return "just now";
+  if (secs < 60) return "just now";
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
 }
 
 function partOfDay(now: Date): ContextSnapshot["partOfDay"] {

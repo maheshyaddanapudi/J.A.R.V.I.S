@@ -2,9 +2,38 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { MemoryService, EpistemicStatus, Sensitivity } from "./memory.js";
 import type { EntityMemory } from "./entities.js";
+import type { EpisodicMemory, EpisodeKind } from "./episodes.js";
 
 /** Memory HTTP surface (localhost only) — the user-control panel for AT1.9/1.10. */
-export function registerMemoryRoutes(app: FastifyInstance, memory: MemoryService, entities?: EntityMemory): void {
+export function registerMemoryRoutes(
+  app: FastifyInstance,
+  memory: MemoryService,
+  entities?: EntityMemory,
+  episodes?: EpisodicMemory,
+): void {
+  // Episodic timeline (read + user control). Recall decrypts on read; free-text
+  // `q` filters after decryption. Forget soft-deletes (excluded immediately).
+  if (episodes) {
+    app.get("/memory/episodes", async (req) => {
+      const q = req.query as { q?: string; kind?: string; tag?: string; since?: string; entity?: string; limit?: string };
+      const since = q.since ? new Date(q.since) : undefined;
+      const limit = q.limit ? Number(q.limit) : undefined;
+      return {
+        episodes: await episodes.recall({
+          ...(q.q ? { query: q.q } : {}),
+          ...(q.kind ? { kind: q.kind as EpisodeKind } : {}),
+          ...(q.tag ? { tag: q.tag } : {}),
+          ...(q.entity ? { entityName: q.entity } : {}),
+          ...(since && !Number.isNaN(since.getTime()) ? { since } : {}),
+          ...(limit !== undefined && !Number.isNaN(limit) ? { limit } : {}),
+        }),
+      };
+    });
+    app.post("/memory/episodes/:id/forget", async (req) => {
+      const id = (req.params as { id: string }).id;
+      return { forgotten: await episodes.forget(id) };
+    });
+  }
   // Semantic knowledge store (read + user control). Recall decrypts on read.
   if (entities) {
     app.get("/memory/entities", async (req) => {

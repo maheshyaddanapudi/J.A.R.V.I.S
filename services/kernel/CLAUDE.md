@@ -136,6 +136,26 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `relate` (LOW_REVERSIBLE) + `memory.recall` (READ_ONLY → agent). Content encrypted
   at rest (`v1.gcm.*`), secret-refusing, supersede-with-history; routes
   `GET /memory/entities[/:name]`. 6 tests; live (DB grep = 0 plaintext) + `P-ENTMEM-01`.
+- Episodic memory ✅ (Phase 2 "full memory store set", parity H1, D-0041):
+  `src/memory/episodes.ts` + migration 0011 (`memory_episodes`) — a durable,
+  importance-ranked, **recallable TIMELINE of events** (what happened, when, why),
+  so J.A.R.V.I.S. answers "the last time you…". **Distinct from the audit log**
+  (audit = immutable security record; episodes = forgettable, encrypted semantic
+  memory). `EpisodicMemory` (record/recall/timeline/recentForContext/forget); gated
+  tools `memory.recordEpisode` (LOW_REVERSIBLE) + `memory.recallEpisodes`
+  (READ_ONLY → free-text/kind/tag/entity/since filters → agent); routes
+  `GET /memory/episodes` + `POST /memory/episodes/:id/forget`. **The core loop
+  auto-records** a successful `CONSEQUENTIAL`/`HIGH_RISK_PHYSICAL` tool (post-verify,
+  best-effort) as an `action` event — the timeline populates from REAL activity;
+  READ_ONLY + `memory.*` excluded. Feeds `ContextService` ("Recently: …"). Content
+  encrypted at rest + secret-**redacted** (masked, not rejected — never breaks the
+  loop); `recentForContext` non-sensitive only. 7 tests; live 11/11 + `P-EPISODE-01`.
+- **Test isolation (2026-07-17):** added `vitest.config.ts` with
+  `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
+  several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
+  truncate `preferences`); parallel file execution let one file's truncate wipe
+  another's rows mid-test (intermittent "expected 1, got 0"). Serializing files
+  makes the shared-DB suite deterministic — **198 pass**, stable across re-runs.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (screen understanding —
   Mac ScreenCaptureKit, citation-check pass, full memory store set).

@@ -27,6 +27,8 @@ import { WebResearcher } from "../research/gather.js";
 import { researchTools } from "../research/tools.js";
 import { EntityMemory } from "../memory/entities.js";
 import { entityMemoryTools } from "../memory/entityTools.js";
+import { EpisodicMemory } from "../memory/episodes.js";
+import { episodeMemoryTools } from "../memory/episodeTools.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -55,6 +57,8 @@ export interface Core {
   memory: MemoryService;
   /** semantic knowledge store (entities/facts/relations), encrypted at rest */
   entityMemory: EntityMemory;
+  /** episodic memory — the recallable timeline of notable events, encrypted at rest */
+  episodicMemory: EpisodicMemory;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
@@ -139,6 +143,8 @@ export async function buildCore(opts: {
   const memory = new MemoryService(opts.pool, audit, opts.vault);
   // Semantic knowledge store (entities/facts/relations) — encrypted at rest.
   const entityMemory = new EntityMemory(opts.pool, audit, opts.vault);
+  // Episodic memory — the recallable timeline of notable events, encrypted at rest.
+  const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault);
 
   const control = opts.control ?? new SimulatedDesktop();
   const devices = opts.devices ?? new StarkResidence();
@@ -175,6 +181,7 @@ export async function buildCore(opts: {
   // evidence action; per-URL policy applies inside gather.
   for (const t of researchTools(new WebResearcher(web))) tools.register(t);
   for (const t of entityMemoryTools(entityMemory)) tools.register(t);
+  for (const t of episodeMemoryTools(episodicMemory)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -195,6 +202,7 @@ export async function buildCore(opts: {
     estop,
     mcpCount: () => mcp.list().length,
     knowledge: entityMemory, // J.A.R.V.I.S. draws on what it knows (non-sensitive) in conversation
+    episodes: episodicMemory, // …and on what recently happened (non-sensitive)
   });
 
   const loop = new CoreLoop({
@@ -207,6 +215,7 @@ export async function buildCore(opts: {
     activity,
     memory,
     context,
+    episodes: episodicMemory,
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
 
@@ -239,7 +248,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files, web, terminal,
-    entityMemory,
+    entityMemory, episodicMemory,
     ...(secrets ? { secrets } : {}),
     loop,
   };

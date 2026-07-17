@@ -7,6 +7,7 @@ import type { EmergencyStop } from "./estop.js";
 import type { Grant, PolicyEngine, RiskClass } from "./policy.js";
 import type { ToolContext, ToolRegistry } from "./tools.js";
 import type { MemoryService } from "../memory/memory.js";
+import type { EpisodicMemory } from "../memory/episodes.js";
 import type { ContextService } from "../context/service.js";
 
 /**
@@ -36,6 +37,8 @@ export class CoreLoop {
       toolCtx: ToolContext;
       /** situational awareness injected into conversational context (read-only) */
       context?: ContextService;
+      /** episodic memory — real consequential actions are recorded on the timeline */
+      episodes?: EpisodicMemory;
     },
   ) {}
 
@@ -180,6 +183,30 @@ export class CoreLoop {
       event: "verification",
       payload: { tool: tool.name, ok: verified.ok, summary: verified.summary },
     });
+
+    // Episodic memory (D-0041): a genuinely consequential action that succeeded
+    // is an EVENT worth remembering — record it on the timeline so J.A.R.V.I.S.
+    // can recall "the last time you…". Read-only lookups and memory bookkeeping
+    // are not events. Best-effort: a memory failure must never break the loop.
+    if (
+      this.deps.episodes &&
+      result.ok &&
+      verified.ok &&
+      (tool.riskClass === "CONSEQUENTIAL" || tool.riskClass === "HIGH_RISK_PHYSICAL") &&
+      !tool.name.startsWith("memory.")
+    ) {
+      try {
+        await this.deps.episodes.record({
+          summary: `${tool.name}: ${result.summary}`,
+          kind: "action",
+          importance: tool.riskClass === "HIGH_RISK_PHYSICAL" ? 0.8 : 0.6,
+          tags: [tool.name.split(".")[0] ?? "action"],
+          provenance: `tool:${input.source}`,
+        });
+      } catch {
+        /* episodic recording is best-effort */
+      }
+    }
 
     // `detail` (a tool's model-facing output) is returned to callers — the agent
     // feeds it to the model, the HTTP caller gets the structured read. It is NOT

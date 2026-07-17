@@ -69,7 +69,7 @@ export function createServer(opts: {
       skills: opts.core.skills,
       files: opts.core.files,
     });
-    registerMemoryRoutes(app, opts.core.memory, opts.core.entityMemory);
+    registerMemoryRoutes(app, opts.core.memory, opts.core.entityMemory, opts.core.episodicMemory);
   }
 
   return app;

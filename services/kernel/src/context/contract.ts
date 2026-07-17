@@ -43,6 +43,18 @@ export interface KnowledgeSource {
   recentForContext(limit: number): Promise<KnownEntity[]>;
 }
 
+/** A recent event from episodic memory (non-sensitive summary only). */
+export interface RecentEpisode {
+  when: string; // ISO occurred_at
+  kind: string;
+  summary: string; // public/personal only — private/secret excluded
+}
+
+/** Read model over episodic memory for context (only non-sensitive events). */
+export interface EpisodeSource {
+  recentForContext(limit: number): Promise<RecentEpisode[]>;
+}
+
 export interface ContextSnapshot {
   now: string; // ISO
   partOfDay: "night" | "morning" | "afternoon" | "evening";
@@ -51,6 +63,8 @@ export interface ContextSnapshot {
   pinnedFacts: PinnedFact[];
   /** recently-referenced entities J.A.R.V.I.S. knows about (non-sensitive) */
   knownEntities: KnownEntity[];
+  /** recent events from the episodic timeline (non-sensitive) */
+  recentEpisodes: RecentEpisode[];
   pendingApprovals: { count: number; tools: string[] };
   emergencyStop: boolean;
   mcpServers: number;

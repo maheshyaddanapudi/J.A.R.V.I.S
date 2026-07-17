@@ -25,6 +25,14 @@ in conversation. **Non-sensitive only** — `recentForContext` filters entities 
 facts to `public`/`personal` sensitivity, so `private`/`secret` knowledge is never
 injected into the always-present context. Best-effort (a failure yields `[]`).
 
+## Episodic integration (D-0041)
+An optional `episodes` source (episodic memory, D-0041) surfaces the most recent
+NON-SENSITIVE events into `snapshot.recentEpisodes` and a "Recently: <summary>
+(Nm ago)" line in `describe()`, so the model is aware of what just happened (the
+timeline auto-populates from real consequential actions via the core loop). Same
+guarantees as knowledge: non-sensitive only (`public`/`personal`), best-effort
+(a failure yields `[]`), and rendered as labeled reference — never an instruction.
+
 ## Guarantees
 - **Read-only.** No writes, no actions. Assembly failure never blocks a
   conversation (the loop injects best-effort).

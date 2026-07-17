@@ -288,6 +288,40 @@ def main() -> int:
     except Exception as e:
         record("P-ENTMEM-01", "semantic memory", "FAIL", str(e))
 
+    # ---- Episodic memory (recallable timeline, auto-recorded from real activity) ----
+    try:
+        epm = uuid.uuid4().hex[:8]
+        marker = f"EPIMARK-{epm}"
+        # record a note through the gated loop (LOW_REVERSIBLE, delegated -> auto)
+        post("/core/run-tool", {"tool": "memory.recordEpisode",
+             "args": {"summary": f"{marker} reviewed reactor telemetry", "kind": "observation", "tags": ["reactor"]},
+             "source": "accept", "delegatedAutomation": True})
+        # a consequential action MUST auto-record as an 'action' event
+        note = f"epi_{epm}.txt"
+        post("/core/run-tool", {"tool": "workspace.writeNote",
+             "args": {"filename": note, "content": f"{marker} body"},
+             "source": "accept", "autoApprove": "allow-once"})
+        # a READ_ONLY tool must NOT be recorded as an event
+        post("/core/run-tool", {"tool": "system.info", "args": {}, "source": "accept"})
+        # recall via the READ_ONLY tool (free-text query -> detail to the agent)
+        rc = post("/core/run-tool", {"tool": "memory.recallEpisodes", "args": {"query": marker}, "source": "accept"})
+        tl = get("/memory/episodes?limit=50").get("episodes", [])
+        auto = any("workspace.writeNote" in e["summary"] and "action" == e["kind"] for e in tl)
+        no_ro = not any("system.info" in e["summary"] for e in tl)
+        recalled = marker in (rc.get("detail") or "")
+        # forget the note episode -> excluded from every read immediately
+        tgt = next((e["id"] for e in tl if marker in e["summary"] and e["kind"] == "observation"), None)
+        forgotten = False
+        if tgt:
+            post(f"/memory/episodes/{tgt}/forget", {})
+            forgotten = not any(e["id"] == tgt for e in get("/memory/episodes?limit=50").get("episodes", []))
+        ok = recalled and auto and no_ro and forgotten
+        record("P-EPISODE-01", "episodic memory: recall + auto-record real actions + READ_ONLY excluded + forget",
+               "PASS" if ok else "FAIL",
+               f"recalled={recalled} auto_recorded={auto} read_only_excluded={no_ro} forget={forgotten}")
+    except Exception as e:
+        record("P-EPISODE-01", "episodic memory", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:
