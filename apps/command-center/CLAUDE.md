@@ -92,6 +92,16 @@ never decoration (R-UI-03, R-CORE-02).
   gateway (same contract) binds at D-0025. NOTE: `device.armInterlock` is
   LOW_REVERSIBLE → still needs approval unless delegated, so the UI passes
   autoApprove on the arm button.
+- **Self-extension Stage-A preview** at `/selfext` (`app/selfext/page.tsx`,
+  2026-07-17): safely surfaces the highest-risk subsystem. Runs Stage A on a
+  benign manifest (→ `awaiting_review`, explicitly NOT installed/activated) and
+  on a malicious one that writes into the trust core + requests `approval:bypass`
+  + hides an `eval` (→ terminally REJECTED with its protected_path /
+  protected_permission / dynamic_exec violations named — hard limit R-CAP-08).
+  Records capability gaps (never claims it can build them). Banner states there is
+  no code path to activation; Stage B is gated on the dedicated D-0023 check-in.
+  **Verified live (10/10)**: benign parked, malicious rejected with all
+  violations shown, registry reflects both states, gap recorded.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
