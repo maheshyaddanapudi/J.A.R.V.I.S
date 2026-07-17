@@ -38,6 +38,7 @@ export function registerCoreRoutes(
     connectMcp: (config: import("../mcp/client.js").McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
     secrets?: import("../crypto/secrets.js").SecretsVault;
     context: import("../context/service.js").ContextService;
+    agent: import("../agent/contract.js").AgentRuntime;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -257,6 +258,29 @@ export function registerCoreRoutes(
     const b = req.body as { id?: string; trust?: "untrusted" | "limited" | "trusted" } | undefined;
     if (!b?.id || !b?.trust) return reply.code(400).send({ error: "id and trust required" });
     return { set: await deps.mcp.setTrust(b.id, b.trust) };
+  });
+
+  // Agent runtime (jarvis-mind) — multi-step plan-and-act for an objective. Every
+  // tool step runs through the gated loop (approval + verify); bounded by a step
+  // budget; e-stop halts mid-plan. Returns the plan trace + final answer.
+  const AgentSchema = z.object({
+    objective: z.string().min(1),
+    maxSteps: z.number().int().min(1).max(20).optional(),
+    privacyClass: z.enum(["LOCAL_ONLY", "STANDARD"]).default("LOCAL_ONLY"),
+    autoApprove: z
+      .enum(["allow-once", "allow-for-task", "allow-for-session", "always-allow-in-scope", "deny"])
+      .optional(),
+  });
+  app.post("/agent/run", async (req, reply) => {
+    const parsed = AgentSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const b = parsed.data;
+    return deps.agent.run(b.objective, {
+      privacyClass: b.privacyClass,
+      source: "api",
+      ...(b.maxSteps !== undefined ? { maxSteps: b.maxSteps } : {}),
+      ...(b.autoApprove !== undefined ? { autoApprove: b.autoApprove } : {}),
+    });
   });
 
   // Conversational answer through the core loop (objective → streamed tokens),
