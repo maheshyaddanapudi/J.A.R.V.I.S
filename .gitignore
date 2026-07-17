@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+.env
+.env.local
+.venv/
+__pycache__/
+*.pyc
+.turbo/
+coverage/
+.DS_Store
+# local runtime state (never commit user data — R-LOC-01)
+.jarvis/
+var/

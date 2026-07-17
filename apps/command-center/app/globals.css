@@ -1,0 +1,32 @@
+/* Provisional tokens only — the visual design system is finalized at its own
+   check-in before slice 1.7 hardens (R-UI-01). Semantics per PRODUCT_SPEC §9.1:
+   cyan/blue operational · amber advisory · red critical · white focal. */
+:root {
+  --bg: #06090d;
+  --surface: rgba(16, 24, 32, 0.72);
+  --line: rgba(94, 179, 217, 0.18);
+  --operational: #58c4e8;
+  --advisory: #e8b558;
+  --critical: #e85858;
+  --focal: #f2f7fa;
+  --dim: #7a8b96;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--focal);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

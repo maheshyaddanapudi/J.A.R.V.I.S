@@ -11,8 +11,8 @@
 | Field | Value |
 |---|---|
 | **Current phase** | **Phase 1 — Functional Core** (Phase 0 completed 2026-07-17: D-0002 Option A approved; D-0003 matrix approved with amendments D-0018/19/20; D-0004 voice stack approved w/ listening-demo condition) |
-| **Current slice** | **1.1 Scaffold & infra** — in progress |
-| **Production code written** | Phase 1 scaffold begun 2026-07-17 |
+| **Current slice** | **1.2 Model gateway** — next. (1.1 complete 2026-07-17: container-verified end-to-end — real Postgres+pgvector, migrations w/ tamper detection, kernel `/health` with measured state, Command Center live page incl. honest unreachable state, 6/6 tests, typecheck clean, `next build` clean. **Mac acceptance run of `make dev` pending** — needs Docker on the Mac.) |
+| **Production code written** | Slice 1.1: kernel (config/db/migrations/health/journal), Command Center system page, compose+Makefile+DEVELOPMENT.md |
 | **Blocking decision** | None. Upcoming in-phase check-ins: memory architecture + local security model (before 1.4/1.6); voice listening demo (before 1.3 hardens); visual design system (before 1.7 hardens) |
 | **Development environment note** | Development happens in a Linux remote session; macOS-specific builds (Tauri companion, MLX speech, VPIO) are compiled/verified on the user's Mac via documented commands — every slice's acceptance run happens on the real machine (R-VER-04) |
 

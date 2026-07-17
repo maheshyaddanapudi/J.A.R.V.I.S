@@ -1,0 +1,34 @@
+# J.A.R.V.I.S. local infrastructure — everything binds to localhost only (R-LOC-01, T9).
+# Start: docker compose -f infra/docker-compose.yml up -d
+name: jarvis
+
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    container_name: jarvis-db
+    environment:
+      POSTGRES_USER: jarvis
+      POSTGRES_PASSWORD: ${JARVIS_DB_PASSWORD:-jarvis-dev-only}
+      POSTGRES_DB: jarvis
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - jarvis-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jarvis -d jarvis"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional local trace viewer (Apache-2.0). Enable with: --profile observability
+  jaeger:
+    image: jaegertracing/jaeger:2.19.0
+    container_name: jarvis-jaeger
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:16686:16686" # UI
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+
+volumes:
+  jarvis-db-data:
