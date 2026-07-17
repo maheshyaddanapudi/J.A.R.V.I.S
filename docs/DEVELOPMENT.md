@@ -4,6 +4,10 @@
 anywhere; **acceptance runs happen on the real Mac** (R-VER-04). Everything binds to
 localhost; nothing is deployed to any cloud (R-LOC-01/03).
 
+> **Standing up the full stack on the Mac** (models, voice service, Swift audio
+> companion, secrets, acceptance, and the check-in sequence): see the ordered
+> runbook **`docs/MAC_BRINGUP.md`**. This file covers the dev-environment basics.
+
 ## Prerequisites (Mac)
 - Node 22+, pnpm 10 (`corepack enable`)
 - Docker Desktop or OrbStack (for Postgres + optional Jaeger)
