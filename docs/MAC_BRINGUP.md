@@ -16,6 +16,15 @@ here, on this machine. Nothing is faked to look running.
 ---
 
 ## 0. Prerequisites
+**Run the preflight first** — it measures your real environment (tool versions,
+Docker/Ollama/uv, Chromium, the Keychain, free ports) and tells you exactly what's
+missing before you start:
+```bash
+bash scripts/mac_preflight.sh      # REQUIRED items gate the core stack; MAC-ONLY items gate steps 6/8
+```
+It exits non-zero if a required prerequisite is absent; WARNs are optional/next-step
+items, not blockers. The manual list it checks:
+
 - **Node 22+, pnpm 10** — `corepack enable`
 - **Docker Desktop or OrbStack** — Postgres (+ optional Jaeger)
 - **[Ollama](https://ollama.com)** — local models (local-capable-first, R-MODEL-04)
@@ -34,7 +43,7 @@ here, on this machine. Nothing is faked to look running.
 ```bash
 make install          # pnpm install (all JS packages, incl. playwright for web/research)
 make infra            # Postgres via docker compose (add PROFILE=observability for Jaeger)
-make migrate          # apply kernel migrations 0001–0010 (immutable, sha256-tracked)
+make migrate          # apply kernel migrations 0001–0011 (immutable, sha256-tracked)
 ( cd services/kernel && npx playwright install chromium )   # browser for web/research tools
 ```
 Sanity: `docker exec jarvis-db pg_isready`. The kernel self-migrates on startup too,
@@ -137,8 +146,9 @@ the secrets vault, context, proactivity, computer-control (SIMULATION),
 device-control interlock (SIMULATION), self-extension hard limit, the MCP host, and
 the REAL Phase-2 capabilities — **workspace files** (`P-KNOW-01`), **web research**
 (`P-WEB-01`), **terminal-with-policy** (`P-TERM-01`), **research-with-provenance**
-(`P-RESEARCH-01`), and **semantic memory** (`P-ENTMEM-01`) — printing honest
-PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / SKIP / FAIL (`21 PASS · 3
+(`P-RESEARCH-01`), **semantic memory** (`P-ENTMEM-01`), and **episodic memory**
+(`P-EPISODE-01`) — printing honest
+PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / SKIP / FAIL (`22 PASS · 3
 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL` in-container). Only four rows are
 NEEDS-MAC (real macOS control, real HA, live voice, packaged app); those turn into
 real checks here on the Mac as their adapters are enabled at steps 6/8. Exits
@@ -146,8 +156,10 @@ non-zero on any real FAIL.
 
 **Live immediately (no check-in) once the stack is up:** the workspace files,
 terminal-with-policy, web/research (needs the Chromium from step 0), semantic
-memory, and MCP capabilities are REAL and gated — they work as soon as the kernel
-runs. Only the four Mac-hardware/adapter items in step 8 are gated behind a check-in.
+memory, episodic memory (the recallable event timeline — `/memory` in the Command
+Center; consequential actions auto-record), and MCP capabilities are REAL and gated
+— they work as soon as the kernel runs. Only the four Mac-hardware/adapter items in
+step 8 are gated behind a check-in.
 
 **Phase-1 voice/UX criteria** (docs/06):
 ```bash
