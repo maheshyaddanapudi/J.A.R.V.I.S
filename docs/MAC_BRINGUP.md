@@ -102,14 +102,26 @@ buffer audio path into a live full-duplex conversation. (`JarvisControl` in the
 same package is the real macOS computer-control adapter — do not activate it until
 the check-in in 8b.)
 
-## 7. Verify — Phase-1 acceptance
-With the stack up (kernel 4150, ears 4170, a local model, Postgres):
+## 7. Verify — acceptance harnesses
+With the stack up (kernel 4150, Postgres; ears 4170 + a local model for the voice
+rows). Both need `httpx` (`uv pip install httpx`, or use the ears venv).
+
+**Whole-platform check** — every subsystem end to end:
+```bash
+python scripts/acceptance_platform.py --kernel http://127.0.0.1:4150
+```
+It drives core/trust, model gateway, the gated loop, memory (+ secret refusal),
+the secrets vault, context, proactivity, computer-control (SIMULATION),
+device-control interlock (SIMULATION), self-extension hard limit, and the MCP
+host, and prints honest PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / FAIL. In the
+container it is all green except the NEEDS-MAC rows (real macOS control, real HA,
+live voice, packaged app); those turn into real checks here on the Mac as their
+adapters are enabled at steps 6/8. Exits non-zero on any real FAIL.
+
+**Phase-1 voice/UX criteria** (docs/06):
 ```bash
 python scripts/acceptance_phase1.py --kernel http://127.0.0.1:4150 --ears http://127.0.0.1:4170
 ```
-It drives the 14 Phase-1 criteria (docs/06) and prints honest measured results.
-Criteria needing real hardware are reported **NEEDS-MAC** until steps 6/8 activate
-them — they are not faked.
 
 ---
 
