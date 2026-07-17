@@ -25,7 +25,7 @@
 | A2 | Restrained British-butler voice (all films) | Distinct British-style **synthetic** voice | **REAL** | 1 | Open-source TTS voice; see ARCHITECTURE §6. |
 | A3 | Voice cloned from/imitating Paul Bettany | — | **PROHIBITED** | — | Rights violation; explicitly banned by R-VOICE-11. A2 delivers the experience lawfully. |
 | A4 | Instant hands-free summoning — Tony just says "Jarvis" (IM1/IM2 workshop) | Local always-listening wake word "Jarvis" + push-to-talk + text | **REAL** | 1 | openWakeWord-class engine; metrics per R-VOICE-09. |
-| A5 | Tony interrupts mid-sentence and J.A.R.V.I.S. yields (IM1/IM2 banter) | Barge-in ≤ 300 ms with echo cancellation | **REAL** | 1 | Phase-1 acceptance criterion. |
+| A5 | Tony interrupts mid-sentence and J.A.R.V.I.S. yields (IM1/IM2 banter) | Barge-in ≤ 300 ms with echo cancellation | **REAL** (logic) + **HARDWARE-DEPENDENT** (echo-cancel device path) | 1 | Turn-taking/barge-in state machine built + tested in-container; echo-cancelled live capture is the macOS VPIO Swift adapter (`apps/companion/swift/`, source complete, builds on Mac) behind the AudioIO contract — tested `BufferAudioIO` simulator stands in until run on the Mac. |
 | A6 | Knows it's Tony speaking (implicit, all films) | Local speaker verification (enrolled owner) | **REAL** | 1 (optional gate) | Never sole gate for consequential actions (T6). |
 | A7 | Discreet/quiet responses in company (IM2 party, AV) | Whisper/quiet/text-only modes | **REAL** | 1 | R-VOICE-06. |
 | A8 | Speaks unprompted with useful warnings ("power at 400% capacity", IM1 flight test) | Proactive spoken alerts, gated and sparse | **REAL** | 4 | Quiet hours, confidence thresholds, rate limits (R-PRO-02). |

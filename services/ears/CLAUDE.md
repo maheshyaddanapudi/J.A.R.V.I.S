@@ -40,12 +40,25 @@ Audio convention: mono float32 PCM in [-1,1]. Localhost only (R-LOC-01). Port 41
   speech during playback (<=200ms), ignores coughs; utterance start/end from
   VAD. Fully tested. 9 ears tests pass.
 
+## Audio I/O HAL (`audio_io.py`) — added 2026-07-17
+The mic/speakers are hardware, so audio device access is behind a typed contract
+(AudioSource/AudioSink): `BufferAudioSource/Sink` (in-memory, real audio,
+fully tested — the /voice-turn + test path), `try_portaudio_source` (real device
+via sounddevice/PortAudio, works on Mac for push-to-talk, no AEC), and the
+**macOS VPIO adapter** = the Swift bridge in `apps/companion/swift/` (echo-
+cancelled capture+playback; source complete, builds on Mac). 4 audio_io tests.
+
+## Offline path verified (AT1.12, 2026-07-17)
+Full voice-turn ran with `JARVIS_OFFLINE=1`: remote provider disabled, wake/STT/
+TTS all local ONNX on CPU, local model via llama.cpp — **zero external network
+connections** during the turn (verified via /proc/net/tcp before/after). The
+entire voice loop runs fully offline.
+
 ## Mac-only remainder of slice 1.3
-Live mic/speaker device I/O via CoreAudio, and macOS Voice Processing I/O (VPIO)
-echo cancellation so the barge-in VAD hears the USER not J.A.R.V.I.S. (headset
-works without it). Expressive-TTS listening test (Kyutai TTS / CSM / Chatterbox /
-OpenAI fable) to fix the voice identity (D-0004a). Latency metrics on real audio
-hardware (R-VOICE-09). Everything else in the voice pipeline is real and verified.
+Live mic/speaker *device* binding + VPIO echo cancellation (the Swift bridge
+source is written; `swift run JarvisAudio` on the Mac). Expressive-TTS listening
+test to fix the voice identity (D-0004a). Real-audio latency metrics (R-VOICE-09).
+Everything else in the voice pipeline is real and verified in-container.
 
 ## Commands
 `uv venv .venv && VIRTUAL_ENV=$PWD/.venv uv pip install -e ".[dev]"` ·

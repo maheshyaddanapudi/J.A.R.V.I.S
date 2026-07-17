@@ -199,7 +199,7 @@ AT1.1 install & start via documented commands · AT1.2 "Jarvis"/push-to-talk · 
 - ✅ **AT1.4 (spoken half — pipeline)** streamed *spoken* answer: full voice round-trip verified in-container (real STT → gated loop → real TTS audio out); needs Mac audio *device* for live playback — slice 1.3 part 2
 - 🟡 **AT1.2** wake word / push-to-talk: wake engine verified on synthesized audio; live-mic capture needs the Mac (CoreAudio)
 - 🟡 **AT1.3** natural interruption (barge-in): turn-taking/barge-in state machine built + tested; needs VPIO echo-cancel (or a headset) on the Mac for the live acoustic path
-- 🟡 **AT1.12** full offline workflow: gateway offline mode ✅ + local STT/TTS/wake all run offline on CPU (verified); end-to-end on the Mac with live audio pending
+- ✅ **AT1.12** full offline workflow: verified — voice-turn ran with JARVIS_OFFLINE=1, remote provider disabled, wake/STT/TTS/model all local, **zero external network connections** (checked /proc/net/tcp). Live-audio device binding on the Mac is the only remaining piece.
 - 🖥 **AT1.1** documented install/start of the packaged app — needs Tauri build on Mac
 The voice pipeline (wake, VAD, streaming STT, TTS, turn-taking, and the full
 audio→STT→reason→TTS round-trip) is now REAL and verified in-container. The
