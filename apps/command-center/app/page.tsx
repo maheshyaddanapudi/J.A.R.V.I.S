@@ -218,6 +218,9 @@ export default function SystemPage() {
             <a href="/chat" style={{ color: "var(--operational)", marginLeft: "0.6rem" }}>
               converse →
             </a>{" "}
+            <a href="/proactive" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              proactivity →
+            </a>{" "}
             <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               voice orb →
             </a>

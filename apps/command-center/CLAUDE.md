@@ -58,6 +58,16 @@ never decoration (R-UI-03, R-CORE-02).
   UI). The verification used a local openai-compat **test model server** (real
   SSE protocol) to exercise streaming without the production models — the same
   `/core/converse` path already streams real tokens on the Mac (voice round-trip).
+- **Proactivity panel** at `/proactive` (`app/proactive/page.tsx`, 2026-07-17):
+  runs a cycle ON DEMAND (POST /proactive/run, optional `at` preview time) and
+  shows BOTH what surfaced (with each item's "why") AND what every gate held back
+  and why — the "why am I / am I not seeing this" transparency (R-PRO). Per-item
+  snooze/dismiss + per-domain mute/on (POST /proactive/snooze|dismiss|domain). A
+  banner states live background delivery is gated on D-0024. **Verified live via
+  headless browser**: fresh cycle surfaced overdue commitments with their why +
+  snooze/dismiss controls; a 3am preview suppressed all 3 via the `quiet_hours`
+  gate with reasons; a re-run showed the `dedup` gate ("already surfaced"). All
+  real engine output.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
