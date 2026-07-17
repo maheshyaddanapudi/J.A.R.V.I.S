@@ -1,0 +1,14 @@
+[package]
+name = "jarvis-companion-core"
+version = "0.1.0"
+edition = "2021"
+description = "Platform-independent logic for the J.A.R.V.I.S. macOS companion (kernel client for the menu-bar emergency stop + status). std-only, no external deps, so it compiles and is tested off the Mac; the Tauri shell that uses it is built on macOS."
+license = "MIT"
+
+[lib]
+name = "jarvis_companion_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Intentionally none — std only, so this crate is verifiable in the Linux CI /
+# dev container (the Tauri shell needs macOS/WebKit and is built on the Mac).

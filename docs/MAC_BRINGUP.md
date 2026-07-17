@@ -109,6 +109,21 @@ buffer audio path into a live full-duplex conversation. (`JarvisControl` in the
 same package is the real macOS computer-control adapter — do not activate it until
 the check-in in 8b.)
 
+### 6b. [Mac-only] The packaged app (Tauri 2) — menu-bar e-stop + push-to-talk
+The native shell is scaffolded (`apps/companion/src-tauri/`, D-0040); its
+kernel-client core is std-only and already compiled/tested/live-verified here (the
+tray EMERGENCY STOP drives the real kernel). Build the `.app` on the Mac:
+```bash
+cd apps/companion
+pnpm install                              # @tauri-apps/cli
+pnpm tauri icon path/to/jarvis-1024.png   # generate icons (any 1024² PNG to start)
+pnpm tauri dev                            # live: hosts the running Command Center (4160)
+pnpm tauri build                          # signed .app + dmg
+```
+Confirm the tray/global-shortcut API in `src-tauri/src/lib.rs` against the pinned
+Tauri 2 version on first build. The window loads `http://localhost:4160`, so the
+stack (step 4) must be up.
+
 ## 7. Verify — acceptance harnesses
 With the stack up (kernel 4150, Postgres; ears 4170 + a local model for the voice
 rows). Both need `httpx` (`uv pip install httpx`, or use the ears venv).

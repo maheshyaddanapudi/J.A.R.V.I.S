@@ -1,0 +1,9 @@
+# Rust build artifacts (companion core + src-tauri)
+target/
+**/target/
+# Tauri generated
+src-tauri/gen/
+# generated app icons (see src-tauri/icons/README.md)
+src-tauri/icons/*.png
+src-tauri/icons/*.icns
+src-tauri/icons/*.ico

@@ -50,7 +50,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-ENC-01 field encryption at rest | VERIFIED-ELSEWHERE | vault/memory tests: DB holds `v1.gcm.*` only, 0 plaintext, wrong-key fatal |
 | P-PERSIST-01 trust/memory survive restart | VERIFIED-ELSEWHERE | memory + MCP-registry tests hydrate after restart |
 | P-VOICE-01 live full-duplex voice | **NEEDS-MAC** | wake/VAD/STT/TTS + turn-taking verified in-container; live mic/speaker + VPIO = Swift `JarvisAudio` on the Mac |
-| P-UI-01 natively-packaged app (Tauri) | **NEEDS-MAC** | Command Center runs in the browser; packaged `.app` built on the Mac |
+| P-UI-01 natively-packaged app (Tauri) | **NEEDS-MAC** | Command Center runs in the browser; Tauri 2 shell now scaffolded (`apps/companion/src-tauri/`, D-0040) with a verified std-only kernel-client core (tray e-stop drives the real kernel — `cargo test` + live smoke); the `.app` is built + verified on the Mac (`pnpm tauri build`) |
 
 ## Automated test suites
 - **kernel:** 191 tests pass (`services/kernel` — config, migrate, audit, policy,
@@ -143,7 +143,9 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 ## What remains for the Mac (the 4 NEEDS-MAC rows)
 Run `docs/MAC_BRINGUP.md` on the M3 Max, then open the gate for each:
 1. **Live full-duplex voice** — `swift run JarvisAudio` (VPIO mic/speaker) + the voice identity pick (D-0004a).
-2. **Packaged app** — the Tauri build (slice 1.8).
+2. **Packaged app** — the Tauri build (slice 1.8). The shell is now scaffolded
+   (`apps/companion/src-tauri/`, D-0040) with a verified kernel-client core; on the
+   Mac: `cd apps/companion && pnpm install && pnpm tauri icon <png> && pnpm tauri build`.
 3. **Real macOS control** — enable the `JarvisControl` adapter at **D-0022**.
 4. **Real Home Assistant** — bind `homeAssistantFromVault(...)` at **D-0025**.
 
