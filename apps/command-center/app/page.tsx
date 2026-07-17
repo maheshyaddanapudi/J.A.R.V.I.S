@@ -227,6 +227,9 @@ export default function SystemPage() {
             <a href="/files" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               files →
             </a>{" "}
+            <a href="/memory" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              memory →
+            </a>{" "}
             <a href="/proactive" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               proactivity →
             </a>{" "}

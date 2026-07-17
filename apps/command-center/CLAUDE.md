@@ -131,6 +131,17 @@ never decoration (R-UI-03, R-CORE-02).
   file view, and the full disclosure→approval→execute→verify edit flow (the
   approved edit really changed the file on disk and the pipeline showed
   "on-disk content matches the applied edit").
+- **Memory panel** at `/memory` (`app/memory/page.tsx`, 2026-07-17, R-MEM-04): the
+  user-control surface for the semantic knowledge store (D-0038) — view what
+  J.A.R.V.I.S. knows about your world (entities, facts, relationships) over
+  `/memory/entities[/:name]`, remember a new entity + fact through the gated loop
+  (`memory.rememberEntity`/`rememberFact`, LOW_REVERSIBLE), and **forget** any
+  entity (`POST /memory/entities/:name/forget`, honored in recall immediately).
+  Facts are encrypted at rest; only non-secret ones ever reach conversation context
+  (D-0039). Persistent e-stop. **Verified live via headless Chromium (6/6
+  functional; the only non-pass is the shared `/favicon.ico` dev 404)** + kernel
+  cross-check: a remembered fact really persisted, recall rendered facts/relations,
+  and forget returned 404.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
