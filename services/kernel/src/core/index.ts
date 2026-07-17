@@ -18,6 +18,10 @@ import type { Vault } from "../crypto/vault.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
 import { StageAPipeline } from "../selfext/stageA.js";
 import { ProactivityEngine } from "../proactive/engine.js";
+import { StarkResidence } from "../devices/simulator.js";
+import { InterlockManager } from "../devices/interlock.js";
+import { deviceTools } from "../devices/tools.js";
+import type { DeviceGateway } from "../devices/contract.js";
 
 export interface Core {
   audit: AuditLog;
@@ -46,6 +50,12 @@ export async function buildCore(opts: {
   control?: ComputerControl;
   /** vault for field-level encryption at rest; omit to store plaintext (dev). */
   vault?: Vault;
+  /**
+   * Device gateway. Defaults to the Stark-residence SIMULATION (safe in the
+   * container / before the "enable physical-device control" check-in). The real
+   * Home Assistant gateway is injected only on the Mac after that check-in.
+   */
+  devices?: DeviceGateway;
 }): Promise<Core> {
   const audit = new AuditLog(opts.pool);
   const estop = new EmergencyStop(opts.pool, audit);
@@ -57,12 +67,15 @@ export async function buildCore(opts: {
   const memory = new MemoryService(opts.pool, audit, opts.vault);
 
   const control = opts.control ?? new SimulatedDesktop();
+  const devices = opts.devices ?? new StarkResidence();
+  const interlock = new InterlockManager(audit);
 
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
   tools.register(rememberPreferenceTool(memory));
   for (const t of computerControlTools(control)) tools.register(t);
+  for (const t of deviceTools(devices, interlock)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {

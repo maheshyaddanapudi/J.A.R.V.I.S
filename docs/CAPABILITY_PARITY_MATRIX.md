@@ -73,8 +73,8 @@
 
 | ID | Movie capability (source) | Real-world equivalent | State | Phase | Notes |
 |---|---|---|---|---|---|
-| E1 | Lights, climate, glass, music, house systems (IM1/IM2 Malibu) | Home Assistant-backed device control (MQTT/Matter/Zigbee/Z-Wave) | **HARDWARE-DEPENDENT** | 5 | Owner's current device inventory unknown → catalog + Stark-residence **simulator** (labeled) first; real devices when configured. |
-| E2 | House security monitoring & lockdown (IM3 mansion attack) | Alarm/camera/lock integrations with per-action approval | **HARDWARE-DEPENDENT** | 5 | HIGH-RISK actions (locks) need approval + interlocks. |
+| E1 | Lights, climate, glass, music, house systems (IM1/IM2 Malibu) | Home Assistant-backed device control (MQTT/Matter/Zigbee/Z-Wave) | **HARDWARE-DEPENDENT** | 5 | Owner's current device inventory unknown → catalog + Stark-residence **simulator** (labeled) first; real devices when configured. **Foundation built+verified 2026-07-17:** device gateway HAL + Stark-residence SIMULATION + policy gating + real HA adapter source; HIGH_RISK_PHYSICAL (locks/garage/utilities) require approval + single-use hardware interlock (verified live); real gateway gated on the check-in (D-0025). |
+| E2 | House security monitoring & lockdown (IM3 mansion attack) | Alarm/camera/lock integrations with per-action approval | **HARDWARE-DEPENDENT** | 5 | HIGH-RISK actions (locks) need approval + interlocks. **Interlock enforcement built+verified 2026-07-17** (`devices/interlock.ts`): lock/garage/utility commands refuse without a single-use armed interlock, even when approved. |
 | E3 | Whole-house ambient presence (all films) | Multi-room satellite nodes (mic/speaker/display) | **HARDWARE-DEPENDENT** | 11/12 | Trusted local-network pairing only. |
 | E4 | Fire-suppression/utility control (IM1 workshop mishaps) | Utility-device adapters where real devices exist | **HARDWARE-DEPENDENT** | 5 | Never autonomous; per-action approval. |
 
