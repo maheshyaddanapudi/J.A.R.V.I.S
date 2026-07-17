@@ -59,7 +59,8 @@ Screen understanding (ScreenCaptureKit), Accessibility control (AXUIElement), br
 Registries (agents/tools/skills/rules/prompts/workflows/models/devices/plugins/MCP/integrations/simulators/displays/sensors); dynamic sub-agent orchestration; **Stage A pipeline; DEDICATED SECURITY CHECK-IN; Stage B activation**; versioning + rollback; end-to-end demo (detect→…→roll back). Protected-path enforcement lands here (THREAT_MODEL T3).
 
 ### Phase 4 — Communications & Proactivity
-Mail/calendar/messaging integrations (user-configured), Intelligence mode, briefings, commitment tracking, proactive gates. **Check-in before enabling proactive behavior.**
+Mail/calendar/messaging integrations (user-configured), Intelligence mode, briefings, commitment tracking, proactive gates. **Check-in before enabling proactive behavior (D-0024).**
+- **Proactivity engine foundation ✅ (2026-07-17, container-verified):** commitment/deadline/overdue tracking, calendar-conflict detection, daily briefing composition, and the full gate stack (per-domain enable, min priority, confidence threshold, quiet hours w/ critical-bypass, snooze/dismiss, dedup, rate limit) with a "why am I seeing this" per item and audited cycles (`kernel/src/proactive/`, 10 tests). Surfaces info only — never consequential without approval. **Live background delivery gated on the check-in.** Remaining Phase-4: mail/calendar/messaging integrations, Intelligence mode, background scheduler + notifications.
 
 ### Phase 5 — Home & Hardware
 Home Assistant integration, device gateway, hardware catalog + plugin SDK, room model, Stark-residence simulator (labeled), real devices as configured. **Check-ins: physical-device control enable; any hardware purchase recommendation.**

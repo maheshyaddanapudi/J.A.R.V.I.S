@@ -22,6 +22,7 @@ export function registerCoreRoutes(
     activity: ActivityBus;
     capabilities: import("../selfext/registry.js").CapabilityRegistry;
     stageA: import("../selfext/stageA.js").StageAPipeline;
+    proactive: import("../proactive/engine.js").ProactivityEngine;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -120,6 +121,41 @@ export function registerCoreRoutes(
       ...(b.sources ? { sources: b.sources } : {}),
     });
     return report;
+  });
+
+  // Proactivity (Phase 4 foundation). run() computes a cycle on demand and
+  // records surfaced items; it surfaces information/suggestions only and never
+  // performs a consequential action. Live background scheduling + notifications
+  // are gated on the "enable proactive behavior" check-in (D-0024).
+  app.get("/proactive/items", async () => ({ items: await deps.proactive.recent() }));
+  app.post("/proactive/run", async (req) => {
+    // optional `at` (ISO) lets the user preview "what would I be shown at <time>"
+    const at = (req.body as { at?: string } | undefined)?.at;
+    const now = at ? new Date(at) : new Date();
+    const result = await deps.proactive.run(now);
+    return {
+      surfaced: result.surfaced,
+      suppressedCount: result.suppressed.length,
+      suppressed: result.suppressed.map((s) => ({ title: s.candidate.title, gate: s.gate, reason: s.reason })),
+    };
+  });
+  app.post("/proactive/snooze", async (req) => {
+    const b = (req.body ?? {}) as { dedupKey?: string; minutes?: number };
+    if (!b.dedupKey) return { error: "dedupKey required" };
+    await deps.proactive.snooze(b.dedupKey, new Date(Date.now() + (b.minutes ?? 60) * 60_000));
+    return { snoozed: b.dedupKey };
+  });
+  app.post("/proactive/dismiss", async (req) => {
+    const b = (req.body ?? {}) as { dedupKey?: string };
+    if (!b.dedupKey) return { error: "dedupKey required" };
+    await deps.proactive.dismiss(b.dedupKey);
+    return { dismissed: b.dedupKey };
+  });
+  app.post("/proactive/domain", async (req) => {
+    const b = (req.body ?? {}) as { domain?: string; enabled?: boolean };
+    if (!b.domain) return { error: "domain required" };
+    await deps.proactive.setDomainEnabled(b.domain, b.enabled ?? true);
+    return { domain: b.domain, enabled: b.enabled ?? true };
   });
 
   // Conversational answer through the core loop (objective → streamed tokens),

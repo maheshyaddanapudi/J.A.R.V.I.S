@@ -28,7 +28,7 @@
 | A5 | Tony interrupts mid-sentence and J.A.R.V.I.S. yields (IM1/IM2 banter) | Barge-in ≤ 300 ms with echo cancellation | **REAL** (logic) + **HARDWARE-DEPENDENT** (echo-cancel device path) | 1 | Turn-taking/barge-in state machine built + tested in-container; echo-cancelled live capture is the macOS VPIO Swift adapter (`apps/companion/swift/`, source complete, builds on Mac) behind the AudioIO contract — tested `BufferAudioIO` simulator stands in until run on the Mac. |
 | A6 | Knows it's Tony speaking (implicit, all films) | Local speaker verification (enrolled owner) | **REAL** | 1 (optional gate) | Never sole gate for consequential actions (T6). |
 | A7 | Discreet/quiet responses in company (IM2 party, AV) | Whisper/quiet/text-only modes | **REAL** | 1 | R-VOICE-06. |
-| A8 | Speaks unprompted with useful warnings ("power at 400% capacity", IM1 flight test) | Proactive spoken alerts, gated and sparse | **REAL** | 4 | Quiet hours, confidence thresholds, rate limits (R-PRO-02). |
+| A8 | Speaks unprompted with useful warnings ("power at 400% capacity", IM1 flight test) | Proactive spoken alerts, gated and sparse | **REAL** | 4 | Quiet hours, confidence thresholds, rate limits (R-PRO-02). **Engine built+verified 2026-07-17:** commitment/deadline/conflict/briefing generators + full gate stack + "why" + audit; live delivery gated on the check-in (D-0024). |
 | A9 | Morning briefing on wake ("Good morning…" IM1 Malibu house) | Morning/evening briefings from configured sources | **REAL** | 4 | Approval-scoped integrations only. |
 
 ## B. Contextual awareness & perception

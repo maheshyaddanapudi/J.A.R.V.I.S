@@ -17,6 +17,7 @@ import type { ComputerControl } from "../control/contract.js";
 import type { Vault } from "../crypto/vault.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
 import { StageAPipeline } from "../selfext/stageA.js";
+import { ProactivityEngine } from "../proactive/engine.js";
 
 export interface Core {
   audit: AuditLog;
@@ -28,6 +29,7 @@ export interface Core {
   memory: MemoryService;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
+  proactive: ProactivityEngine;
   loop: CoreLoop;
 }
 
@@ -82,6 +84,7 @@ export async function buildCore(opts: {
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);
+  const proactive = new ProactivityEngine(opts.pool, audit, activity);
 
-  return { audit, estop, policy, approvals, activity, tools, memory, capabilities, stageA, loop };
+  return { audit, estop, policy, approvals, activity, tools, memory, capabilities, stageA, proactive, loop };
 }
