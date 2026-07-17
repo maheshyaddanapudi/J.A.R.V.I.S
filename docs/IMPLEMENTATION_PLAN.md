@@ -78,7 +78,8 @@ Home Assistant integration, device gateway, hardware catalog + plugin SDK, room 
 
 ## Approved decisions
 - **D-0002 (2026-07-17): Architecture Option A** — Hybrid TS kernel + Python intelligence/speech + Tauri 2/Swift bridge + Next.js/R3F + Postgres/pgvector; includes D-0006/8/9/10/13/14.
-- **D-0004 (2026-07-17): Voice stack approved with condition** — listening demo before voice identity hardens (slice 1.3).
+- **D-0004/D-0004a (2026-07-17): Voice stack approved with condition** — expressive-TTS listening test on the Mac before voice identity hardens; optional key-gated cloud TTS adapter added; Kokoro baseline preference George/Daniel.
+- **D-0021 (2026-07-17): Memory architecture + local security model APPROVED** — slices 1.4/1.6 unblocked.
 - Full detail in `DECISION_LOG.md`.
 
 ## Deferred items (deferral ≠ removal; docs/05)

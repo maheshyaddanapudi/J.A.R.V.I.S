@@ -89,6 +89,10 @@ Statuses below marked PROPOSED are **awaiting the Phase 0 check-in** — nothing
 - **Date:** 2026-07-17 · **Status:** RECORDED
 - **Owned:** Quest 3S (Phase 7 real-hardware target), Apple Watch + iPhone (Phase 11 health telemetry + cross-device). **Not owned:** Home Assistant/smart-home devices (E1/B2 stay simulator-first per plan), Apple Vision Pro (Phase 11 visionOS client is hardware-dependent until acquired; architecture keeps it first-class per R-SPA-01). Re-inventory at each hardware-relevant phase gate.
 
+## D-0021 — Memory architecture + local security model APPROVED
+- **Date:** 2026-07-17 · **Status:** APPROVED (user selection at check-in)
+- **Decision:** Memory architecture per PRODUCT_SPEC §7 + D-0013 (Postgres 18 + pgvector; 24 typed stores; provenance/confidence/epistemic labels mandatory; FileVault baseline + libsodium field-level encryption, keys in Keychain; secrets never in memory rows; full user-control surface) and local security model per THREAT_MODEL §2/§6 + ARCHITECTURE §8 (Z1 protected trust core; hash-chained append-only audit; prohibited-list-first policy order; <1 s e-stop latch propagation; localhost-only + authed browser UI). **Slices 1.4 and 1.6 are unblocked.** Remaining Phase-1 gates: voice listening test on Mac (D-0004a) before 1.3 hardens; visual design system before 1.7 hardens.
+
 ## D-0017 — Session continuity mechanics
 - **Date:** 2026-07-16 · **Status:** PROPOSED
 - **Decision:** Every future session starts by reading `docs/IMPLEMENTATION_PLAN.md` → `docs/DECISION_LOG.md` → `docs/CAPABILITY_PARITY_MATRIX.md` → root `CLAUDE.md` (and module CLAUDE.md for touched modules), then resumes at the recorded current slice. Conflicts with recorded decisions are surfaced at a check-in, never silently re-decided. End-of-session updates are mandatory (docs/07).
