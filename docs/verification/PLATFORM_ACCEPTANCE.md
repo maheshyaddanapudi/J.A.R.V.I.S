@@ -3,7 +3,10 @@
 **Recorded:** 2026-07-17 · **Environment:** Linux dev container (NOT the target Mac).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
-**Result:** **16 PASS · 2 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL.**
+**Result:** **16 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
+(against an online kernel; P-OFFLINE-01 is a live PASS when the kernel runs with
+`JARVIS_OFFLINE=1`). Re-confirmed 2026-07-17 with the agent runtime + skills
+registry in place.
 
 This is an honest record (honesty rule R-CORE-02). Everything achievable in the
 container is verified for real; the four capabilities whose remaining piece is the
@@ -35,17 +38,18 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-DEV-02 REAL Home Assistant devices | **NEEDS-MAC** | vault-backed adapter; bound at D-0025 on the LAN |
 | P-EXT-01 self-extension hard limit (R-CAP-08) | PASS | benign→awaiting_review, trust-core write→rejected |
 | P-MCP-01 MCP host discover + trust-gated call (T2) | PASS | untrusted default, approved runs, denied refused |
-| P-AGENT (agent runtime) | see below | multi-step plan-and-act through the gated loop |
+| P-SKILL-01 skills registry (R-CAP-01) | PASS | create/list/delete; run executes via the gated agent |
+| agent runtime | PASS (see below) | multi-step plan-and-act through the gated loop |
 | P-ENC-01 field encryption at rest | VERIFIED-ELSEWHERE | vault/memory tests: DB holds `v1.gcm.*` only, 0 plaintext, wrong-key fatal |
 | P-PERSIST-01 trust/memory survive restart | VERIFIED-ELSEWHERE | memory + MCP-registry tests hydrate after restart |
 | P-VOICE-01 live full-duplex voice | **NEEDS-MAC** | wake/VAD/STT/TTS + turn-taking verified in-container; live mic/speaker + VPIO = Swift `JarvisAudio` on the Mac |
 | P-UI-01 natively-packaged app (Tauri) | **NEEDS-MAC** | Command Center runs in the browser; packaged `.app` built on the Mac |
 
 ## Automated test suites
-- **kernel:** 123 tests pass (`services/kernel` — config, migrate, audit, policy,
+- **kernel:** 128 tests pass (`services/kernel` — config, migrate, audit, policy,
   vault, memory, control, devices, selfext, proactive, mcp (+ persistence),
-  secrets, gateway-secrets, homeassistant, context, router, **agent**).
-- **ears:** 9 tests pass (engines, turn-taking, audio-io).
+  secrets, gateway-secrets, homeassistant, context, router, **agent**, **skills**).
+- **ears:** 13 tests pass (engines, turn-taking, audio-io).
 
 ## Live end-to-end verifications (this environment)
 - **Voice pipeline** (AT1.12): wake → STT → gated loop → TTS, fully offline, zero
@@ -67,12 +71,16 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
   answer; consequential step denied → tool never ran; e-stop halts; step budget
   bounds; audit `agent_run_started → policy_decision → tool_call → verification →
   agent_run_finished`, intact.
+- **Skills registry** (R-CAP-01): create a named skill → run → its objective
+  executes through the gated agent → synthesized answer; audit `skill_created →
+  skill_run → agent_run_started → tool_call`. A skill grants no new capability.
 - **Command Center** (headless-browser verified, all real kernel state): dashboard
   (13/13 panels), interactive secret/MCP controls (5/5), conversation `/chat`
   (7/7), proactivity `/proactive`, computer-control `/control` (8/8), device
   `/devices` (8/8, interlock), self-extension `/selfext` (10/10), agent `/agent`
-  (6/6, inline approval — the approved step really wrote its file). Ambient Voice
-  Orb tracks live activity + e-stop.
+  (6/6, inline approval — the approved step really wrote its file), skills
+  `/skills` (6/6, save/run/delete + inline approval). Ambient Voice Orb tracks
+  live activity + e-stop.
 
 ## What remains for the Mac (the 4 NEEDS-MAC rows)
 Run `docs/MAC_BRINGUP.md` on the M3 Max, then open the gate for each:
