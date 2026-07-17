@@ -93,11 +93,22 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   picks these up automatically. READ_ONLY read models are also exposed as
   `GET /knowledge/list|read|stat|search` (structured data for the Command Center;
   mutation still only via the gated `/core/run-tool`). Fully local/offline. See
-  `src/knowledge/CLAUDE.md`. 17 knowledge tests; full suite **145 pass**; live
-  end-to-end + harness `P-KNOW-01`.
+  `src/knowledge/CLAUDE.md`. 17 knowledge tests; live end-to-end + harness `P-KNOW-01`.
+- Agent reasons over tool output ✅ (D-0033): `ToolResult.detail` (opt-in,
+  model-facing) flows through `runTool` → the agent feeds a bounded slice to the
+  model so it can reason over a read tool's actual output (file content, matches,
+  page text), not just a one-line summary. `detail` is never audited (content stays
+  local). Populated on `files.read`/`search`/`list`/`stat`, `system.info`, `web.*`.
+- Web / research ✅ (Phase 2 "browser automation", D-0034): `src/web/` — a **REAL**
+  headless-browser capability (Playwright + Chromium, lazy launch). `web.open`
+  (CONSEQUENTIAL, the outward act — per-navigation approval + offline/allowlist
+  policy, `file://`/`data:` refused) + `web.readText`/`links`/`screenshot`
+  (READ_ONLY, content → agent via `detail`) + `web.fill`/`click`. The one outward
+  capability, gated tightly; page content never audited. See `src/web/CLAUDE.md`.
+  8 web tests; **full suite 156 pass**; live end-to-end + harness `P-WEB-01`.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
-  check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (browser automation,
-  terminal-with-policy, screen understanding, research-with-provenance).
+  check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (terminal-with-policy,
+  screen understanding — Mac, per-claim research provenance, full memory store set).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.

@@ -3,7 +3,7 @@
 **Recorded:** 2026-07-17 · **Environment:** Linux dev container (NOT the target Mac).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
-**Result:** **17 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
+**Result:** **18 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
 (against an online kernel; P-OFFLINE-01 is a live PASS when the kernel runs with
 `JARVIS_OFFLINE=1` **and a local model is up** — its offline *gating*, i.e. remote
 providers refused, is confirmed live regardless). Re-confirmed 2026-07-17 with the
@@ -30,6 +30,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-LOOP-01 read-only tool | PASS | `system.info` real host state |
 | P-LOOP-02 consequential approve + deny + verify | PASS | approved wrote note, denied refused |
 | P-KNOW-01 workspace files: search/read + gated reversible edit + scope guard | PASS | REAL local fs; READ_ONLY auto-runs, `files.edit` denied→unchanged / approved→written + on-disk re-read verification; traversal/absolute refused |
+| P-WEB-01 web research: gated navigation + real page read + scheme guard | PASS | REAL headless Chromium; `web.open` denied→no-nav / approved→real page; `web.readText` content→agent; `file://`/external refused (SKIP if no Chromium) |
 | P-MEM-01 remember + retrieve preference | PASS | stored + read back |
 | P-MEM-02 memory refuses secrets (R-MEM-06) | PASS | secret-shaped value refused |
 | P-SEC-01 secrets vault names-only + value never leaks | PASS | listed name only, value absent from listing + audit; ciphertext at rest |
@@ -49,10 +50,10 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-UI-01 natively-packaged app (Tauri) | **NEEDS-MAC** | Command Center runs in the browser; packaged `.app` built on the Mac |
 
 ## Automated test suites
-- **kernel:** 148 tests pass (`services/kernel` — config, migrate, audit, policy,
+- **kernel:** 156 tests pass (`services/kernel` — config, migrate, audit, policy,
   vault, memory, control, devices, selfext, proactive, mcp (+ persistence),
   secrets, gateway-secrets, homeassistant, context, router, agent, skills,
-  **knowledge**).
+  **knowledge**, **web**).
 - **ears:** 13 tests pass (engines, turn-taking, audio-io).
 
 ## Live end-to-end verifications (this environment)
@@ -88,7 +89,13 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
   the bytes match (`verification: "on-disk content matches the applied edit"`);
   traversal (`../…`) and absolute paths are refused; an out-of-scope edit is a
   clean pre-approval denial (no approval created). Audit chain intact throughout.
-- **Command Center** (headless-browser verified, all real kernel state): dashboard
+- **Web research** (Phase 2 "browser automation", D-0034, REAL headless Chromium):
+  `web.open` is CONSEQUENTIAL — denied → no navigation; approved → real Chromium
+  loaded a local page (real title, HTTP 200, provenance REAL). `web.readText`/
+  `web.links` returned the real page text/links as agent-facing `detail`; `web.fill`
+  + `web.click` really changed page state. Safety: `file://`/invalid URLs refused
+  as clean denials, external hosts approval-gated, offline refuses external
+  (unit-verified); page content is fed to the agent but never written to the audit.
   (13/13 panels), interactive secret/MCP controls (5/5), conversation `/chat`
   (7/7), proactivity `/proactive`, computer-control `/control` (8/8), device
   `/devices` (8/8, interlock), self-extension `/selfext` (10/10), agent `/agent`

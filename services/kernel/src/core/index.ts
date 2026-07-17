@@ -17,6 +17,9 @@ import type { ComputerControl } from "../control/contract.js";
 import { LocalWorkspaceFiles } from "../knowledge/workspace.js";
 import { knowledgeTools } from "../knowledge/tools.js";
 import type { WorkspaceFiles } from "../knowledge/contract.js";
+import { PlaywrightBrowser } from "../web/playwright.js";
+import { webTools } from "../web/tools.js";
+import type { WebBrowser } from "../web/contract.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -59,6 +62,8 @@ export interface Core {
   skills: SkillRegistry;
   /** REAL workspace-scoped filesystem (read models for the /knowledge/* routes) */
   files: WorkspaceFiles;
+  /** REAL headless browser for the web/research tools (gated per navigation) */
+  web: WebBrowser;
   loop: CoreLoop;
 }
 
@@ -92,6 +97,21 @@ export async function buildCore(opts: {
    * LocalWorkspaceFiles scoped to `workspaceRoot`. This is REAL (not simulated).
    */
   files?: WorkspaceFiles;
+  /**
+   * Offline mode (R-MODEL-04) — passed to the web browser's network policy so
+   * external navigation is refused when configured offline.
+   */
+  offline?: boolean;
+  /**
+   * Optional host allowlist for web navigation (explicitly-configured targets).
+   * Empty = any host reachable, still per-navigation approval-gated.
+   */
+  webAllowlist?: string[];
+  /**
+   * Headless browser for the web/research tools. Defaults to a REAL
+   * PlaywrightBrowser (Chromium launches lazily on first navigation).
+   */
+  web?: WebBrowser;
 }): Promise<Core> {
   const audit = new AuditLog(opts.pool);
   const estop = new EmergencyStop(opts.pool, audit);
@@ -111,6 +131,15 @@ export async function buildCore(opts: {
   // scope. This is a REAL capability (not simulated) and fully local/offline.
   const files = opts.files ?? new LocalWorkspaceFiles(opts.workspaceRoot);
 
+  // Web/research browser (REAL Chromium, launched lazily). Network policy folds in
+  // offline mode + an optional allowlist; every navigation is still approval-gated.
+  const web =
+    opts.web ??
+    new PlaywrightBrowser({
+      offline: opts.offline ?? false,
+      ...(opts.webAllowlist ? { allowlist: opts.webAllowlist } : {}),
+    });
+
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
@@ -118,6 +147,7 @@ export async function buildCore(opts: {
   for (const t of computerControlTools(control)) tools.register(t);
   for (const t of deviceTools(devices, interlock)) tools.register(t);
   for (const t of knowledgeTools(files)) tools.register(t);
+  for (const t of webTools(web)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -180,7 +210,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files,
+    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files, web,
     ...(secrets ? { secrets } : {}),
     loop,
   };

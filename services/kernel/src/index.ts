@@ -39,7 +39,7 @@ const gateway = new GatewayRouter(gatewayConfig, pool, config.offline, secrets);
 
 const workspaceRoot = config.workspaceRoot || join(homedir(), ".jarvis", "workspace");
 
-const core = await buildCore({ pool, gateway, workspaceRoot, vault, secrets });
+const core = await buildCore({ pool, gateway, workspaceRoot, vault, secrets, offline: config.offline });
 
 const app = createServer({
   config,

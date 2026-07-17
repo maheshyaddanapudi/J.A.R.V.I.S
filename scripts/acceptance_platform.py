@@ -173,6 +173,45 @@ def main() -> int:
     except Exception as e:
         record("P-KNOW-01", "workspace files", "FAIL", str(e))
 
+    # ---- Web / research (REAL headless browser, gated per navigation) ----
+    # Self-contained: serve a local page and drive the browser against it (hermetic,
+    # honors locality). Requires Chromium in the kernel's env; SKIP if unavailable.
+    try:
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        marker = uuid.uuid4().hex[:8]
+        html = (f"<!doctype html><title>Reactor {marker}</title><h1>Reactor</h1>"
+                f"<p>WEBMARK-{marker} output nominal.</p><a href='/specs'>Specs</a>").encode()
+
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.send_header("content-type", "text/html")
+                self.end_headers(); self.wfile.write(html)
+            def log_message(self, *a):
+                pass
+        httpd = HTTPServer(("127.0.0.1", 0), H)
+        port = httpd.server_address[1]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{port}/"
+
+        deny = post("/core/run-tool", {"tool": "web.open", "args": {"url": base}, "source": "accept", "autoApprove": "deny"})
+        appr = post("/core/run-tool", {"tool": "web.open", "args": {"url": base}, "source": "accept", "autoApprove": "allow-once"}, timeout=40)
+        browser_missing = (not appr.get("ok")) and ("playwright" in appr.get("summary", "").lower() or "chromium" in appr.get("summary", "").lower())
+        if browser_missing:
+            record("P-WEB-01", "web research (headless browser)", "SKIP", "Chromium/Playwright not available in this env")
+        else:
+            read = post("/core/run-tool", {"tool": "web.readText", "args": {}, "source": "accept"})
+            bad = post("/core/run-tool", {"tool": "web.open", "args": {"url": "file:///etc/passwd"}, "source": "accept", "autoApprove": "allow-once"})
+            ok = (deny.get("denied") and appr.get("ok")
+                  and read.get("ok") and f"WEBMARK-{marker}" in (read.get("detail") or "")
+                  and not bad.get("ok"))
+            record("P-WEB-01", "web research: gated navigation + real page read + scheme guard",
+                   "PASS" if ok else "FAIL",
+                   f"deny={deny.get('denied')} open={appr.get('ok')} read_content={f'WEBMARK-{marker}' in (read.get('detail') or '')} file_refused={not bad.get('ok')}")
+        httpd.shutdown()
+    except Exception as e:
+        record("P-WEB-01", "web research", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:
