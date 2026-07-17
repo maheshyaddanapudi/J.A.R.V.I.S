@@ -36,6 +36,7 @@ export function registerCoreRoutes(
     proactive: import("../proactive/engine.js").ProactivityEngine;
     mcp: import("../mcp/registry.js").McpRegistry;
     connectMcp: (config: import("../mcp/client.js").McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
+    secrets?: import("../crypto/secrets.js").SecretsVault;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -183,21 +184,62 @@ export function registerCoreRoutes(
   }));
   app.post("/mcp/connect", async (req, reply) => {
     const b = req.body as
-      | { id?: string; command?: string; args?: string[]; env?: Record<string, string> }
+      | {
+          id?: string;
+          command?: string;
+          args?: string[];
+          env?: Record<string, string>;
+          /** {ENV_VAR: secretName} — resolved from the encrypted secrets vault, so
+           *  credentials never travel in the request body or the audit log */
+          secretEnv?: Record<string, string>;
+        }
       | undefined;
     if (!b?.id || !b?.command) return reply.code(400).send({ error: "id and command required" });
     try {
+      let env = b.env ? { ...b.env } : undefined;
+      if (b.secretEnv && Object.keys(b.secretEnv).length > 0) {
+        if (!deps.secrets) return reply.code(400).send({ error: "secretEnv requires the secrets vault (no vault configured)" });
+        const resolved = await deps.secrets.resolveEnv(b.secretEnv);
+        env = { ...(env ?? {}), ...resolved };
+      }
       // env is passed to the launched subprocess only (many real servers need
       // credentials/config here); it is never persisted to the audit or memory.
       return await deps.connectMcp({
         id: b.id,
         command: b.command,
         args: b.args ?? [],
-        ...(b.env ? { env: b.env } : {}),
+        ...(env ? { env } : {}),
       });
     } catch (err) {
       return reply.code(502).send({ error: err instanceof Error ? err.message : String(err) });
     }
+  });
+
+  // Managed integration-credential store (R-MEM-06). Secrets are encrypted at
+  // rest and NEVER returned over HTTP or written to the audit as values — only
+  // names/metadata are listed. Absent the secrets vault (no KEK/vault), these
+  // routes report unavailable rather than storing anything in the clear.
+  app.get("/secrets", async (_req, reply) => {
+    if (!deps.secrets) return reply.code(503).send({ error: "secrets vault unavailable (no vault configured)" });
+    return { secrets: await deps.secrets.list() };
+  });
+  app.post("/secrets", async (req, reply) => {
+    if (!deps.secrets) return reply.code(503).send({ error: "secrets vault unavailable (no vault configured)" });
+    const b = req.body as { name?: string; value?: string; description?: string } | undefined;
+    if (!b?.name || typeof b.value !== "string") {
+      return reply.code(400).send({ error: "name and value required" });
+    }
+    try {
+      await deps.secrets.set(b.name, b.value, b.description ?? "");
+      return { set: b.name };
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  app.delete("/secrets/:name", async (req, reply) => {
+    if (!deps.secrets) return reply.code(503).send({ error: "secrets vault unavailable (no vault configured)" });
+    const name = (req.params as { name?: string }).name ?? "";
+    return { deleted: await deps.secrets.delete(name) };
   });
   app.post("/mcp/trust", async (req, reply) => {
     const b = req.body as { id?: string; trust?: "untrusted" | "limited" | "trusted" } | undefined;

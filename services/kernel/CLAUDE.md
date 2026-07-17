@@ -57,10 +57,22 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   pull). Trust asymmetry: quarantine is live, trust-elevation applies on
   reconnect (re-attests the hash). Routes `/mcp/servers|connect|trust`. See
   `src/mcp/CLAUDE.md`. Live-verified end-to-end through the gated loop + audit.
+- Secrets vault ✅ (R-MEM-06, D-0028): `src/crypto/secrets.ts` (protected path) +
+  migration 0008 `integration_secrets` — managed integration credentials
+  encrypted at rest via the field Vault; value never returned over HTTP or
+  written to the audit (name-only); routes `/secrets` (GET names, POST set,
+  DELETE); `/mcp/connect` `secretEnv` resolves credentials by name (fail-closed).
+  See `src/crypto/CLAUDE.md`. Live-verified.
 - **Build-script fix (2026-07-17):** `build` now `rm -rf dist/db/migrations`
   before `cp -r` — the old `cp -r` nested into an existing dir on rebuild,
   shipping a stale 3-file migrations dir so `node dist/index.js` applied only
-  0001–0003. Always confirm `dist/db/migrations` has all 6 files after a build.
+  0001–0003. Always confirm `dist/db/migrations` has all 8 files after a build.
+- **Test-harness fix (2026-07-17):** `test/migrate.test.ts` now runs in a private
+  Postgres schema (`search_path`) instead of dropping `schema_migrations` in the
+  shared `jarvis_test` DB — that drop used to corrupt migration tracking for the
+  other integration suites (the recurring "system_events already exists" /
+  "relation … does not exist" flakiness). Full suite is now stable across
+  repeated runs; `pnpm migrate` on `jarvis_test` afterward stays "up to date".
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac).
 

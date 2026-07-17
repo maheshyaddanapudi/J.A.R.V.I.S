@@ -11,11 +11,27 @@ const dbUrl =
   process.env.JARVIS_TEST_DATABASE_URL ??
   "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test";
 
+// This suite exercises the runner from scratch, which means dropping
+// `schema_migrations`. To avoid clobbering the tracking that the OTHER
+// integration suites (memory/proactive/audit/mcp/secrets) rely on in the shared
+// test DB, run everything inside a private schema whose objects are dropped
+// wholesale afterwards. The runner uses unqualified table names, so a
+// search_path pointed at the private schema keeps it fully isolated.
+const ISO_SCHEMA = "mig_runner_test";
 let pool: pg.Pool | undefined;
 try {
   const probe = new pg.Pool({ connectionString: dbUrl, connectionTimeoutMillis: 2000 });
   await probe.query("SELECT 1");
-  pool = probe;
+  await probe.query(`DROP SCHEMA IF EXISTS ${ISO_SCHEMA} CASCADE`);
+  await probe.query(`CREATE SCHEMA ${ISO_SCHEMA}`);
+  await probe.end();
+  // a pool whose connections default their search_path to the private schema
+  pool = new pg.Pool({
+    connectionString: dbUrl,
+    connectionTimeoutMillis: 2000,
+    options: `-c search_path=${ISO_SCHEMA}`,
+  });
+  await pool.query("SELECT 1");
 } catch {
   // leave pool undefined
 }
@@ -31,7 +47,7 @@ describe.skipIf(!pool)("migration runner (integration)", () => {
   });
 
   afterAll(async () => {
-    await pool?.query("DROP TABLE IF EXISTS schema_migrations, mig_a CASCADE");
+    await pool?.query(`DROP SCHEMA IF EXISTS ${ISO_SCHEMA} CASCADE`);
     await pool?.end();
   });
 

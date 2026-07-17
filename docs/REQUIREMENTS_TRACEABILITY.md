@@ -85,7 +85,7 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 | R-MEM-03 | Provenance, confidence, dates, expiration, retention, sensitivity; encryption at rest + field-level | 7.2 | H1 | 1–2 | schema review; invariant #3 | **BUILT+VERIFIED 2026-07-17** — field-level AES-256-GCM vault (`crypto/`); private/secret prefs + conversation content ciphertext at rest (DB grep = 0 plaintext), KEK from Keychain/env, wrong-key fatal, survives restart | D-0013 |
 | R-MEM-04 | Search/view/correct/pin/forget/export/delete/reset/backup/restore-verified/dedup | 7.3 | H2 | 1 (view/correct/delete) / 2 (full) | AT1.10 | SPEC | — |
 | R-MEM-05 | Epistemic status enum (9 states) distinguished everywhere | 7.2 | H2, B4 | 1→ | schema + retrieval tests | SPEC | — |
-| R-MEM-06 | No secrets in conversational memory; Keychain/encrypted vault | 7.4 | — | 1 | invariant #3 | SPEC | D-0013 |
+| R-MEM-06 | No secrets in conversational memory; Keychain/encrypted vault | 7.4 | — | 1 | invariant #3 | **BUILT+VERIFIED 2026-07-17** — managed SecretsVault (`crypto/secrets.ts`, migration 0008): integration credentials AES-256-GCM at rest (DB grep = 0 plaintext), KEK from Keychain/env, value never returned over HTTP or written to audit (name-only), MCP `secretEnv` resolves by name (fail-closed); memory still refuses to store secrets on write | D-0013, D-0028 |
 
 ## Proactive behavior (docs/02 §Proactive)
 

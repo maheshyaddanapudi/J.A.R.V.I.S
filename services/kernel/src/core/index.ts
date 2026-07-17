@@ -15,6 +15,7 @@ import { SimulatedDesktop } from "../control/simulator.js";
 import { computerControlTools } from "../control/tools.js";
 import type { ComputerControl } from "../control/contract.js";
 import type { Vault } from "../crypto/vault.js";
+import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
 import { StageAPipeline } from "../selfext/stageA.js";
 import { ProactivityEngine } from "../proactive/engine.js";
@@ -41,6 +42,8 @@ export interface Core {
   mcp: McpRegistry;
   /** discover a configured MCP server and register its (namespaced, gated) tools */
   connectMcp: (config: McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
+  /** managed integration-credential store (encrypted at rest); undefined without a vault */
+  secrets?: SecretsVault;
   loop: CoreLoop;
 }
 
@@ -106,6 +109,11 @@ export async function buildCore(opts: {
   const stageA = new StageAPipeline(capabilities, audit);
   const proactive = new ProactivityEngine(opts.pool, audit, activity);
 
+  // Managed integration-credential store (R-MEM-06). Only available when a vault
+  // is present — secrets are never stored in the clear. Adapters (gateway, HA,
+  // MCP) resolve credentials from here instead of raw process env.
+  const secrets = opts.vault ? new SecretsVault(opts.pool, opts.vault, audit) : undefined;
+
   // MCP client host — discover external servers on demand; their tools are
   // registered namespaced + trust-gated (untrusted by default, T2).
   const mcpHost = new McpClientHost();
@@ -120,6 +128,8 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, loop,
+    capabilities, stageA, proactive, mcp, connectMcp,
+    ...(secrets ? { secrets } : {}),
+    loop,
   };
 }
