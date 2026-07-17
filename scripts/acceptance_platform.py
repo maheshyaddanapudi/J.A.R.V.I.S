@@ -230,6 +230,45 @@ def main() -> int:
     except Exception as e:
         record("P-TERM-01", "terminal-with-policy", "FAIL", str(e))
 
+    # ---- Research with provenance (REAL browser over local sources) ----
+    try:
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        rmark = uuid.uuid4().hex[:8]
+        pages = {
+            "/a": f"<title>Source A {rmark}</title><p>RMARK-{rmark}: the arc reactor uses a palladium core.</p>",
+            "/b": f"<title>Source B {rmark}</title><p>RMARK-{rmark}: palladium core degradation causes toxicity.</p>",
+        }
+
+        class RH(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = pages.get(self.path)
+                self.send_response(200 if body else 404); self.send_header("content-type", "text/html")
+                self.end_headers(); self.wfile.write((f"<!doctype html>{body}" if body else "nf").encode())
+            def log_message(self, *a):
+                pass
+        rd = HTTPServer(("127.0.0.1", 0), RH)
+        rport = rd.server_address[1]
+        threading.Thread(target=rd.serve_forever, daemon=True).start()
+        urls = [f"http://127.0.0.1:{rport}/a", f"http://127.0.0.1:{rport}/b"]
+
+        deny = post("/core/run-tool", {"tool": "research.gather", "args": {"query": "palladium toxicity", "urls": urls}, "source": "accept", "autoApprove": "deny"})
+        appr = post("/core/run-tool", {"tool": "research.gather", "args": {"query": "palladium core toxicity", "urls": urls}, "source": "accept", "autoApprove": "allow-once"}, timeout=45)
+        browser_missing = (not appr.get("ok")) and ("playwright" in appr.get("summary", "").lower() or "chromium" in appr.get("summary", "").lower())
+        bad = post("/core/run-tool", {"tool": "research.gather", "args": {"query": "x", "urls": urls + ["file:///etc/passwd"]}, "source": "accept", "autoApprove": "allow-once"})
+        if browser_missing:
+            record("P-RESEARCH-01", "research with provenance", "SKIP", "Chromium/Playwright not available in this env")
+        else:
+            det = appr.get("detail") or ""
+            cited = ("source: http://127.0.0.1" in det) and (f"RMARK-{rmark}" in det)
+            ok = deny.get("denied") and appr.get("ok") and cited and bad.get("denied")
+            record("P-RESEARCH-01", "research: gated multi-source gather + per-claim provenance",
+                   "PASS" if ok else "FAIL",
+                   f"deny={deny.get('denied')} gather={appr.get('ok')} cited={cited} bad_source_refused={bad.get('denied')}")
+        rd.shutdown()
+    except Exception as e:
+        record("P-RESEARCH-01", "research with provenance", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

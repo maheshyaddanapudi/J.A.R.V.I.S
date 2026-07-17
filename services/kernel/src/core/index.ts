@@ -23,6 +23,8 @@ import type { WebBrowser } from "../web/contract.js";
 import { LocalTerminal } from "../terminal/runner.js";
 import { terminalTools } from "../terminal/tools.js";
 import type { TerminalRunner } from "../terminal/contract.js";
+import { WebResearcher } from "../research/gather.js";
+import { researchTools } from "../research/tools.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -163,6 +165,9 @@ export async function buildCore(opts: {
   for (const t of knowledgeTools(files)) tools.register(t);
   for (const t of webTools(web)) tools.register(t);
   for (const t of terminalTools(terminal)) tools.register(t);
+  // Research-with-provenance composes the (gated) web browser into one sourced-
+  // evidence action; per-URL policy applies inside gather.
+  for (const t of researchTools(new WebResearcher(web))) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
