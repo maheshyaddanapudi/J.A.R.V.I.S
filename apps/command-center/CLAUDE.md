@@ -187,6 +187,17 @@ never decoration (R-UI-03, R-CORE-02).
   kernel state (R-CAP-01). **Verified live via headless Chromium (6/6)**: rendered the
   active persona, saved a new one → it became active + listed, deleted it, no console
   errors.
+- **Knowledge-graph panel** at `/graph` (`app/graph/page.tsx`, 2026-07-17, D-0045):
+  SEE the graph-brain — walk the multi-hop neighborhood of any entity
+  (`GET /memory/graph?name=&depth=`, radial SVG layout, hop-labeled nodes,
+  relation-labeled edges, click a node to re-walk from it) or ask by meaning
+  (`?q=` — labeled `semantic`/`lexical` mode so the fallback is never silent) with
+  a "WHAT J.A.R.V.I.S. WOULD DRAW ON" bundle panel (entities + facts). All real
+  kernel state; e-stop present. **Verified live via headless Chromium (8/8)**:
+  2-hop walk rendered all three chain nodes with labeled edges, depth-1 excluded
+  the 2-hop node, node-click re-walked, meaning-query showed its mode + bundle,
+  no console errors. NOTE: scope SVG assertions to
+  `getByRole('img',{name:'knowledge graph'})` — Next dev tools injects its own svg.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for

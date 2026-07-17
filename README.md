@@ -69,6 +69,7 @@ approvals, MCP trust controls, name-only secrets, surfaced proactive items, emer
 | **Ambient Voice Orb** — state-labeled presence driven by the kernel activity stream ![Voice orb](docs/screenshots/voice-orb.png) | **Memory** — entities/facts/relations + the episodic timeline (note the auto-recorded `ACTION`) ![Memory](docs/screenshots/memory.png) |
 | **Proactivity** — surfaced items each with their "why", snooze/dismiss, user-defined rules ![Proactivity](docs/screenshots/proactivity.png) | **Device control** — labeled `SIMULATION` home; HIGH_RISK_PHYSICAL needs approval **+** an armed single-use interlock ![Devices](docs/screenshots/device-control.png) |
 | **Persona** — how J.A.R.V.I.S. speaks, as user-editable versioned data ![Persona](docs/screenshots/persona.png) | **Files** — real workspace browse/search with gated, verified editing ![Files](docs/screenshots/files.png) |
+| **Knowledge graph** — walk what connects to what (multi-hop), or recall by meaning with graph expansion ![Knowledge graph](docs/screenshots/graph.png) | **Computer control** — labeled `SIMULATION` desktop through the real approval pipeline until the D-0022 check-in ![Computer control](docs/screenshots/computer-control.png) |
 
 ---
 

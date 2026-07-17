@@ -248,6 +248,9 @@ export default function SystemPage() {
             <a href="/selfext" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               self-extension →
             </a>{" "}
+            <a href="/graph" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              graph →
+            </a>{" "}
             <a href="/persona" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               persona →
             </a>{" "}
