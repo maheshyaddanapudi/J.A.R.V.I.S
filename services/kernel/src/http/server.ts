@@ -56,6 +56,8 @@ export function createServer(opts: {
       capabilities: opts.core.capabilities,
       stageA: opts.core.stageA,
       proactive: opts.core.proactive,
+      mcp: opts.core.mcp,
+      connectMcp: opts.core.connectMcp,
     });
     registerMemoryRoutes(app, opts.core.memory);
   }

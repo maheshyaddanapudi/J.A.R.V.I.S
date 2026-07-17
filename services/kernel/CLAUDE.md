@@ -49,6 +49,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   hallucinates and ignores instructions) — response *quality* is a model-size
   artifact, not a plumbing issue; the target M3 Max runs Qwen3.6-35B/gpt-oss-120b
   (D-0012) where recall works. Response quality is only truly validated on the Mac.
+- MCP client host ✅ (R-CAP-02, D-0027): `src/mcp/` — connects to a REAL stdio
+  MCP server (official SDK 1.29), discovers its tools, registers each as a
+  namespaced (`mcp:<server>:<tool>`) trust-gated kernel tool. Untrusted by
+  default → CONSEQUENTIAL (per-call approval); only `trusted` → READ_ONLY.
+  Manifest hashed at registration; a changed hash quarantines the server (rug
+  pull). Trust asymmetry: quarantine is live, trust-elevation applies on
+  reconnect (re-attests the hash). Routes `/mcp/servers|connect|trust`. See
+  `src/mcp/CLAUDE.md`. Live-verified end-to-end through the gated loop + audit.
+- **Build-script fix (2026-07-17):** `build` now `rm -rf dist/db/migrations`
+  before `cp -r` — the old `cp -r` nested into an existing dir on rebuild,
+  shipping a stale 3-file migrations dir so `node dist/index.js` applied only
+  0001–0003. Always confirm `dist/db/migrations` has all 6 files after a build.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac).
 

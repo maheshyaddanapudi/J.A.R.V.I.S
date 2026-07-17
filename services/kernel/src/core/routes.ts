@@ -34,6 +34,8 @@ export function registerCoreRoutes(
     capabilities: import("../selfext/registry.js").CapabilityRegistry;
     stageA: import("../selfext/stageA.js").StageAPipeline;
     proactive: import("../proactive/engine.js").ProactivityEngine;
+    mcp: import("../mcp/registry.js").McpRegistry;
+    connectMcp: (config: import("../mcp/client.js").McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -168,6 +170,39 @@ export function registerCoreRoutes(
     if (!b.domain) return { error: "domain required" };
     await deps.proactive.setDomainEnabled(b.domain, b.enabled ?? true);
     return { domain: b.domain, enabled: b.enabled ?? true };
+  });
+
+  // MCP (R-CAP-02). Discover a configured server; its tools register namespaced
+  // + trust-gated (untrusted by default). Everything a server returns is
+  // untrusted content (T2). Trust changes above untrusted are a check-in.
+  app.get("/mcp/servers", async () => ({
+    servers: deps.mcp.list().map((s) => ({
+      id: s.id, trust: s.trust, quarantined: s.quarantined,
+      tools: s.tools.map((t) => t.name), manifestHash: s.manifestHash,
+    })),
+  }));
+  app.post("/mcp/connect", async (req, reply) => {
+    const b = req.body as
+      | { id?: string; command?: string; args?: string[]; env?: Record<string, string> }
+      | undefined;
+    if (!b?.id || !b?.command) return reply.code(400).send({ error: "id and command required" });
+    try {
+      // env is passed to the launched subprocess only (many real servers need
+      // credentials/config here); it is never persisted to the audit or memory.
+      return await deps.connectMcp({
+        id: b.id,
+        command: b.command,
+        args: b.args ?? [],
+        ...(b.env ? { env: b.env } : {}),
+      });
+    } catch (err) {
+      return reply.code(502).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  app.post("/mcp/trust", async (req, reply) => {
+    const b = req.body as { id?: string; trust?: "untrusted" | "limited" | "trusted" } | undefined;
+    if (!b?.id || !b?.trust) return reply.code(400).send({ error: "id and trust required" });
+    return { set: await deps.mcp.setTrust(b.id, b.trust) };
   });
 
   // Conversational answer through the core loop (objective → streamed tokens),

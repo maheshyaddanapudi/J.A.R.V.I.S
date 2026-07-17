@@ -22,6 +22,10 @@ import { StarkResidence } from "../devices/simulator.js";
 import { InterlockManager } from "../devices/interlock.js";
 import { deviceTools } from "../devices/tools.js";
 import type { DeviceGateway } from "../devices/contract.js";
+import { McpClientHost } from "../mcp/client.js";
+import { McpRegistry } from "../mcp/registry.js";
+import { mcpTools } from "../mcp/tools.js";
+import type { McpServerConfig } from "../mcp/client.js";
 
 export interface Core {
   audit: AuditLog;
@@ -34,6 +38,9 @@ export interface Core {
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
+  mcp: McpRegistry;
+  /** discover a configured MCP server and register its (namespaced, gated) tools */
+  connectMcp: (config: McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
   loop: CoreLoop;
 }
 
@@ -99,5 +106,19 @@ export async function buildCore(opts: {
   const stageA = new StageAPipeline(capabilities, audit);
   const proactive = new ProactivityEngine(opts.pool, audit, activity);
 
-  return { audit, estop, policy, approvals, activity, tools, memory, capabilities, stageA, proactive, loop };
+  // MCP client host — discover external servers on demand; their tools are
+  // registered namespaced + trust-gated (untrusted by default, T2).
+  const mcpHost = new McpClientHost();
+  const mcp = new McpRegistry(audit);
+  const connectMcp = async (config: McpServerConfig) => {
+    const { discovery, client } = await mcpHost.discover(config);
+    const server = await mcp.register(discovery);
+    for (const t of mcpTools(server, client, mcpHost)) tools.register(t);
+    return { serverId: server.id, tools: server.tools.length, trust: server.trust };
+  };
+
+  return {
+    audit, estop, policy, approvals, activity, tools, memory,
+    capabilities, stageA, proactive, mcp, connectMcp, loop,
+  };
 }

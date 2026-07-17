@@ -6,7 +6,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp -r src/db/migrations dist/db/migrations",
+    "build": "tsc -p tsconfig.json && rm -rf dist/db/migrations && cp -r src/db/migrations dist/db/migrations",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8.20.0",
     "fastify": "^5.6.2",
     "pg": "^8.16.3",
