@@ -248,6 +248,9 @@ export default function SystemPage() {
             <a href="/selfext" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               self-extension →
             </a>{" "}
+            <a href="/persona" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              persona →
+            </a>{" "}
             <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               voice orb →
             </a>

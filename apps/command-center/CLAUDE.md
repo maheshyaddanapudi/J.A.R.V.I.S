@@ -173,6 +173,14 @@ never decoration (R-UI-03, R-CORE-02).
   Live gated-pipeline feed + e-stop. **Verified live via headless Chromium (7/7)**:
   approved navigation to a loopback page returned its real text (marked untrusted),
   `file://` was refused by the scheme guard, no console errors.
+- **Persona panel** at `/persona` (`app/persona/page.tsx`, 2026-07-17, D-0043): view
+  and edit **how J.A.R.V.I.S. speaks** over the prompts registry (`/prompts`). Shows
+  the active persona that `/core/converse` actually injects; edit/save creates a new
+  version and activates it (supersede-with-history), activate/delete switch or remove
+  saved personas; the built-in butler default is the fallback (never blank). All real
+  kernel state (R-CAP-01). **Verified live via headless Chromium (6/6)**: rendered the
+  active persona, saved a new one → it became active + listed, deleted it, no console
+  errors.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
