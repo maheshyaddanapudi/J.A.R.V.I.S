@@ -120,4 +120,24 @@ describe.skipIf(!pool)("ContextService (situational awareness)", () => {
     const text = await ctx.describe(NOW);
     expect(text).toMatch(/Nothing else notable/);
   });
+
+  it("surfaces known entities from semantic memory into the context (D-0038 integration)", async () => {
+    const { approvals, estop } = fakes([]);
+    const knowledge = {
+      recentForContext: async () => [{ name: "Tony Stark", kind: "person", facts: ["prefers the George voice"] }],
+    };
+    const ctx = new ContextService({ pool: pool!, approvals, estop, knowledge });
+    const s = await ctx.snapshot(NOW);
+    expect(s.knownEntities[0]).toMatchObject({ name: "Tony Stark", kind: "person" });
+    const text = await ctx.describe(NOW);
+    expect(text).toMatch(/You know about: person Tony Stark \(prefers the George voice\)/);
+  });
+
+  it("a failing knowledge source never breaks context assembly", async () => {
+    const { approvals, estop } = fakes([]);
+    const knowledge = { recentForContext: async () => { throw new Error("db down"); } };
+    const ctx = new ContextService({ pool: pool!, approvals, estop, knowledge });
+    const s = await ctx.snapshot(NOW);
+    expect(s.knownEntities).toEqual([]); // best-effort — empty, not thrown
+  });
 });

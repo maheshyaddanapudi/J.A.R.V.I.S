@@ -92,6 +92,22 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     expect(await mem.recall("Obadiah")).toBeNull();
   });
 
+  it("recentForContext returns only non-sensitive entities + facts (never private/secret)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberEntity({ kind: "person", name: "Pepper", provenance: "test", sensitivity: "personal" });
+    await mem.rememberFact({ entityName: "Pepper", statement: "leads Stark Industries", provenance: "test", sensitivity: "personal" });
+    await mem.rememberFact({ entityName: "Pepper", statement: "home address is private", provenance: "test", sensitivity: "private" });
+    await mem.rememberEntity({ kind: "person", name: "SecretAsset", provenance: "test", sensitivity: "secret" });
+
+    const ctx = await mem.recentForContext(10);
+    const names = ctx.map((e) => e.name);
+    expect(names).toContain("Pepper");
+    expect(names).not.toContain("SecretAsset"); // secret entity excluded
+    const pepper = ctx.find((e) => e.name === "Pepper")!;
+    expect(pepper.facts).toContain("leads Stark Industries");
+    expect(pepper.facts).not.toContain("home address is private"); // private fact excluded
+  });
+
   it("lists entities by kind", async () => {
     const mem = new EntityMemory(pool!, audit, vault);
     await mem.rememberEntity({ kind: "person", name: "Rhodey", provenance: "test" });

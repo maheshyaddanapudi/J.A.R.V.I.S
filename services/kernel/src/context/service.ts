@@ -5,6 +5,8 @@ import type {
   CommitmentContext,
   ContextProvider,
   ContextSnapshot,
+  KnownEntity,
+  KnowledgeSource,
   PinnedFact,
   ProactiveContext,
 } from "./contract.js";
@@ -24,6 +26,8 @@ export class ContextService {
       approvals: ApprovalBroker;
       estop: EmergencyStop;
       mcpCount?: () => number;
+      /** semantic memory read model — surfaces what J.A.R.V.I.S. knows (non-sensitive) */
+      knowledge?: KnowledgeSource;
     },
     private readonly providers: ContextProvider[] = [],
   ) {}
@@ -33,10 +37,11 @@ export class ContextService {
   }
 
   async snapshot(now: Date = new Date()): Promise<ContextSnapshot> {
-    const [commitments, proactive, pinnedFacts] = await Promise.all([
+    const [commitments, proactive, pinnedFacts, knownEntities] = await Promise.all([
       this.commitments(now),
       this.proactive(),
       this.pinnedFacts(),
+      this.knownEntities(),
     ]);
 
     const pending = this.deps.approvals.list();
@@ -56,6 +61,7 @@ export class ContextService {
       commitments,
       proactive,
       pinnedFacts,
+      knownEntities,
       pendingApprovals: { count: pending.length, tools: [...new Set(pending.map((p) => p.tool))] },
       emergencyStop: this.deps.estop.isEngaged,
       mcpServers: this.deps.mcpCount ? this.deps.mcpCount() : 0,
@@ -86,6 +92,13 @@ export class ContextService {
     }
     if (s.pinnedFacts.length) {
       lines.push(`Pinned preferences: ${s.pinnedFacts.map((f) => `${f.key}=${f.value}`).join("; ")}.`);
+    }
+    if (s.knownEntities.length) {
+      const parts = s.knownEntities.map((e) => {
+        const facts = e.facts.length ? ` (${e.facts.join("; ")})` : "";
+        return `${e.kind} ${e.name}${facts}`;
+      });
+      lines.push(`You know about: ${parts.join("; ")}.`);
     }
     for (const [k, v] of Object.entries(s.extra)) lines.push(`${k}: ${v}.`);
 
@@ -150,6 +163,15 @@ export class ContextService {
         LIMIT 10`,
     );
     return rows.map((r) => ({ key: r.key, value: r.value }));
+  }
+
+  private async knownEntities(): Promise<KnownEntity[]> {
+    if (!this.deps.knowledge) return [];
+    try {
+      return await this.deps.knowledge.recentForContext(5);
+    } catch {
+      return []; // knowledge is best-effort; never break context assembly
+    }
   }
 }
 

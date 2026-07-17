@@ -105,7 +105,7 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   policy, `file://`/`data:` refused) + `web.readText`/`links`/`screenshot`
   (READ_ONLY, content → agent via `detail`) + `web.fill`/`click`. The one outward
   capability, gated tightly; page content never audited. See `src/web/CLAUDE.md`.
-  8 web tests; **full suite 188 pass**; live end-to-end + harness `P-WEB-01`.
+  8 web tests; **full suite 191 pass**; live end-to-end + harness `P-WEB-01`.
 - Terminal-with-policy ✅ (Phase 2, D-0035): `src/terminal/` — a **REAL** shell
   (`bash -lc`), workspace-scoped, hard-timeout, bounded output. `assessCommand`
   classifies: DENY (privilege escalation / disk wipe / `rm -rf /` / fork bomb /

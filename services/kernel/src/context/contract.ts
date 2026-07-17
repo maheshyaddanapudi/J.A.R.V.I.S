@@ -31,12 +31,26 @@ export interface PinnedFact {
   value: string; // never a `secret`/`private` value — those are excluded
 }
 
+/** A recently-referenced entity from semantic memory (non-sensitive facts only). */
+export interface KnownEntity {
+  name: string;
+  kind: string;
+  facts: string[]; // public/personal facts only — private/secret excluded
+}
+
+/** Read model over the semantic memory for context (only non-sensitive content). */
+export interface KnowledgeSource {
+  recentForContext(limit: number): Promise<KnownEntity[]>;
+}
+
 export interface ContextSnapshot {
   now: string; // ISO
   partOfDay: "night" | "morning" | "afternoon" | "evening";
   commitments: CommitmentContext[];
   proactive: ProactiveContext[];
   pinnedFacts: PinnedFact[];
+  /** recently-referenced entities J.A.R.V.I.S. knows about (non-sensitive) */
+  knownEntities: KnownEntity[];
   pendingApprovals: { count: number; tools: string[] };
   emergencyStop: boolean;
   mcpServers: number;

@@ -249,6 +249,32 @@ export class EntityMemory {
     return rows.map((r) => this.hydrateEntity(r));
   }
 
+  /**
+   * Recently-referenced entities for the conversation context — NON-SENSITIVE
+   * only (public/personal entity + facts; private/secret excluded), so nothing
+   * sensitive is injected into every conversation. Each entity carries up to two
+   * top facts. Ordered by last recall, then recency.
+   */
+  async recentForContext(limit = 5): Promise<{ name: string; kind: string; facts: string[] }[]> {
+    const { rows: ents } = await this.pool.query<{ id: string; name: string; kind: string }>(
+      `SELECT id, name, kind FROM memory_entities
+       WHERE status NOT IN ('deleted','superseded') AND sensitivity IN ('public','personal')
+       ORDER BY last_used_at DESC NULLS LAST, updated_at DESC LIMIT $1`,
+      [Math.max(1, Math.min(limit, 20))],
+    );
+    const out: { name: string; kind: string; facts: string[] }[] = [];
+    for (const e of ents) {
+      const { rows: facts } = await this.pool.query<{ statement: string }>(
+        `SELECT statement FROM memory_facts
+         WHERE entity_id = $1 AND status NOT IN ('deleted','superseded') AND sensitivity IN ('public','personal')
+         ORDER BY confidence DESC, created_at DESC LIMIT 2`,
+        [e.id],
+      );
+      out.push({ name: e.name, kind: e.kind, facts: facts.map((f) => this.dec(f.statement)) });
+    }
+    return out;
+  }
+
   /** Soft-delete an entity (excluded from recall immediately). */
   async forgetEntity(name: string): Promise<boolean> {
     const { rowCount } = await this.pool.query(

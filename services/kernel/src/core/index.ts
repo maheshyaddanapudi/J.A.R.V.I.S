@@ -194,6 +194,7 @@ export async function buildCore(opts: {
     approvals,
     estop,
     mcpCount: () => mcp.list().length,
+    knowledge: entityMemory, // J.A.R.V.I.S. draws on what it knows (non-sensitive) in conversation
   });
 
   const loop = new CoreLoop({
