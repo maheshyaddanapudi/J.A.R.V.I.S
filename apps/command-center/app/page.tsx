@@ -221,6 +221,9 @@ export default function SystemPage() {
             <a href="/proactive" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               proactivity →
             </a>{" "}
+            <a href="/control" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              control →
+            </a>{" "}
             <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               voice orb →
             </a>

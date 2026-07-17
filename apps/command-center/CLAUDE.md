@@ -68,6 +68,18 @@ never decoration (R-UI-03, R-CORE-02).
   snooze/dismiss controls; a 3am preview suppressed all 3 via the `quiet_hours`
   gate with reasons; a re-run showed the `dedup` gate ("already surfaced"). All
   real engine output.
+- **Computer-control preview** at `/control` (`app/control/page.tsx`, 2026-07-17):
+  drives the labeled SIMULATION desktop (virtual Notes + Settings) through the
+  REAL gated loop (POST /core/run-tool). READ actions (list apps / screenshot /
+  UI tree) run immediately; CONSEQUENTIAL ones (type into a note, press Save) run
+  with approve/deny and show the full disclosure → approval → execution →
+  independent verification via the activity SSE "GATED PIPELINE" feed. SIMULATION
+  labeled throughout; the real macOS adapter switches on only at D-0022. e-stop
+  present. **Verified live (8/8)** + audit cross-check: from the UI, control.*
+  actions produced policy_decision → approval_resolved (via command-center) →
+  tool_call → verification with the chain intact; deny path shows a denied
+  outcome. This exercises the whole macOS-control approval UX before the real
+  adapter is enabled.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
