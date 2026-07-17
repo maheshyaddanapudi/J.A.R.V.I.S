@@ -150,6 +150,25 @@ never decoration (R-UI-03, R-CORE-02).
   Chromium (8/8)**: recorded an event from the UI, search narrowed to it, the
   auto-recorded `workspace.writeNote` actions were visible, forget removed it
   immediately, e-stop present, no console errors.
+- **Terminal panel** at `/terminal` (`app/terminal/page.tsx`, 2026-07-17, D-0035): a
+  REAL, workspace-scoped shell in the cinematic UI, driven through the gated loop
+  (`/core/run-tool`). `terminal.inspect` (READ_ONLY safe commands) runs immediately
+  and shows the **real output** (via `detail`); `terminal.run` (CONSEQUENTIAL) shows
+  the full disclosure→approval→execute→verify pipeline (SSE) with approve/deny;
+  dangerous/prohibited commands (a "try a dangerous command →" button runs
+  `sudo rm -rf /`) are **refused outright** before any approval. Output stays local
+  (never audited). Persistent e-stop. **Verified live via headless Chromium (7/7)**:
+  `git status` inspected with real output, an approved `echo` ran, the dangerous
+  command was refused, pipeline populated, no console errors.
+- **Web panel** at `/web` (`app/web/page.tsx`, 2026-07-17, D-0034): the REAL headless
+  browser (Playwright + Chromium) through the gated loop. `web.open` is the one
+  OUTWARD-network act — CONSEQUENTIAL (approve/deny), and `file://`/`data:` + (in
+  offline mode) external hosts are refused. `web.readText`/`links` (READ_ONLY) return
+  page content **explicitly labeled UNTRUSTED EXTERNAL CONTENT** — the same content
+  the model only ever sees inside an `<untrusted_external_data>` envelope (T1/D-0037).
+  Live gated-pipeline feed + e-stop. **Verified live via headless Chromium (7/7)**:
+  approved navigation to a loopback page returned its real text (marked untrusted),
+  `file://` was refused by the scheme guard, no console errors.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for

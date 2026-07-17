@@ -138,7 +138,11 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
   (6/6, inline approval — the approved step really wrote its file), skills
   `/skills` (6/6, save/run/delete + inline approval), files `/files` (7/7 —
   real workspace browse/search/view over `/knowledge/*` + gated `files.edit` with
-  inline approval and on-disk re-read verification), memory `/memory` (6/6 semantic
+  inline approval and on-disk re-read verification), terminal `/terminal` (7/7 —
+  REAL workspace shell: read-only inspect auto-runs with live output, approved
+  `terminal.run` executes, dangerous commands refused outright, D-0035), web `/web`
+  (7/7 — REAL headless browser: approved navigation reads a page, content labeled
+  UNTRUSTED, `file://` refused, D-0034), memory `/memory` (6/6 semantic
   store + 8/8 episodic TIMELINE — R-MEM-04 user control: view/recall/remember/forget
   entities AND a live event timeline you can search, record to, and forget from;
   consequential actions auto-record here, D-0041; kernel cross-checked, encrypted at
