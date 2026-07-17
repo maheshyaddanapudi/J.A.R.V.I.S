@@ -44,6 +44,20 @@ never decoration (R-UI-03, R-CORE-02).
   CORS note): POST/DELETE from the cross-origin UI were being blocked by an
   incomplete CORS preflight — every write button (incl. approve/deny + e-stop)
   was affected until fixed.
+- **Conversation panel** at `/chat` (`app/chat/page.tsx`, 2026-07-17): text chat
+  with J.A.R.V.I.S. through the REAL core loop (`POST /core/converse`, SSE read via
+  a fetch stream reader — not EventSource, since it's a POST). Carries a
+  `sessionId` (crypto.randomUUID) so conversation memory works across turns;
+  shows the injected situational context ("what J.A.R.V.I.S. knows right now",
+  from `/context`) in a disclosure; persistent e-stop aborts the in-flight stream
+  AND engages the latch. No fabricated replies — tokens stream from the model via
+  the kernel; a model/transport failure renders an honest error turn.
+  **Verified live via headless browser (7/7)**: two turns each streamed the real
+  reply token-by-token; cross-check: conversation turns persisted to
+  `conversation_memory` as ciphertext (memory + encryption-at-rest through the
+  UI). The verification used a local openai-compat **test model server** (real
+  SSE protocol) to exercise streaming without the production models — the same
+  `/core/converse` path already streams real tokens on the Mac (voice round-trip).
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for

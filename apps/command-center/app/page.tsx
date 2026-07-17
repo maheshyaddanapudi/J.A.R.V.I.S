@@ -215,8 +215,11 @@ export default function SystemPage() {
           </h1>
           <p style={{ color: "var(--dim)", margin: "0.2rem 0 0" }}>
             live operations · all data is real kernel state{" "}
-            <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.6rem" }}>
-              open voice orb →
+            <a href="/chat" style={{ color: "var(--operational)", marginLeft: "0.6rem" }}>
+              converse →
+            </a>{" "}
+            <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              voice orb →
             </a>
           </p>
         </div>
