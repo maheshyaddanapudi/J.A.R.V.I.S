@@ -109,7 +109,10 @@ export const GatewayConfigSchema = z.object({
     z.object({
       kind: z.enum(["ollama", "anthropic", "openai_compat"]),
       baseUrl: z.string().url().optional(),
-      /** name of env var holding the API key — the key itself never lives in config (R-MEM-06) */
+      /** name of a secret in the managed SecretsVault holding the API key (preferred,
+       *  R-MEM-06/D-0028) — resolved at call time, never stored in config */
+      apiKeySecret: z.string().optional(),
+      /** name of env var holding the API key — fallback when no vault/secret is set */
       apiKeyEnv: z.string().optional(),
       /** local = reachable without leaving the machine; gates LOCAL_ONLY + offline mode */
       local: z.boolean(),

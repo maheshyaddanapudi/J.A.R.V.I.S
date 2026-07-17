@@ -61,6 +61,12 @@ export async function buildCore(opts: {
   /** vault for field-level encryption at rest; omit to store plaintext (dev). */
   vault?: Vault;
   /**
+   * Shared managed secrets vault. If provided (constructed at the process entry
+   * so the model gateway can share it), it is used as-is; otherwise buildCore
+   * creates one from `vault` when present.
+   */
+  secrets?: SecretsVault;
+  /**
    * Device gateway. Defaults to the Stark-residence SIMULATION (safe in the
    * container / before the "enable physical-device control" check-in). The real
    * Home Assistant gateway is injected only on the Mac after that check-in.
@@ -111,8 +117,10 @@ export async function buildCore(opts: {
 
   // Managed integration-credential store (R-MEM-06). Only available when a vault
   // is present — secrets are never stored in the clear. Adapters (gateway, HA,
-  // MCP) resolve credentials from here instead of raw process env.
-  const secrets = opts.vault ? new SecretsVault(opts.pool, opts.vault, audit) : undefined;
+  // MCP) resolve credentials from here instead of raw process env. Prefer a
+  // shared instance passed in (so the gateway and the core loop use the same
+  // one); otherwise build from the vault.
+  const secrets = opts.secrets ?? (opts.vault ? new SecretsVault(opts.pool, opts.vault, audit) : undefined);
 
   // MCP client host — discover external servers on demand; their tools are
   // registered namespaced + trust-gated (untrusted by default, T2).

@@ -29,25 +29,23 @@ export class GatewayRouter {
     private readonly config: GatewayConfig,
     private readonly pool: pg.Pool,
     private readonly offline: boolean,
+    /** managed secrets vault: adapters resolve API keys from here first (R-MEM-06/D-0028) */
+    secrets?: { get(name: string): Promise<string | undefined> },
   ) {
+    const resolveSecret = secrets ? (name: string) => secrets.get(name) : undefined;
     for (const [id, p] of Object.entries(config.providers)) {
       const common = { id, ...(p.baseUrl ? { baseUrl: p.baseUrl } : {}) };
+      const creds = {
+        ...(p.apiKeySecret ? { apiKeySecret: p.apiKeySecret } : {}),
+        ...(p.apiKeyEnv ? { apiKeyEnv: p.apiKeyEnv } : {}),
+        ...(resolveSecret ? { resolveSecret } : {}),
+      };
       if (p.kind === "ollama") {
         this.adapters.set(id, createOllamaAdapter({ ...common, local: p.local }));
       } else if (p.kind === "anthropic") {
-        this.adapters.set(
-          id,
-          createAnthropicAdapter({ ...common, ...(p.apiKeyEnv ? { apiKeyEnv: p.apiKeyEnv } : {}) }),
-        );
+        this.adapters.set(id, createAnthropicAdapter({ ...common, ...creds }));
       } else {
-        this.adapters.set(
-          id,
-          createOpenAiCompatAdapter({
-            ...common,
-            local: p.local,
-            ...(p.apiKeyEnv ? { apiKeyEnv: p.apiKeyEnv } : {}),
-          }),
-        );
+        this.adapters.set(id, createOpenAiCompatAdapter({ ...common, local: p.local, ...creds }));
       }
     }
   }

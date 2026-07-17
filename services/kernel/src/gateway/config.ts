@@ -12,7 +12,13 @@ import { GatewayConfigSchema, type GatewayConfig } from "./schema.js";
 export const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   providers: {
     ollama: { kind: "ollama", baseUrl: "http://127.0.0.1:11434", local: true },
-    anthropic: { kind: "anthropic", apiKeyEnv: "ANTHROPIC_API_KEY", local: false },
+    // Prefer the managed SecretsVault (R-MEM-06); env is the fallback if unset.
+    anthropic: {
+      kind: "anthropic",
+      apiKeySecret: "anthropic_api_key",
+      apiKeyEnv: "ANTHROPIC_API_KEY",
+      local: false,
+    },
   },
   roles: {
     fast_conversation: [

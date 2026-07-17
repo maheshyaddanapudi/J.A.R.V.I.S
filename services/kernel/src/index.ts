@@ -11,6 +11,8 @@ import { GatewayRouter } from "./gateway/router.js";
 import { buildCore } from "./core/index.js";
 import { Vault } from "./crypto/vault.js";
 import { resolveKek } from "./crypto/kek.js";
+import { SecretsVault } from "./crypto/secrets.js";
+import { AuditLog } from "./core/audit.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = join(here, "db", "migrations");
@@ -24,17 +26,20 @@ const startedAt = Date.now();
 
 const migrated = await runMigrations(pool, migrationsDir);
 
+// Open the local encrypted vault (R-MEM-03). KEK from macOS Keychain on the Mac,
+// HKDF(JARVIS_MASTER_KEY) in dev. The wrapped DEK lives under the local data dir.
+// Opened before the gateway so provider adapters can resolve API keys from the
+// managed SecretsVault (R-MEM-06/D-0028) instead of raw process env.
+const keyfile = join(homedir(), ".jarvis", "vault", "dek.json");
+const vault = await Vault.open(keyfile, await resolveKek());
+const secrets = new SecretsVault(pool, vault, new AuditLog(pool));
+
 const gatewayConfig = await loadGatewayConfig(config.gatewayConfigPath || undefined);
-const gateway = new GatewayRouter(gatewayConfig, pool, config.offline);
+const gateway = new GatewayRouter(gatewayConfig, pool, config.offline, secrets);
 
 const workspaceRoot = config.workspaceRoot || join(homedir(), ".jarvis", "workspace");
 
-// Open the local encrypted vault (R-MEM-03). KEK from macOS Keychain on the Mac,
-// HKDF(JARVIS_MASTER_KEY) in dev. The wrapped DEK lives under the local data dir.
-const keyfile = join(homedir(), ".jarvis", "vault", "dek.json");
-const vault = await Vault.open(keyfile, await resolveKek());
-
-const core = await buildCore({ pool, gateway, workspaceRoot, vault });
+const core = await buildCore({ pool, gateway, workspaceRoot, vault, secrets });
 
 const app = createServer({
   config,

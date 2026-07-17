@@ -17,7 +17,9 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   structured-output validation (ajv), `model_calls` audit (no message content);
   routes: POST /gateway/chat (SSE), GET /gateway/status, GET /gateway/roles.
   Config: JSON file via `JARVIS_GATEWAY_CONFIG` (defaults in `gateway/config.ts`);
-  `JARVIS_OFFLINE=1` refuses all remote providers.
+  `JARVIS_OFFLINE=1` refuses all remote providers. **Provider API keys resolve
+  from the managed SecretsVault first (`apiKeySecret`), env second (`apiKeyEnv`)**
+  — R-MEM-06/D-0028; the router is constructed with the shared secrets vault.
 - Slice 1.4 ✅: **Z1 trust core under `src/core/` — PROTECTED PATH (R-CAP-08):
   generated capabilities may NEVER modify anything here.** Components:
   `audit.ts` (append-only sha256 hash-chained log + secret redaction + chain

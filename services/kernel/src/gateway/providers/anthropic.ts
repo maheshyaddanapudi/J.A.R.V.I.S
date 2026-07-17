@@ -62,19 +62,31 @@ function toAnthropicPayload(messages: NeutralMessage[]) {
 export function createAnthropicAdapter(opts: {
   id: string;
   baseUrl?: string;
+  /** name of a secret in the managed SecretsVault (preferred, R-MEM-06) */
+  apiKeySecret?: string;
+  /** env var fallback when no vault/secret is configured */
   apiKeyEnv?: string;
+  /** resolves a named secret from the encrypted vault; undefined = no vault */
+  resolveSecret?: (name: string) => Promise<string | undefined>;
 }): ProviderAdapter {
   const baseUrl = (opts.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
   const apiKeyEnv = opts.apiKeyEnv ?? "ANTHROPIC_API_KEY";
 
-  function apiKey(): string {
-    const key = process.env[apiKeyEnv];
+  // Prefer the encrypted secrets vault; fall back to env. The key itself never
+  // lives in config or the audit — only its secret-name / env-var-name does.
+  async function resolveKey(): Promise<string | undefined> {
+    if (opts.apiKeySecret && opts.resolveSecret) {
+      const fromVault = await opts.resolveSecret(opts.apiKeySecret);
+      if (fromVault) return fromVault;
+    }
+    return process.env[apiKeyEnv];
+  }
+
+  async function apiKey(): Promise<string> {
+    const key = await resolveKey();
     if (!key) {
-      throw new ProviderError(
-        `no API key in env ${apiKeyEnv} — provider unconfigured`,
-        opts.id,
-        false,
-      );
+      const src = opts.apiKeySecret ? `secret '${opts.apiKeySecret}' or env ${apiKeyEnv}` : `env ${apiKeyEnv}`;
+      throw new ProviderError(`no API key (${src}) — provider unconfigured`, opts.id, false);
     }
     return key;
   }
@@ -104,13 +116,14 @@ export function createAnthropicAdapter(opts: {
           : {}),
       };
 
+      const key = await apiKey();
       let res: Response;
       try {
         res = await fetch(`${baseUrl}/v1/messages`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "x-api-key": apiKey(),
+            "x-api-key": key,
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify(body),
@@ -198,11 +211,15 @@ export function createAnthropicAdapter(opts: {
     },
 
     async ping(signal?: AbortSignal) {
-      if (!process.env[apiKeyEnv]) return { ok: false, detail: `no key in ${apiKeyEnv}` };
+      const key = await resolveKey();
+      if (!key) {
+        const src = opts.apiKeySecret ? `secret '${opts.apiKeySecret}' or env ${apiKeyEnv}` : `env ${apiKeyEnv}`;
+        return { ok: false, detail: `no key (${src})` };
+      }
       try {
         // models list is the cheapest authenticated probe
         const res = await fetch(`${baseUrl}/v1/models?limit=1`, {
-          headers: { "x-api-key": apiKey(), "anthropic-version": "2023-06-01" },
+          headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
           ...(signal ? { signal } : {}),
         });
         return { ok: res.ok, detail: `HTTP ${res.status}` };

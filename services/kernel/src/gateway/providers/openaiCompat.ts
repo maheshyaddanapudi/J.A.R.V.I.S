@@ -49,14 +49,22 @@ function toOpenAiMessages(messages: NeutralMessage[]) {
 export function createOpenAiCompatAdapter(opts: {
   id: string;
   baseUrl?: string;
+  /** name of a secret in the managed SecretsVault (preferred, R-MEM-06) */
+  apiKeySecret?: string;
+  /** env var fallback when no vault/secret is configured */
   apiKeyEnv?: string;
+  /** resolves a named secret from the encrypted vault; undefined = no vault */
+  resolveSecret?: (name: string) => Promise<string | undefined>;
   local: boolean;
 }): ProviderAdapter {
   const baseUrl = (opts.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
 
-  function authHeaders(): Record<string, string> {
-    if (!opts.apiKeyEnv) return {};
-    const key = process.env[opts.apiKeyEnv];
+  // Prefer the encrypted secrets vault; fall back to env. Local providers
+  // (llama.cpp/vLLM) usually need no key at all → empty headers.
+  async function authHeaders(): Promise<Record<string, string>> {
+    let key: string | undefined;
+    if (opts.apiKeySecret && opts.resolveSecret) key = await opts.resolveSecret(opts.apiKeySecret);
+    if (!key && opts.apiKeyEnv) key = process.env[opts.apiKeyEnv];
     return key ? { authorization: `Bearer ${key}` } : {};
   }
 
@@ -91,11 +99,12 @@ export function createOpenAiCompatAdapter(opts: {
           : {}),
       };
 
+      const auth = await authHeaders();
       let res: Response;
       try {
         res = await fetch(`${baseUrl}/chat/completions`, {
           method: "POST",
-          headers: { "content-type": "application/json", ...authHeaders() },
+          headers: { "content-type": "application/json", ...auth },
           body: JSON.stringify(body),
           ...(signal ? { signal } : {}),
         });
@@ -174,9 +183,10 @@ export function createOpenAiCompatAdapter(opts: {
     },
 
     async embed(texts: string[], model: string, signal?: AbortSignal): Promise<number[][]> {
+      const auth = await authHeaders();
       const res = await fetch(`${baseUrl}/embeddings`, {
         method: "POST",
-        headers: { "content-type": "application/json", ...authHeaders() },
+        headers: { "content-type": "application/json", ...auth },
         body: JSON.stringify({ model, input: texts }),
         ...(signal ? { signal } : {}),
       });
@@ -190,7 +200,7 @@ export function createOpenAiCompatAdapter(opts: {
     async ping(signal?: AbortSignal) {
       try {
         const res = await fetch(`${baseUrl}/models`, {
-          headers: authHeaders(),
+          headers: await authHeaders(),
           ...(signal ? { signal } : {}),
         });
         return { ok: res.ok, detail: `HTTP ${res.status}` };
