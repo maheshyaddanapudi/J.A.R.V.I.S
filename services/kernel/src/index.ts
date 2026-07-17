@@ -9,6 +9,8 @@ import { createServer } from "./http/server.js";
 import { loadGatewayConfig } from "./gateway/config.js";
 import { GatewayRouter } from "./gateway/router.js";
 import { buildCore } from "./core/index.js";
+import { Vault } from "./crypto/vault.js";
+import { resolveKek } from "./crypto/kek.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = join(here, "db", "migrations");
@@ -26,7 +28,13 @@ const gatewayConfig = await loadGatewayConfig(config.gatewayConfigPath || undefi
 const gateway = new GatewayRouter(gatewayConfig, pool, config.offline);
 
 const workspaceRoot = config.workspaceRoot || join(homedir(), ".jarvis", "workspace");
-const core = await buildCore({ pool, gateway, workspaceRoot });
+
+// Open the local encrypted vault (R-MEM-03). KEK from macOS Keychain on the Mac,
+// HKDF(JARVIS_MASTER_KEY) in dev. The wrapped DEK lives under the local data dir.
+const keyfile = join(homedir(), ".jarvis", "vault", "dek.json");
+const vault = await Vault.open(keyfile, await resolveKek());
+
+const core = await buildCore({ pool, gateway, workspaceRoot, vault });
 
 const app = createServer({
   config,

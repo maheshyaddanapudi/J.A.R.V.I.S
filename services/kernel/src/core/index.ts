@@ -14,6 +14,7 @@ import { MemoryService } from "../memory/memory.js";
 import { SimulatedDesktop } from "../control/simulator.js";
 import { computerControlTools } from "../control/tools.js";
 import type { ComputerControl } from "../control/contract.js";
+import type { Vault } from "../crypto/vault.js";
 
 export interface Core {
   audit: AuditLog;
@@ -37,6 +38,8 @@ export async function buildCore(opts: {
    * adapter is injected only on the Mac after that check-in (docs/06).
    */
   control?: ComputerControl;
+  /** vault for field-level encryption at rest; omit to store plaintext (dev). */
+  vault?: Vault;
 }): Promise<Core> {
   const audit = new AuditLog(opts.pool);
   const estop = new EmergencyStop(opts.pool, audit);
@@ -45,7 +48,7 @@ export async function buildCore(opts: {
   const policy = new PolicyEngine(audit, estop);
   const approvals = new ApprovalBroker(audit);
   const activity = new ActivityBus();
-  const memory = new MemoryService(opts.pool, audit);
+  const memory = new MemoryService(opts.pool, audit, opts.vault);
 
   const control = opts.control ?? new SimulatedDesktop();
 

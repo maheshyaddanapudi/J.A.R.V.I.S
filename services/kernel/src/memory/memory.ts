@@ -1,6 +1,7 @@
 import type pg from "pg";
 import { redactSecrets } from "../core/audit.js";
 import type { AuditLog } from "../core/audit.js";
+import type { Vault } from "../crypto/vault.js";
 
 /**
  * Memory service (slice 1.6). Phase-1 stores: conversation + preferences.
@@ -52,18 +53,34 @@ function assertNotSecret(value: string): void {
 }
 
 export class MemoryService {
+  /**
+   * @param vault when provided, conversation content and sensitive preference
+   *   values (private/secret) are AES-256-GCM encrypted at rest (R-MEM-03). The
+   *   DB holds only ciphertext for those fields; decryption happens on read.
+   */
   constructor(
     private readonly pool: pg.Pool,
     private readonly audit: AuditLog,
+    private readonly vault?: Vault,
   ) {}
+
+  private encField(plaintext: string): string {
+    return this.vault ? this.vault.encrypt(plaintext) : plaintext;
+  }
+
+  private decField(stored: string): string {
+    if (this.vault && stored.startsWith("v1.gcm.")) return this.vault.decrypt(stored);
+    return stored;
+  }
 
   // --- conversation store ---
 
   async addTurn(sessionId: string, role: "user" | "assistant", content: string): Promise<string> {
-    const safe = redactSecrets(content);
+    // redact detected secrets, then encrypt the whole turn at rest
+    const stored = this.encField(redactSecrets(content));
     const { rows } = await this.pool.query<{ id: string }>(
       `INSERT INTO conversation_memory (session_id, role, content) VALUES ($1,$2,$3) RETURNING id`,
-      [sessionId, role, safe],
+      [sessionId, role, stored],
     );
     return rows[0]!.id;
   }
@@ -71,12 +88,12 @@ export class MemoryService {
   async conversation(sessionId: string, limit = 50): Promise<
     { role: string; content: string; created_at: string }[]
   > {
-    const { rows } = await this.pool.query(
+    const { rows } = await this.pool.query<{ role: string; content: string; created_at: string }>(
       `SELECT role, content, created_at::text FROM conversation_memory
        WHERE session_id = $1 ORDER BY created_at DESC LIMIT $2`,
       [sessionId, limit],
     );
-    return rows.reverse();
+    return rows.reverse().map((r) => ({ ...r, content: this.decField(r.content) }));
   }
 
   // --- preference store (CRUD + user control) ---
@@ -105,6 +122,13 @@ export class MemoryService {
          RETURNING id`,
         [input.key],
       );
+      // Encrypt at rest when the value is sensitive (private/secret) — the DB
+      // then holds only ciphertext for it (R-MEM-03).
+      const sensitivity = input.sensitivity ?? "personal";
+      const storedValue =
+        sensitivity === "private" || sensitivity === "secret"
+          ? this.encField(input.value)
+          : input.value;
       const inserted = await client.query<Preference>(
         `INSERT INTO preferences (key, value, status, provenance, confidence, sensitivity)
          VALUES ($1,$2,$3,$4,$5,$6)
@@ -112,14 +136,15 @@ export class MemoryService {
                    created_at::text, updated_at::text, last_used_at::text, expires_at::text`,
         [
           input.key,
-          input.value,
+          storedValue,
           input.status ?? "user_statement",
           input.provenance,
           input.confidence ?? 1.0,
-          input.sensitivity ?? "personal",
+          sensitivity,
         ],
       );
       const row = inserted.rows[0]!;
+      row.value = input.value; // return plaintext to the caller
       if (superseded.rows[0]) {
         await client.query(`UPDATE preferences SET superseded_by = $1 WHERE id = $2`, [
           row.id,
@@ -149,7 +174,10 @@ export class MemoryService {
                  created_at::text, updated_at::text, last_used_at::text, expires_at::text`,
       [key],
     );
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (!row) return null;
+    row.value = this.decField(row.value);
+    return row;
   }
 
   async search(query: string, limit = 20): Promise<Preference[]> {
@@ -162,7 +190,9 @@ export class MemoryService {
        ORDER BY pinned DESC, updated_at DESC LIMIT $2`,
       [`%${query}%`, limit],
     );
-    return rows;
+    // Non-sensitive values match by content here; encrypted (sensitive) values
+    // are opaque to SQL search by design — retrieve them by key.
+    return rows.map((r) => ({ ...r, value: this.decField(r.value) }));
   }
 
   async list(includeInactive = false): Promise<Preference[]> {
@@ -173,7 +203,7 @@ export class MemoryService {
        ${includeInactive ? "" : "WHERE status NOT IN ('deleted','superseded')"}
        ORDER BY pinned DESC, updated_at DESC`,
     );
-    return rows;
+    return rows.map((r) => ({ ...r, value: this.decField(r.value) }));
   }
 
   /** Correct an existing preference's value (audited; keeps provenance trail). */

@@ -107,7 +107,7 @@
 
 | ID | Movie capability (source) | Real-world equivalent | State | Phase | Notes |
 |---|---|---|---|---|---|
-| H1 | Perfect recall of past projects/conversations (all films) | Typed memory stores (conversation, episodic, semantic, procedural, projects, decisions…) in local Postgres+pgvector | **REAL** | 1 (conversation) / 2 (full) | Provenance + epistemic labels mandatory. |
+| H1 | Perfect recall of past projects/conversations (all films) | Typed memory stores (conversation, episodic, semantic, procedural, projects, decisions…) in local Postgres+pgvector | **REAL** | 1 (conversation) / 2 (full) | Provenance + epistemic labels mandatory. **Encryption-at-rest built+verified 2026-07-17** (R-MEM-03): AES-256-GCM field vault, sensitive values + conversation content ciphertext at rest, KEK from Keychain/env, wrong-key fatal. |
 | H2 | Knows Tony's preferences & habits (drinks, music, routines) | Preference learning labeled `inferred_preference`, correctable | **REAL** | 2 | User can view/correct/delete/pin (R-MEM-04). |
 | H3 | Knows Tony's contacts & relationships (IM2 Pepper/Rhodey handling) | People/relationship store, user-approved data | **REAL** | 4 | |
 | H4 | Institutional knowledge of Stark Industries ops | Project/objective tracking for the user's actual work | **REAL** | 2/4 | Scaled to single user. |

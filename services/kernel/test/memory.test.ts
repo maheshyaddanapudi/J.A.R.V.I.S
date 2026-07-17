@@ -1,6 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 import pg from "pg";
 import { MemoryService } from "../src/memory/memory.js";
+import { Vault } from "../src/crypto/vault.js";
 import type { AuditLog } from "../src/core/audit.js";
 
 const dbUrl =
@@ -23,9 +28,6 @@ describe.skipIf(!pool)("MemoryService (integration)", () => {
 
   beforeEach(async () => {
     await pool!.query("TRUNCATE preferences, conversation_memory");
-  });
-  afterAll(async () => {
-    await pool!.end();
   });
 
   it("remembers, retrieves, and carries provenance + epistemic status", async () => {
@@ -95,5 +97,59 @@ describe.skipIf(!pool)("MemoryService (integration)", () => {
     await mem.addTurn(s, "user", "my token = topsecretvalue123 ok?");
     const convo = await mem.conversation(s);
     expect(convo[0]!.content).not.toContain("topsecretvalue123");
+  });
+});
+
+describe.skipIf(!pool)("MemoryService encryption at rest (R-MEM-03)", () => {
+  let encMem: MemoryService;
+
+  beforeAll(async () => {
+    const dir = await mkdtemp(join(tmpdir(), "jarvis-memvault-"));
+    const vault = await Vault.open(join(dir, "dek.json"), randomBytes(32));
+    encMem = new MemoryService(pool!, audit, vault);
+  });
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE preferences, conversation_memory");
+  });
+  afterAll(async () => {
+    await pool!.end();
+  });
+
+  it("stores sensitive preference values as ciphertext but returns plaintext", async () => {
+    await encMem.remember({
+      key: "wifi_hint",
+      value: "the teal router in the study",
+      provenance: "chat",
+      sensitivity: "private",
+    });
+    // service returns plaintext
+    expect((await encMem.get("wifi_hint"))?.value).toBe("the teal router in the study");
+    // raw DB row is ciphertext — no plaintext leak
+    const { rows } = await pool!.query<{ value: string }>(
+      "SELECT value FROM preferences WHERE key='wifi_hint' AND status='user_statement'",
+    );
+    expect(rows[0]!.value).toMatch(/^v1\.gcm\./);
+    expect(rows[0]!.value).not.toContain("teal");
+  });
+
+  it("leaves non-sensitive (personal) values as plaintext for search", async () => {
+    await encMem.remember({ key: "coffee", value: "flat white", provenance: "chat" });
+    const { rows } = await pool!.query<{ value: string }>(
+      "SELECT value FROM preferences WHERE key='coffee' AND status='user_statement'",
+    );
+    expect(rows[0]!.value).toBe("flat white"); // searchable
+  });
+
+  it("encrypts conversation content at rest and decrypts on read", async () => {
+    const s = "00000000-0000-0000-0000-000000000009";
+    await encMem.addTurn(s, "user", "meet me at the verdigris cafe");
+    const { rows } = await pool!.query<{ content: string }>(
+      "SELECT content FROM conversation_memory WHERE session_id=$1",
+      [s],
+    );
+    expect(rows[0]!.content).toMatch(/^v1\.gcm\./);
+    expect(rows[0]!.content).not.toContain("verdigris");
+    const convo = await encMem.conversation(s);
+    expect(convo[0]!.content).toBe("meet me at the verdigris cafe");
   });
 });
