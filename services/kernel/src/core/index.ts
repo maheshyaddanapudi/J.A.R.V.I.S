@@ -47,6 +47,7 @@ import { ContextService } from "../context/service.js";
 import { LocalAgentRuntime } from "../agent/runtime.js";
 import type { AgentRuntime } from "../agent/contract.js";
 import { SkillRegistry } from "../skills/registry.js";
+import { PromptRegistry } from "../prompts/registry.js";
 
 export interface Core {
   audit: AuditLog;
@@ -74,6 +75,8 @@ export interface Core {
   agent: AgentRuntime;
   /** user-defined skills (saved named objectives run via the agent) — R-CAP-01 */
   skills: SkillRegistry;
+  /** prompts/personas registry — user-editable "how J.A.R.V.I.S. speaks" (R-CAP-01) */
+  prompts: PromptRegistry;
   /** REAL workspace-scoped filesystem (read models for the /knowledge/* routes) */
   files: WorkspaceFiles;
   /** REAL headless browser for the web/research tools (gated per navigation) */
@@ -232,6 +235,9 @@ export async function buildCore(opts: {
   const agent = new LocalAgentRuntime({ gateway: opts.gateway, loop, tools, audit, activity, estop });
   // Skills registry — saved named objectives, run via the agent (still gated).
   const skills = new SkillRegistry(opts.pool, audit, agent);
+  // Prompts registry — user-editable persona/system prompts (R-CAP-01). The
+  // conversation loop reads the active persona; default seeded by migration 0013.
+  const prompts = new PromptRegistry(opts.pool, audit);
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);
@@ -256,7 +262,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files, web, terminal,
+    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
     entityMemory, episodicMemory,
     ...(secrets ? { secrets } : {}),
     loop,

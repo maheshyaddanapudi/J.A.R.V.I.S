@@ -162,6 +162,15 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   from redacted plaintext (secrets never reach the vector store). nomic-embed-text on the
   Mac gives real semantic quality with no code change. 6 tests + live 6/6 (real
   embeddings endpoint through the gateway) + `P-SEMANTIC-01`.
+- Prompts registry ✅ (R-CAP-01 "prompts" kind, D-0043): `src/prompts/registry.ts`
+  + migration 0013 (`prompts`, seeded with the D-0004 butler default). J.A.R.V.I.S.'s
+  persona is now **user-editable, versioned data** instead of a hardcoded string —
+  `PromptRegistry` (getActive/activePersonaOr/list/get/set/activate/remove),
+  supersede-with-history, one active per kind, secrets redacted on write. The
+  `/core/converse` route reads the **active** `persona` (`activePersonaOr(BUTLER_PERSONA)`)
+  so the built-in default is the fallback (never a blank persona). Routes `/prompts`
+  (list/active/set/activate/delete). 7 tests + live 6/6 (seeded AND a custom persona
+  really reach the model through the gateway) + `P-PROMPT-01`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

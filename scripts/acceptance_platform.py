@@ -335,7 +335,10 @@ def main() -> int:
         # lexical fallback otherwise — either way the reactor event must come back
         # for a reactor query (this asserts the endpoint + fallback contract; the
         # full meaning-ranking is verified live against a real embeddings endpoint).
-        r = get(f"/memory/episodes?semantic=1&q=reactor%20core%20work&limit=5")
+        # "arc reactor" substring-matches the summary, so this passes via meaning
+        # (with an embedder) OR via the lexical fallback (without) — the endpoint +
+        # fallback contract. True meaning-ranking is verified live (D-0042).
+        r = get(f"/memory/episodes?semantic=1&q=arc%20reactor&limit=5")
         eps = r.get("episodes", [])
         hit = any("arc reactor" in e.get("summary", "") for e in eps)
         record("P-SEMANTIC-01", "semantic (vector) recall over memory + graceful fallback",
@@ -343,6 +346,28 @@ def main() -> int:
                f"mode={r.get('mode')} reactor_recalled={hit} (meaning-ranked with an embedder; lexical fallback without)")
     except Exception as e:
         record("P-SEMANTIC-01", "semantic recall", "FAIL", str(e))
+
+    # ---- Prompts registry (R-CAP-01 "prompts" kind — user-editable persona) ----
+    try:
+        active0 = get("/prompts/active")
+        orig = active0.get("name")  # whatever persona is currently active (don't assume)
+        has_butler = any(x.get("name") == "butler" for x in get("/prompts").get("prompts", []))  # migration-seeded prompt exists
+        pm = uuid.uuid4().hex[:6]
+        post("/prompts", {"name": f"accept-{pm}", "content": f"You are J.A.R.V.I.S. test persona {pm}."})
+        active1 = get("/prompts/active")
+        switched = active1.get("name") == f"accept-{pm}"
+        one_active = len([x for x in get("/prompts").get("prompts", []) if x.get("active")]) == 1
+        # restore whatever was active before, and remove the test persona (leave no trace)
+        if orig:
+            httpx.request("POST", f"{K}/prompts/{orig}/activate", json={}, timeout=5)
+        httpx.request("DELETE", f"{K}/prompts/accept-{pm}", timeout=5)
+        restored = get("/prompts/active").get("name") == orig
+        ok = has_butler and switched and one_active and restored
+        record("P-PROMPT-01", "prompts registry: seeded persona + set/activate + one-active + restore",
+               "PASS" if ok else "FAIL",
+               f"seeded_butler={has_butler} switched={switched} one_active={one_active} restored={restored} (persona reaches the model — verified live)")
+    except Exception as e:
+        record("P-PROMPT-01", "prompts registry", "FAIL", str(e))
 
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"

@@ -41,6 +41,7 @@ export function registerCoreRoutes(
     agent: import("../agent/contract.js").AgentRuntime;
     skills: import("../skills/registry.js").SkillRegistry;
     files: import("../knowledge/contract.js").WorkspaceFiles;
+    prompts?: import("../prompts/registry.js").PromptRegistry;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -374,10 +375,56 @@ export function registerCoreRoutes(
     sessionId: z.string().uuid().optional(),
     privacyClass: z.enum(["LOCAL_ONLY", "STANDARD"]).default("LOCAL_ONLY"),
   });
-  // Restrained British-butler persona (D-0004). The synthetic *voice* is chosen
-  // at the Mac listening test; this fixes the textual manner.
+  // Restrained British-butler persona (D-0004) — the DEFAULT/fallback. The active
+  // persona is now user-editable via the prompts registry (R-CAP-01, D-0043); the
+  // loop reads the active one and falls back to this if the registry is empty or
+  // unavailable (never a blank persona). The synthetic *voice* is chosen at the Mac
+  // listening test; this fixes the textual manner.
   const BUTLER_PERSONA =
     "You are J.A.R.V.I.S., a composed, dry-witted British butler-assistant. Be concise, precise, and understated. Address the user as 'sir' sparingly. Never invent facts.";
+  const activePersona = async (): Promise<string> =>
+    deps.prompts ? deps.prompts.activePersonaOr(BUTLER_PERSONA) : BUTLER_PERSONA;
+
+  // Prompts registry surface (localhost) — view/edit how J.A.R.V.I.S. speaks.
+  if (deps.prompts) {
+    const prompts = deps.prompts;
+    app.get("/prompts", async (req) => {
+      const kind = (req.query as { kind?: string }).kind as "persona" | "system" | "template" | undefined;
+      return { prompts: await prompts.list(kind, true), active: await prompts.getActive("persona") };
+    });
+    app.get("/prompts/active", async (req) => {
+      const kind = ((req.query as { kind?: string }).kind ?? "persona") as "persona" | "system" | "template";
+      return (await prompts.getActive(kind)) ?? { name: "butler", kind: "persona", content: BUTLER_PERSONA, active: true, fallback: true };
+    });
+    const SetSchema = z.object({
+      name: z.string().min(1),
+      kind: z.enum(["persona", "system", "template"]).optional(),
+      content: z.string().min(1),
+    });
+    app.post("/prompts", async (req, reply) => {
+      const parsed = SetSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+      try {
+        return await prompts.set({
+          name: parsed.data.name,
+          content: parsed.data.content,
+          ...(parsed.data.kind ? { kind: parsed.data.kind } : {}),
+        });
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+    app.post("/prompts/:name/activate", async (req) => {
+      const name = decodeURIComponent((req.params as { name: string }).name);
+      const kind = ((req.body as { kind?: string } | undefined)?.kind ?? "persona") as "persona" | "system" | "template";
+      return { activated: await prompts.activate(name, kind) };
+    });
+    app.delete("/prompts/:name", async (req) => {
+      const name = decodeURIComponent((req.params as { name: string }).name);
+      const kind = ((req.query as { kind?: string }).kind ?? "persona") as "persona" | "system" | "template";
+      return { removed: await prompts.remove(name, kind) };
+    });
+  }
   app.post("/core/converse", async (req, reply) => {
     const parsed = ConverseSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
@@ -390,10 +437,11 @@ export function registerCoreRoutes(
     });
     deps.activity.emit({ kind: "objective", text: body.text, at: new Date().toISOString() });
     try {
+      const persona = await activePersona();
       for await (const token of deps.loop.runConversation({
         text: body.text,
         source: body.source,
-        system: BUTLER_PERSONA,
+        system: persona,
         privacyClass: body.privacyClass,
         ...(body.sessionId ? { sessionId: body.sessionId } : {}),
       })) {

@@ -3,7 +3,7 @@
 **Recorded:** 2026-07-17 · **Environment:** Linux dev container (NOT the target Mac).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
-**Result:** **23 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
+**Result:** **24 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
 (against an online kernel; P-OFFLINE-01 is a live PASS when the kernel runs with
 `JARVIS_OFFLINE=1` **and a local model is up** — its offline *gating*, i.e. remote
 providers refused, is confirmed live regardless). Re-confirmed 2026-07-17 with the
@@ -36,6 +36,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-ENTMEM-01 semantic memory: entities/facts/relations + recall + secret refusal | PASS | remember entity/fact/relation → `memory.recall` returns decrypted facts + relations; content `v1.gcm.*` at rest (0 plaintext); secret-shaped fact refused (R-MEM-06) |
 | P-EPISODE-01 episodic memory: recall + auto-record real actions + READ_ONLY excluded + forget | PASS | recorded note → `memory.recallEpisodes` returns it; a real `workspace.writeNote` **auto-records** as an `action` event (loop-driven, D-0041); READ_ONLY `system.info`/`recallEpisodes` NOT recorded; content `v1.gcm.*` at rest; forget excludes immediately; feeds "Recently: …" into `/context` |
 | P-SEMANTIC-01 semantic (vector) recall over memory + graceful fallback | PASS | `?semantic=1` recalls episodes by MEANING via pgvector + the gateway embeddings role (D-0042); with an embedder the reactor episode ranks first for a reactor query, without one it falls back to REAL lexical recall (never errors). **Live (6/6):** real 768-dim vectors stored via the actual `router.embed`→HTTP path; meaning-ranking correct for two lexically-distinct queries |
+| P-PROMPT-01 prompts registry: seeded persona + set/activate + one-active + restore | PASS | J.A.R.V.I.S.'s persona is user-editable data (R-CAP-01 prompts kind, D-0043): the loop reads the ACTIVE persona from `/prompts`; set/activate keeps exactly one active + supersede history; seeded butler default present; restores prior persona (safe on the Mac). **Live (6/6):** the active persona — seeded AND a registry-set custom one — really reaches the model through `/core/converse` |
 | P-MEM-01 remember + retrieve preference | PASS | stored + read back |
 | P-MEM-02 memory refuses secrets (R-MEM-06) | PASS | secret-shaped value refused |
 | P-SEC-01 secrets vault names-only + value never leaks | PASS | listed name only, value absent from listing + audit; ciphertext at rest |
