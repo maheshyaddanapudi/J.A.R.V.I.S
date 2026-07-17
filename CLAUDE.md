@@ -31,7 +31,9 @@ This repo builds **J.A.R.V.I.S.** — a real, working, local-first personal AI O
 
 ## Approved architecture
 
-**None yet.** Options A/B/C are in `docs/ARCHITECTURE.md`; selection pending at the Phase 0 check-in (D-0002). After approval, record the choice in DECISION_LOG, update this section (option, process inventory, conventions), and scaffold per IMPLEMENTATION_PLAN slice 1.1.
+**Option A — Hybrid (approved 2026-07-17, D-0002):** TypeScript kernel `jarvisd` (trust core Z1: policy/approval/audit/credentials/e-stop + registries + model-gateway adapters + client transport) · Python `jarvis-mind` (LangGraph 1.x behind our `AgentRuntime` interface) · Python `jarvis-ears` speech daemon (sherpa-onnx KWS, Silero VAD, Kyutai-MLX STT, Kokoro TTS) · Tauri 2 companion with minimal Swift bridge (AX, CGEvent, ScreenCaptureKit, Shortcuts, Keychain, Voice Processing I/O) · Next.js 16 + React 19 + R3F Command Center · Postgres 18 + pgvector · Ollama · OTel → Jaeger v2. Valkey deferred until needed (D-0006). Details: `docs/ARCHITECTURE.md §3`.
+
+**Parity matrix (D-0003) is still IN DISCUSSION — production code remains blocked until it is approved.** Voice identity is not fixed until the listening demo (D-0004 condition).
 
 ## Conventions (extend after architecture approval)
 

@@ -12,17 +12,15 @@ Statuses below marked PROPOSED are **awaiting the Phase 0 check-in** — nothing
 - **Rationale:** Keep the user's files untouched; keep generated names exactly as the goal specifies.
 
 ## D-0002 — Architecture option
-- **Date:** 2026-07-16 · **Status:** PROPOSED — **user selection required at Phase 0 check-in**
-- **Decision requested:** choose Option A (Hybrid TS+Python modular monolith — recommended), Option B (TypeScript-only core), or Option C (Swift-native core). Full tradeoffs in `docs/ARCHITECTURE.md`.
-- **Recommendation:** Option A, per `docs/ARCHITECTURE.md §7`.
+- **Date:** 2026-07-16 · **Status:** **APPROVED 2026-07-17 — Option A (Hybrid TS + Python)** selected by the user at the Phase 0 check-in.
+- **Scope of approval:** the Option A component table in `docs/ARCHITECTURE.md §3`, which adopts D-0006 (Valkey deferred), D-0008 (thin in-house gateway), D-0009 (LangGraph behind AgentRuntime), D-0010 (Jaeger v2), D-0013 (encryption approach), D-0014 (Tauri 2) as its parts. Any of these may be reopened at a future check-in; until then they are binding.
 
 ## D-0003 — Capability parity matrix approval
-- **Date:** 2026-07-16 · **Status:** PROPOSED — **user approval required at Phase 0 check-in**
+- **Date:** 2026-07-16 · **Status:** IN DISCUSSION — at the 2026-07-17 check-in the user chose "discuss first"; walkthrough in progress. Production code remains blocked until this is approved.
 - **Decision requested:** approve `docs/CAPABILITY_PARITY_MATRIX.md` classifications, notably: the PROHIBITED rows (weapons targeting F2, unauthorized access C5, actor-voice cloning A3, Marvel IP I2, empty-air holography claims D2, covert persistence G4b, core self-modification G3), the SIMULATED rows (armor/flight/threat-assessment F4–F7, element synthesis D7), and the DEFERRED rows (affect inference B4, personal health telemetry B5).
 
 ## D-0004 — Voice stack picks
-- **Date:** 2026-07-16 · **Status:** PROPOSED — final selection at the voice-stack check-in before Phase 1 slice 1.3
-- **Decision requested:** approve the recommended picks in `docs/ARCHITECTURE.md §6` (wake word, STT, TTS + British voice, VAD, echo path, speaker verification), all open-source and locally runnable.
+- **Date:** 2026-07-16 · **Status:** **APPROVED WITH CONDITION 2026-07-17** — the user approved the recommended stack (`docs/ARCHITECTURE.md §6`) with the condition that a **listening demo of candidate voices (Kokoro `bm_fable` vs `bm_george`, plus Kyutai TTS alternates) is held before the voice identity is fixed**. The demo happens in Phase 1 slice 1.3 before hardening; engines stay replaceable behind typed interfaces regardless.
 
 ## D-0005 — Module-level CLAUDE.md files deferred to Phase 1
 - **Date:** 2026-07-16 · **Status:** PROPOSED (surfaced per the "no requirement dropped silently" rule)

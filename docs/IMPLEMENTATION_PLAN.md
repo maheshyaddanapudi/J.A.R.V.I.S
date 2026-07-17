@@ -11,9 +11,9 @@
 | Field | Value |
 |---|---|
 | **Current phase** | **Phase 0 — Research & Architecture** |
-| **Current slice** | Phase 0 document set authored; **awaiting Phase 0 check-in: user must select an architecture option and approve the parity matrix** |
+| **Current slice** | Phase 0 check-in in progress (2026-07-17): **architecture Option A APPROVED (D-0002); voice stack APPROVED with listening-demo condition (D-0004); parity matrix IN DISCUSSION (D-0003)** |
 | **Production code written** | None (correct for Phase 0) |
-| **Blocking decision** | DECISION_LOG D-0002 (architecture option), D-0003 (parity matrix approval), D-0004 (voice stack), D-0005 (naming/file-layout confirmation) |
+| **Blocking decision** | DECISION_LOG D-0003 (parity matrix approval — user requested walkthrough/discussion) |
 | **Next action after approval** | Begin Phase 1 slice 1.1 (repo scaffold + infra) per plan below |
 
 ### Phase 0 exit checklist
@@ -49,7 +49,7 @@ Slices (each independently runnable and demoed):
 8. **1.8 Packaging & verification** — packaged macOS companion (Tauri) + local web app; documented install/start commands; backup/restore; full Phase-1 acceptance run (all 14 criteria in docs/06), recorded results.
 
 **Phase-1 acceptance tests:** the 14 user-facing criteria in `docs/06 §Phase 1` executed on the real machine and recorded (pass/fail + evidence) in `docs/verification/PHASE_1_ACCEPTANCE.md`.
-**Check-ins inside Phase 1:** visual design system (before 1.7 hardens); voice stack final pick (before 1.3); memory architecture + local security model (before 1.4/1.6).
+**Check-ins inside Phase 1:** visual design system (before 1.7 hardens); **voice listening demo — Kokoro `bm_fable` vs `bm_george` + Kyutai alternates — before the voice identity is fixed in 1.3 (condition on D-0004)**; memory architecture + local security model (before 1.4/1.6).
 
 ### Phase 2 — Computer & Knowledge
 Screen understanding (ScreenCaptureKit), Accessibility control (AXUIElement), browser automation (Playwright), files, terminal-with-policy, repo/document/image analysis, persistent encrypted memory (full store set), research with provenance, independent action verification. **Check-in before enabling computer control.** Hardware prereqs: none (webcam optional for B3).
@@ -77,7 +77,9 @@ Home Assistant integration, device gateway, hardware catalog + plugin SDK, room 
 ---
 
 ## Approved decisions
-None yet — Phase 0 check-in pending. (After the check-in, decisions are recorded in `DECISION_LOG.md` and mirrored here only as references.)
+- **D-0002 (2026-07-17): Architecture Option A** — Hybrid TS kernel + Python intelligence/speech + Tauri 2/Swift bridge + Next.js/R3F + Postgres/pgvector; includes D-0006/8/9/10/13/14.
+- **D-0004 (2026-07-17): Voice stack approved with condition** — listening demo before voice identity hardens (slice 1.3).
+- Full detail in `DECISION_LOG.md`.
 
 ## Deferred items (deferral ≠ removal; docs/05)
 | Item | Reason | Prerequisites | Target phase | Resume criteria |
