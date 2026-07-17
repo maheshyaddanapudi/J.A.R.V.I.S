@@ -109,7 +109,8 @@ export async function buildCore(opts: {
   // MCP client host — discover external servers on demand; their tools are
   // registered namespaced + trust-gated (untrusted by default, T2).
   const mcpHost = new McpClientHost();
-  const mcp = new McpRegistry(audit);
+  const mcp = new McpRegistry(audit, opts.pool);
+  await mcp.load(); // hydrate persisted trust + manifest fingerprints (survives restart)
   const connectMcp = async (config: McpServerConfig) => {
     const { discovery, client } = await mcpHost.discover(config);
     const server = await mcp.register(discovery);

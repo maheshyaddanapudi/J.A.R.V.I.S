@@ -1,6 +1,7 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, afterAll } from "vitest";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import pg from "pg";
 import { McpClientHost } from "../src/mcp/client.js";
 import { McpRegistry, mcpToolRisk } from "../src/mcp/registry.js";
 import { mcpTools } from "../src/mcp/tools.js";
@@ -9,9 +10,24 @@ import type { AuditLog } from "../src/core/audit.js";
 const audit = { append: vi.fn(async () => ({ seq: 1, chainHash: "x" })) } as unknown as AuditLog;
 const serverPath = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "mcp-test-server.mjs");
 
+const dbUrl =
+  process.env.JARVIS_TEST_DATABASE_URL ??
+  "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test";
+let pool: pg.Pool | undefined;
+try {
+  const probe = new pg.Pool({ connectionString: dbUrl, connectionTimeoutMillis: 2000 });
+  await probe.query("SELECT 1");
+  pool = probe;
+} catch {
+  /* no DB → the persistence block skips */
+}
+
 const clients: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
   for (const c of clients.splice(0)) await c.close().catch(() => {});
+});
+afterAll(async () => {
+  await pool?.end();
 });
 
 describe("MCP client host (against a REAL stdio MCP server)", () => {
@@ -104,5 +120,56 @@ describe("MCP client host (against a REAL stdio MCP server)", () => {
     const tools = mcpTools(server, client, host);
     expect(tools.every((t) => t.name.startsWith("mcp:evil:"))).toBe(true);
     expect(tools.some((t) => t.name === "system.info")).toBe(false);
+  });
+});
+
+describe.skipIf(!pool)("MCP registry persistence (trust + fingerprint survive a restart)", () => {
+  it("persists trust so a trusted server is not re-gated after restart", async () => {
+    await pool!.query("TRUNCATE mcp_servers");
+    const host = new McpClientHost();
+    // session 1: register + elevate to trusted, backed by the DB
+    const r1 = new McpRegistry(audit, pool);
+    const { discovery, client } = await host.discover({ id: "persist", command: "node", args: [serverPath] });
+    clients.push(client);
+    await r1.register(discovery);
+    await r1.setTrust("persist", "trusted");
+
+    // session 2: a brand-new registry (simulating a kernel restart) hydrates from the DB
+    const r2 = new McpRegistry(audit, pool);
+    await r2.load();
+    const restored = r2.get("persist");
+    expect(restored).toBeDefined();
+    expect(restored!.trust).toBe("trusted"); // trust survived — no re-approval needed
+    expect(mcpToolRisk(restored!.trust)).toBe("READ_ONLY");
+    expect(restored!.manifestHash).toBe(discovery.manifestHash);
+  });
+
+  it("detects a rug pull that happened while the kernel was DOWN (fingerprint persisted)", async () => {
+    await pool!.query("TRUNCATE mcp_servers");
+    const host = new McpClientHost();
+    // session 1: register the base tool set and trust it
+    const r1 = new McpRegistry(audit, pool);
+    const base = await host.discover({ id: "down", command: "node", args: [serverPath] });
+    clients.push(base.client);
+    await r1.register(base.discovery);
+    await r1.setTrust("down", "trusted");
+
+    // kernel restarts; the server changed its tools while we were down
+    const r2 = new McpRegistry(audit, pool);
+    await r2.load();
+    const changed = await host.discover({
+      id: "down",
+      command: "node",
+      args: [serverPath],
+      env: { MCP_TEST_VARIANT: "rugpull" },
+    });
+    clients.push(changed.client);
+    const requarantined = await r2.register(changed.discovery);
+    expect(requarantined.quarantined).toBe(true); // caught across the restart
+    // and the quarantine is itself persisted
+    const { rows } = await pool!.query<{ quarantined: boolean }>(
+      "SELECT quarantined FROM mcp_servers WHERE id = 'down'",
+    );
+    expect(rows[0]!.quarantined).toBe(true);
   });
 });

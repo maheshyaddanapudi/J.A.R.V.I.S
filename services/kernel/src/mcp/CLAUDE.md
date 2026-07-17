@@ -19,7 +19,12 @@ external tool/context protocol (official SDK 1.29, spec 2025-11-25 — verified
   known server whose hash changed (rug pull). `setTrust()` is the check-in
   action. `mcpToolRisk(trust)`: `trusted` → READ_ONLY, everything else →
   CONSEQUENTIAL (even a "read-shaped" tool from an untrusted server needs
-  approval — the server could do anything behind the call).
+  approval — the server could do anything behind the call). **Persisted**
+  (migration 0007, `mcp_servers`) when constructed with a pool: `load()`
+  hydrates trust + manifest fingerprint + quarantine state at startup so they
+  survive a kernel restart. The DB is the source of truth for these
+  security-relevant fields; the in-memory map is a hydrated cache. Without a
+  pool it is purely in-memory (the unit tests).
 - `tools.ts` — `mcpTools(server, client, host)`: wraps each discovered tool as a
   kernel `Tool`, namespaced `mcp:<server>:<tool>`, description prefixed
   `[MCP · server '…' · trust=… · UNTRUSTED description]`, risk from the SERVER's
@@ -42,6 +47,10 @@ external tool/context protocol (official SDK 1.29, spec 2025-11-25 — verified
   always re-verifies the manifest.
 - **env stays local.** Connect-time `env` reaches the subprocess only; it is
   never written to the audit log or memory.
+- **Persistence across restart.** The fingerprint + quarantine + trust are
+  persisted, so a rug pull that happens *while the kernel is down* is still
+  caught on the next reconnect (the persisted hash is the baseline), and a
+  trusted server does not silently drop to untrusted (which would re-prompt).
 
 ## Routes (`src/core/routes.ts`)
 - `GET  /mcp/servers` — registered servers (trust, quarantined, tools, hash).
@@ -51,14 +60,18 @@ external tool/context protocol (official SDK 1.29, spec 2025-11-25 — verified
 Discovered tools run through the normal `POST /core/run-tool` gated loop.
 
 ## Verified (2026-07-17)
-6 MCP tests against a **real** stdio server (`test/fixtures/mcp-test-server.mjs`,
+8 MCP tests against a **real** stdio server (`test/fixtures/mcp-test-server.mjs`,
 official SDK): discovery, real callTool, untrusted→CONSEQUENTIAL gating,
-trusted→READ_ONLY, rug-pull quarantine, name-shadow prevention. Live through the
-kernel HTTP surface: connect → untrusted default → namespaced tools gated
-CONSEQUENTIAL; gated loop **denied** refuses / **allow-once** makes the real call
-(echo returns text, add → 42); audit chain intact (disclosure/approval/
-execution/verification per call); trust elevation → reconnect → READ_ONLY, no
-prompt; rug pull (added `exfiltrate` tool) → quarantine (audited) → tools refuse.
+trusted→READ_ONLY, rug-pull quarantine, name-shadow prevention, **plus 2
+persistence tests** (trust survives a simulated restart; a rug pull that
+happened while the kernel was down is caught on reconnect via the persisted
+fingerprint). Live through the kernel HTTP surface: connect → untrusted default
+→ namespaced tools gated CONSEQUENTIAL; gated loop **denied** refuses /
+**allow-once** makes the real call (echo returns text, add → 42); audit chain
+intact (disclosure/approval/execution/verification per call); trust elevation →
+reconnect → READ_ONLY, no prompt; rug pull (added `exfiltrate` tool) →
+quarantine (audited) → tools refuse; and **trust survived a real kernel restart**
+(hydrated from `mcp_servers`, no reconnect needed).
 
 ## GATE (docs/06) — D-0027
 Raising a server's trust above `untrusted` is a per-server check-in decision,
@@ -66,7 +79,8 @@ re-granted after any manifest change. `untrusted` is safe by default (every call
 approved), so connecting/discovering needs no gate; only trust elevation does.
 
 ## Next
-Persist the server registry + trust across restarts (currently in-memory);
 SSE/HTTP transports (stdio only today); resource + prompt discovery (tools only
-today); per-tool (not just per-server) trust overrides; a Command Center MCP
-management surface.
+today); per-tool (not just per-server) trust overrides; auto-reconnect persisted
+servers at startup (today `load()` restores trust/fingerprint but the subprocess
++ live tools are re-registered on the next explicit `/mcp/connect`); a Command
+Center MCP management surface.
