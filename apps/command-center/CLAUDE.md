@@ -67,7 +67,13 @@ never decoration (R-UI-03, R-CORE-02).
   headless browser**: fresh cycle surfaced overdue commitments with their why +
   snooze/dismiss controls; a 3am preview suppressed all 3 via the `quiet_hours`
   gate with reasons; a re-run showed the `dedup` gate ("already surfaced"). All
-  real engine output.
+  real engine output. **Now also has a rules editor** (D-0044, R-CAP-01 "rules"
+  kind): create/enable/disable/delete user rules that configure WHAT J.A.R.V.I.S. is
+  proactive about (`/proactive/rules`) — condition is a fixed safe set (commitment
+  overdue / due-within-N-min / time-of-day), priority selectable; rules add
+  candidates that still pass every gate. **Verified live via headless Chromium
+  (6/6)**: created a rule (listed), disabled it (shows OFF), deleted it, the
+  condition-type switch reveals its param, no console errors.
 - **Computer-control preview** at `/control` (`app/control/page.tsx`, 2026-07-17):
   drives the labeled SIMULATION desktop (virtual Notes + Settings) through the
   REAL gated loop (POST /core/run-tool). READ actions (list apps / screenshot /

@@ -22,6 +22,13 @@ interface RunResult {
   suppressedCount: number;
   suppressed: Suppression[];
 }
+interface Rule {
+  name: string;
+  title: string;
+  enabled: boolean;
+  priority: string;
+  condition: Record<string, unknown>;
+}
 
 /**
  * Proactivity control surface (R-PRO). Runs a cycle ON DEMAND and shows both
@@ -37,6 +44,13 @@ export default function ProactivePage() {
   const [busy, setBusy] = useState(false);
   const [estop, setEstop] = useState(false);
   const [note, setNote] = useState<string>("");
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [rName, setRName] = useState("");
+  const [rTitle, setRTitle] = useState("");
+  const [rType, setRType] = useState("commitment_overdue");
+  const [rMinutes, setRMinutes] = useState("120");
+  const [rPod, setRPod] = useState("morning");
+  const [rPriority, setRPriority] = useState("normal");
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -49,6 +63,47 @@ export default function ProactivePage() {
     }, 3000);
     return () => clearInterval(id);
   }, []);
+
+  async function loadRules() {
+    try {
+      const r = await fetch(`${KERNEL_URL}/proactive/rules`, { cache: "no-store" }).then((x) => x.json());
+      setRules(r.rules ?? []);
+    } catch { /* */ }
+  }
+  useEffect(() => { void loadRules(); }, []);
+
+  function buildCondition(): Record<string, unknown> {
+    if (rType === "part_of_day") return { type: "part_of_day", value: rPod };
+    if (rType === "commitment_due_within") return { type: "commitment_due_within", minutes: Number(rMinutes) || 60 };
+    return { type: "commitment_overdue" };
+  }
+  async function saveRule() {
+    if (!rName.trim() || !rTitle.trim()) return;
+    setNote("");
+    const r = await fetch(`${KERNEL_URL}/proactive/rules`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: rName.trim(), title: rTitle.trim(), priority: rPriority, condition: buildCondition() }),
+    });
+    setNote(r.ok ? `rule '${rName.trim()}' saved — run a cycle to see it` : "rule rejected (invalid condition)");
+    setRName(""); setRTitle("");
+    await loadRules();
+  }
+  async function toggleRule(name: string, enabled: boolean) {
+    await fetch(`${KERNEL_URL}/proactive/rules/${encodeURIComponent(name)}/enabled`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }),
+    });
+    await loadRules();
+  }
+  async function deleteRule(name: string) {
+    await fetch(`${KERNEL_URL}/proactive/rules/${encodeURIComponent(name)}`, { method: "DELETE" });
+    await loadRules();
+  }
+  function condLabel(c: Record<string, unknown>): string {
+    if (c.type === "part_of_day") return `every ${c.value}`;
+    if (c.type === "commitment_due_within") return `commitment due within ${c.minutes}m`;
+    if (c.type === "commitment_overdue") return `commitment overdue`;
+    return String(c.type);
+  }
 
   async function runCycle() {
     setBusy(true);
@@ -130,6 +185,51 @@ export default function ProactivePage() {
         {note && <span style={{ color: "var(--advisory)", fontSize: "0.72rem" }}>{note}</span>}
       </div>
 
+      <section style={{ background: "var(--surface)", border: "1px solid var(--line)", borderLeft: "3px solid var(--focal)", padding: "0.9rem 1.1rem", marginBottom: "0.9rem" }}>
+        <h2 style={{ margin: "0 0 0.5rem", fontSize: "0.78rem", letterSpacing: "0.12em", color: "var(--focal)" }}>
+          YOUR RULES ({rules.length}) — what J.A.R.V.I.S. is proactive about
+        </h2>
+        <div style={{ color: "var(--dim)", fontSize: "0.72rem", marginBottom: "0.5rem" }}>
+          rules add candidates that still pass every gate; suggestion-only, never acts. Conditions are a fixed safe set.
+        </div>
+        <div style={{ maxHeight: 180, overflowY: "auto", marginBottom: "0.6rem" }}>
+          {rules.length === 0 && <span style={{ color: "var(--dim)", fontSize: "0.8rem" }}>no rules yet — built-in generators still run</span>}
+          {rules.map((r) => (
+            <div key={r.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0.2rem 0", borderBottom: "1px solid var(--line)", fontSize: "0.78rem" }}>
+              <span>
+                <span style={{ color: r.enabled ? "var(--focal)" : "var(--dim)" }}>{r.title}</span>{" "}
+                <span style={{ color: "var(--dim)", fontSize: "0.68rem" }}>[{r.name} · {condLabel(r.condition)} · {r.priority}{r.enabled ? "" : " · OFF"}]</span>
+              </span>
+              <span style={{ display: "flex", gap: "0.3rem" }}>
+                <button onClick={() => toggleRule(r.name, !r.enabled)} style={btn(r.enabled ? "var(--advisory)" : "var(--operational)")}>{r.enabled ? "disable" : "enable"}</button>
+                <button onClick={() => deleteRule(r.name)} style={btn("var(--critical)")}>delete</button>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", alignItems: "center", borderTop: "1px solid var(--line)", paddingTop: "0.5rem" }}>
+          <input value={rName} onChange={(e) => setRName(e.target.value)} placeholder="rule id" style={{ ...ruleInput, width: 100 }} />
+          <input value={rTitle} onChange={(e) => setRTitle(e.target.value)} placeholder="what to surface" style={{ ...ruleInput, flex: 1, minWidth: 140 }} />
+          <select value={rType} onChange={(e) => setRType(e.target.value)} style={ruleInput}>
+            <option value="commitment_overdue">commitment overdue</option>
+            <option value="commitment_due_within">commitment due within…</option>
+            <option value="part_of_day">at time of day…</option>
+          </select>
+          {rType === "commitment_due_within" && (
+            <input value={rMinutes} onChange={(e) => setRMinutes(e.target.value)} style={{ ...ruleInput, width: 64 }} title="minutes" />
+          )}
+          {rType === "part_of_day" && (
+            <select value={rPod} onChange={(e) => setRPod(e.target.value)} style={ruleInput}>
+              <option>morning</option><option>afternoon</option><option>evening</option><option>night</option>
+            </select>
+          )}
+          <select value={rPriority} onChange={(e) => setRPriority(e.target.value)} style={ruleInput}>
+            <option>low</option><option>normal</option><option>high</option><option>critical</option>
+          </select>
+          <button onClick={saveRule} disabled={!rName.trim() || !rTitle.trim()} style={{ ...btn("var(--operational)"), opacity: rName.trim() && rTitle.trim() ? 1 : 0.5 }}>add rule</button>
+        </div>
+      </section>
+
       {domains.length > 0 && (
         <div style={{ marginBottom: "0.9rem", fontSize: "0.75rem", color: "var(--dim)" }}>
           domains:{" "}
@@ -183,6 +283,10 @@ export default function ProactivePage() {
   );
 }
 
+const ruleInput: React.CSSProperties = {
+  background: "var(--bg)", border: "1px solid var(--line)", color: "var(--focal)",
+  fontFamily: "var(--mono)", fontSize: "0.72rem", padding: "0.3rem 0.4rem",
+};
 function btn(color: string): React.CSSProperties {
   return {
     background: "transparent",
