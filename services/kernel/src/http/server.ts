@@ -3,6 +3,8 @@ import type pg from "pg";
 import type { KernelConfig } from "../config.js";
 import type { GatewayRouter } from "../gateway/router.js";
 import { registerGatewayRoutes } from "../gateway/routes.js";
+import type { Core } from "../core/index.js";
+import { registerCoreRoutes } from "../core/routes.js";
 import { buildHealthReport } from "./health.js";
 
 export function createServer(opts: {
@@ -12,6 +14,7 @@ export function createServer(opts: {
   version: string;
   startedAt: number;
   gateway?: GatewayRouter;
+  core?: Core;
 }): FastifyInstance {
   const app = Fastify({
     logger: { level: opts.config.logLevel },
@@ -39,6 +42,17 @@ export function createServer(opts: {
 
   if (opts.gateway) {
     registerGatewayRoutes(app, opts.gateway);
+  }
+
+  if (opts.core) {
+    registerCoreRoutes(app, {
+      loop: opts.core.loop,
+      tools: opts.core.tools,
+      audit: opts.core.audit,
+      estop: opts.core.estop,
+      approvals: opts.core.approvals,
+      activity: opts.core.activity,
+    });
   }
 
   return app;

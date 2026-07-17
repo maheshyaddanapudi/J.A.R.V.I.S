@@ -5,8 +5,14 @@ and later modes). Everything rendered is live system data or a labeled simulator
 never decoration (R-UI-03, R-CORE-02).
 
 ## Current state
-- Slice 1.1 ✅: system page polls kernel `/health` (2 s) and renders real kernel/DB/
-  migration state, including the unreachable case in critical red.
+- Slice 1.1 ✅: system page polls kernel `/health`.
+- Slice 1.4 ✅: Command Center shows the live trust core — kernel health, AUDIT
+  panel (chain integrity + recent hash-chained entries), APPROVALS panel with
+  working approve/deny (posts to /core/approvals/resolve), ACTIVITY TIMELINE via
+  SSE (/core/activity), and the persistent EMERGENCY STOP button (engage/resume).
+  All live data. NOTE: `page.goto` in browser tests must use
+  `waitUntil: "domcontentloaded"` — the SSE activity stream means the page never
+  reaches `networkidle`.
 - Styling: provisional tokens in `app/globals.css` only. The visual design system is
   finalized at its own check-in before slice 1.7 hardens — do not build elaborate
   visuals before that check-in (R-UI-01).

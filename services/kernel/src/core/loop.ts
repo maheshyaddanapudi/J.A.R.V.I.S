@@ -1,0 +1,250 @@
+import type { GatewayRouter } from "../gateway/router.js";
+import type { NeutralMessage } from "../gateway/schema.js";
+import type { ActivityBus } from "./activity.js";
+import type { ApprovalBroker, ApprovalResolution } from "./approvals.js";
+import type { AuditLog } from "./audit.js";
+import type { EmergencyStop } from "./estop.js";
+import type { Grant, PolicyEngine, RiskClass } from "./policy.js";
+import type { ToolContext, ToolRegistry } from "./tools.js";
+
+/**
+ * Z1 TRUST CORE — PROTECTED PATH (R-CAP-08).
+ *
+ * The core loop (R-CORE-03), Phase-1 scope:
+ *   objective → (optional tool decision) → gated execution → verify → record.
+ *
+ * A request may either be answered by the conversation model (streamed tokens)
+ * or routed to a named tool. Tool execution passes through the policy engine;
+ * consequential tools require approval with full pre-action disclosure; results
+ * are independently verified and everything is audited + emitted to the timeline.
+ */
+export class CoreLoop {
+  private sessionGrants: Grant[] = [];
+
+  constructor(
+    private readonly deps: {
+      gateway: GatewayRouter;
+      policy: PolicyEngine;
+      tools: ToolRegistry;
+      audit: AuditLog;
+      estop: EmergencyStop;
+      approvals: ApprovalBroker;
+      activity: ActivityBus;
+      toolCtx: ToolContext;
+    },
+  ) {}
+
+  /**
+   * Run a tool request end to end. Returns the outcome; streams activity events
+   * throughout. (Conversation-only requests go through runConversation.)
+   */
+  async runTool(input: {
+    tool: string;
+    args: unknown;
+    source: string;
+    resourceScope?: string;
+    delegatedAutomation?: boolean;
+    /**
+     * Scripted/test flows may pre-declare a resolution. When undefined, a
+     * needs-approval decision waits for a real resolution through the approval
+     * broker (an interface calls /core/approvals/resolve).
+     */
+    autoApprove?: ApprovalResolution;
+  }): Promise<{ ok: boolean; summary: string; denied?: boolean }> {
+    const now = () => new Date().toISOString();
+    if (this.deps.estop.isEngaged) {
+      return { ok: false, summary: "emergency stop engaged — execution halted", denied: true };
+    }
+
+    const tool = this.deps.tools.get(input.tool);
+    if (!tool) {
+      this.deps.activity.emit({ kind: "error", message: `unknown tool ${input.tool}`, at: now() });
+      return { ok: false, summary: `unknown tool: ${input.tool}` };
+    }
+
+    // Pre-action disclosure for consequential tools (R-CTRL-04). A tool that
+    // rejects its own args here (e.g. an out-of-scope path) is a clean denial,
+    // not a server error.
+    if (tool.disclose) {
+      try {
+        const disclosure = tool.disclose(input.args, this.deps.toolCtx);
+        this.deps.activity.emit({
+          kind: "tool_proposed",
+          tool: tool.name,
+          risk: tool.riskClass,
+          disclosure,
+          at: now(),
+        });
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        await this.deps.audit.append({
+          actor: "kernel",
+          event: "tool_refused",
+          payload: { tool: tool.name, source: input.source, reason },
+        });
+        this.deps.activity.emit({ kind: "tool_result", tool: tool.name, ok: false, summary: reason, at: now() });
+        return { ok: false, summary: reason, denied: true };
+      }
+    }
+
+    const decision = await this.deps.policy.evaluate({
+      tool: tool.name,
+      action: tool.action,
+      riskClass: tool.riskClass as RiskClass,
+      ...(input.resourceScope !== undefined ? { resourceScope: input.resourceScope } : {}),
+      grants: this.sessionGrants,
+      ...(input.delegatedAutomation !== undefined
+        ? { delegatedAutomation: input.delegatedAutomation }
+        : {}),
+      reason: `run ${tool.name}`,
+      source: input.source,
+    });
+
+    if (decision.effect === "deny") {
+      this.deps.activity.emit({
+        kind: "tool_result",
+        tool: tool.name,
+        ok: false,
+        summary: `denied: ${decision.reason}`,
+        at: now(),
+      });
+      return { ok: false, summary: `denied: ${decision.reason}`, denied: true };
+    }
+
+    if (decision.effect === "needs_approval") {
+      const { id, wait } = this.deps.approvals.create(tool.name, input.resourceScope ?? null);
+      this.deps.activity.emit({ kind: "approval_required", tool: tool.name, requestId: id, at: now() });
+      // Scripted flows resolve immediately; real interfaces call the broker.
+      if (input.autoApprove) {
+        void this.deps.approvals.resolve(id, input.autoApprove, input.source);
+      }
+      const resolution = await wait;
+      if (resolution === "deny") {
+        this.deps.activity.emit({
+          kind: "tool_result",
+          tool: tool.name,
+          ok: false,
+          summary: "denied by user",
+          at: now(),
+        });
+        return { ok: false, summary: "denied by user", denied: true };
+      }
+      this.rememberGrant(resolution, tool, input.resourceScope ?? "*");
+    }
+
+    // Re-check e-stop immediately before executing (it may have engaged during approval).
+    this.deps.estop.assertClear();
+
+    let result: Awaited<ReturnType<typeof tool.run>>;
+    try {
+      result = await tool.run(input.args, this.deps.toolCtx);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      await this.deps.audit.append({
+        actor: "kernel",
+        event: "tool_error",
+        payload: { tool: tool.name, source: input.source, reason },
+      });
+      this.deps.activity.emit({ kind: "tool_result", tool: tool.name, ok: false, summary: reason, at: now() });
+      return { ok: false, summary: reason };
+    }
+    await this.deps.audit.append({
+      actor: "kernel",
+      event: "tool_call",
+      payload: {
+        tool: tool.name,
+        source: input.source,
+        ok: result.ok,
+        summary: result.summary,
+        reversible: Boolean(result.rollback),
+      },
+    });
+    this.deps.activity.emit({
+      kind: "tool_result",
+      tool: tool.name,
+      ok: result.ok,
+      summary: result.summary,
+      at: now(),
+    });
+
+    // Independent verification (R-CORE-03): confirm the claimed effect really happened.
+    const verified = await this.verify(tool.name, result);
+    this.deps.activity.emit({ kind: "verified", ok: verified.ok, summary: verified.summary, at: now() });
+    await this.deps.audit.append({
+      actor: "kernel",
+      event: "verification",
+      payload: { tool: tool.name, ok: verified.ok, summary: verified.summary },
+    });
+
+    return { ok: result.ok && verified.ok, summary: result.summary };
+  }
+
+  /** Stream a conversational answer via the gateway; audit + emit activity. */
+  async *runConversation(input: {
+    messages: NeutralMessage[];
+    source: string;
+    privacyClass?: "LOCAL_ONLY" | "STANDARD";
+  }): AsyncGenerator<string> {
+    this.deps.estop.assertClear();
+    const now = () => new Date().toISOString();
+    const gen = this.deps.gateway.chatStream({
+      role: "fast_conversation",
+      messages: input.messages,
+      privacyClass: input.privacyClass ?? "LOCAL_ONLY",
+      source: input.source,
+    });
+    while (true) {
+      // barge-in / e-stop can interrupt mid-stream
+      if (this.deps.estop.isEngaged) {
+        this.deps.activity.emit({ kind: "error", message: "halted by emergency stop", at: now() });
+        return;
+      }
+      const step = await gen.next();
+      if (step.done) {
+        this.deps.activity.emit({
+          kind: "model",
+          role: "fast_conversation",
+          provider: step.value.provider,
+          model: step.value.model,
+          at: now(),
+        });
+        return;
+      }
+      if (step.value.type === "text_delta") {
+        this.deps.activity.emit({ kind: "token", text: step.value.text, at: now() });
+        yield step.value.text;
+      }
+    }
+  }
+
+  private rememberGrant(resolution: ApprovalResolution, tool: { name: string }, scope: string): void {
+    if (resolution === "allow-for-session" || resolution === "always-allow-in-scope") {
+      this.sessionGrants.push({
+        tool: tool.name,
+        scope,
+        riskCeiling: "CONSEQUENTIAL",
+        kind: resolution,
+      });
+    }
+  }
+
+  private async verify(toolName: string, result: { ok: boolean; data?: unknown }): Promise<{
+    ok: boolean;
+    summary: string;
+  }> {
+    // Tool-specific independent checks (never "the tool said ok, so ok").
+    if (toolName === "workspace.writeNote" && result.data && typeof result.data === "object") {
+      const { path } = result.data as { path?: string };
+      if (path) {
+        try {
+          const { stat } = await import("node:fs/promises");
+          await stat(path);
+          return { ok: true, summary: `verified file exists at ${path}` };
+        } catch {
+          return { ok: false, summary: `verification FAILED: ${path} not found after write` };
+        }
+      }
+    }
+    return { ok: result.ok, summary: "no independent check registered; used tool-reported status" };
+  }
+}

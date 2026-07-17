@@ -18,7 +18,21 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   routes: POST /gateway/chat (SSE), GET /gateway/status, GET /gateway/roles.
   Config: JSON file via `JARVIS_GATEWAY_CONFIG` (defaults in `gateway/config.ts`);
   `JARVIS_OFFLINE=1` refuses all remote providers.
-- Next (1.3): voice pipeline (Python `jarvis-ears` + Swift audio path on Mac).
+- Slice 1.4 ✅: **Z1 trust core under `src/core/` — PROTECTED PATH (R-CAP-08):
+  generated capabilities may NEVER modify anything here.** Components:
+  `audit.ts` (append-only sha256 hash-chained log + secret redaction + chain
+  verification), `estop.ts` (persisted emergency-stop latch, halts locally
+  before DB write), `policy.ts` (prohibited-list-first evaluation order: estop →
+  PROHIBITED semantics → risk class → scope/grant → approval), `approvals.ts`
+  (broker: allow-once/for-task/for-session/always-in-scope/deny; denyAll on
+  estop), `activity.ts` (live timeline bus), `tools.ts` + `tools/` (registry;
+  the two Phase-1 tools: `system.info` read-only, `workspace.writeNote`
+  consequential+reversible with pre-action disclosure and pre-captured undo),
+  `loop.ts` (core loop: objective → gated execution → independent verification →
+  record), `routes.ts` (/core/*: run-tool, converse SSE, activity SSE, estop,
+  approvals, audit, audit/verify). Migration 0003. **build copies migrations
+  to dist** (`build` script) — needed for `node dist/index.js`.
+- Next (1.3 Mac part + 1.5 approval-flow polish + 1.6 conversation memory).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.

@@ -23,6 +23,8 @@ const ConfigSchema = z.object({
     .transform((v) => v === "1" || v.toLowerCase() === "true"),
   /** Path to gateway config JSON; empty = built-in local-first defaults. */
   gatewayConfigPath: z.string().default(""),
+  /** Workspace root the reversible workspace tool is scoped to. */
+  workspaceRoot: z.string().default(""),
 });
 
 export type KernelConfig = z.infer<typeof ConfigSchema>;
@@ -36,6 +38,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): KernelConfig {
     logLevel: env.JARVIS_LOG_LEVEL,
     offline: env.JARVIS_OFFLINE,
     gatewayConfigPath: env.JARVIS_GATEWAY_CONFIG,
+    workspaceRoot: env.JARVIS_WORKSPACE,
   });
   if (!parsed.success) {
     throw new Error(`Invalid kernel configuration: ${parsed.error.message}`);

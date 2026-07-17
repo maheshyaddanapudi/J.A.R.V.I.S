@@ -1,12 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { loadConfig } from "./config.js";
 import { createPool } from "./db/pool.js";
 import { runMigrations } from "./db/migrate.js";
 import { createServer } from "./http/server.js";
 import { loadGatewayConfig } from "./gateway/config.js";
 import { GatewayRouter } from "./gateway/router.js";
+import { buildCore } from "./core/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = join(here, "db", "migrations");
@@ -23,6 +25,9 @@ const migrated = await runMigrations(pool, migrationsDir);
 const gatewayConfig = await loadGatewayConfig(config.gatewayConfigPath || undefined);
 const gateway = new GatewayRouter(gatewayConfig, pool, config.offline);
 
+const workspaceRoot = config.workspaceRoot || join(homedir(), ".jarvis", "workspace");
+const core = await buildCore({ pool, gateway, workspaceRoot });
+
 const app = createServer({
   config,
   pool,
@@ -30,6 +35,7 @@ const app = createServer({
   version: pkg.version,
   startedAt,
   gateway,
+  core,
 });
 
 await pool.query(
