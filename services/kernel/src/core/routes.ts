@@ -20,6 +20,8 @@ export function registerCoreRoutes(
     estop: EmergencyStop;
     approvals: ApprovalBroker;
     activity: ActivityBus;
+    capabilities: import("../selfext/registry.js").CapabilityRegistry;
+    stageA: import("../selfext/stageA.js").StageAPipeline;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -91,6 +93,34 @@ export function registerCoreRoutes(
     return { entries: await deps.audit.recent(limit) };
   });
   app.get("/core/audit/verify", async () => deps.audit.verifyChain());
+
+  // Self-extension (Phase 3 foundation) — Stage A only, NEVER activates.
+  // control.stageA runs the guard + records to the registry; the response makes
+  // the terminal decision + required check-in explicit.
+  app.get("/selfext/capabilities", async () => ({
+    capabilities: await deps.capabilities.list(),
+    gaps: await deps.capabilities.listGaps(),
+  }));
+  app.post("/selfext/record-gap", async (req) => {
+    const b = (req.body ?? {}) as { need?: string; context?: string };
+    const id = await deps.capabilities.recordGap(b.need ?? "unspecified", b.context ?? "", false);
+    return { id };
+  });
+  app.post("/selfext/stage-a", async (req, reply) => {
+    const b = req.body as
+      | { manifest?: unknown; need?: string; context?: string; sources?: string[] }
+      | undefined;
+    if (!b?.manifest) return reply.code(400).send({ error: "manifest required" });
+    // Note: on the Mac the manifest comes from a sandboxed out-of-process
+    // generator in an isolated git worktree; here we accept it directly to
+    // exercise the guard. NO activation happens regardless.
+    const report = await deps.stageA.run(b.manifest as never, {
+      need: b.need ?? "unspecified",
+      context: b.context ?? "",
+      ...(b.sources ? { sources: b.sources } : {}),
+    });
+    return report;
+  });
 
   // Conversational answer through the core loop (objective → streamed tokens),
   // with activity + e-stop interruption. SSE.

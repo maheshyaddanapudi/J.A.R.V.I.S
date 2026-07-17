@@ -53,6 +53,8 @@ export function createServer(opts: {
       estop: opts.core.estop,
       approvals: opts.core.approvals,
       activity: opts.core.activity,
+      capabilities: opts.core.capabilities,
+      stageA: opts.core.stageA,
     });
     registerMemoryRoutes(app, opts.core.memory);
   }

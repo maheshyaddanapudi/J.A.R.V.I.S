@@ -15,6 +15,8 @@ import { SimulatedDesktop } from "../control/simulator.js";
 import { computerControlTools } from "../control/tools.js";
 import type { ComputerControl } from "../control/contract.js";
 import type { Vault } from "../crypto/vault.js";
+import { CapabilityRegistry } from "../selfext/registry.js";
+import { StageAPipeline } from "../selfext/stageA.js";
 
 export interface Core {
   audit: AuditLog;
@@ -24,6 +26,8 @@ export interface Core {
   activity: ActivityBus;
   tools: ToolRegistry;
   memory: MemoryService;
+  capabilities: CapabilityRegistry;
+  stageA: StageAPipeline;
   loop: CoreLoop;
 }
 
@@ -76,5 +80,8 @@ export async function buildCore(opts: {
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
 
-  return { audit, estop, policy, approvals, activity, tools, memory, loop };
+  const capabilities = new CapabilityRegistry(opts.pool, audit);
+  const stageA = new StageAPipeline(capabilities, audit);
+
+  return { audit, estop, policy, approvals, activity, tools, memory, capabilities, stageA, loop };
 }
