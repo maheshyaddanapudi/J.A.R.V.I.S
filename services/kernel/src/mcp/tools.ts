@@ -51,6 +51,9 @@ export function mcpTools(
           ok: res.ok,
           summary: `[${server.id}/${spec.name}] ${res.text.slice(0, 200)}${res.isError ? " (tool error)" : ""}`,
           data: { serverId: server.id, tool: spec.name, isError: res.isError, provenance: "MCP-UNTRUSTED" },
+          // Full server output for the agent — UNTRUSTED (enveloped before the model, T2/T1).
+          detail: res.text,
+          untrusted: true,
         };
       },
     };

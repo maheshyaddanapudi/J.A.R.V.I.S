@@ -202,12 +202,14 @@ def main() -> int:
         else:
             read = post("/core/run-tool", {"tool": "web.readText", "args": {}, "source": "accept"})
             bad = post("/core/run-tool", {"tool": "web.open", "args": {"url": "file:///etc/passwd"}, "source": "accept", "autoApprove": "allow-once"})
+            # page content must be marked untrusted (T1) — the agent envelopes it before the model.
+            untrusted = bool(read.get("untrusted"))
             ok = (deny.get("denied") and appr.get("ok")
                   and read.get("ok") and f"WEBMARK-{marker}" in (read.get("detail") or "")
-                  and not bad.get("ok"))
-            record("P-WEB-01", "web research: gated navigation + real page read + scheme guard",
+                  and untrusted and not bad.get("ok"))
+            record("P-WEB-01", "web research: gated navigation + real page read + untrusted-envelope + scheme guard",
                    "PASS" if ok else "FAIL",
-                   f"deny={deny.get('denied')} open={appr.get('ok')} read_content={f'WEBMARK-{marker}' in (read.get('detail') or '')} file_refused={not bad.get('ok')}")
+                   f"deny={deny.get('denied')} open={appr.get('ok')} read_content={f'WEBMARK-{marker}' in (read.get('detail') or '')} untrusted={untrusted} file_refused={not bad.get('ok')}")
         httpd.shutdown()
     except Exception as e:
         record("P-WEB-01", "web research", "FAIL", str(e))

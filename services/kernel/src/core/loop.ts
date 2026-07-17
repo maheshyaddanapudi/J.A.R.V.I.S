@@ -55,7 +55,7 @@ export class CoreLoop {
      * broker (an interface calls /core/approvals/resolve).
      */
     autoApprove?: ApprovalResolution;
-  }): Promise<{ ok: boolean; summary: string; denied?: boolean; detail?: string }> {
+  }): Promise<{ ok: boolean; summary: string; denied?: boolean; detail?: string; untrusted?: boolean }> {
     const now = () => new Date().toISOString();
     if (this.deps.estop.isEngaged) {
       return { ok: false, summary: "emergency stop engaged — execution halted", denied: true };
@@ -188,6 +188,7 @@ export class CoreLoop {
       ok: result.ok && verified.ok,
       summary: result.summary,
       ...(result.detail !== undefined ? { detail: result.detail } : {}),
+      ...(result.untrusted ? { untrusted: true } : {}),
     };
   }
 

@@ -6,6 +6,7 @@ import type { AuditLog } from "../core/audit.js";
 import type { ActivityBus } from "../core/activity.js";
 import type { EmergencyStop } from "../core/estop.js";
 import type { AgentResult, AgentRunOptions, AgentRuntime, AgentStep } from "./contract.js";
+import { UNTRUSTED_CONTENT_NOTE, wrapUntrusted } from "../core/untrusted.js";
 
 const DEFAULT_MAX_STEPS = 6;
 /** Per-step cap on tool `detail` fed to the model (chars) — bounds context growth. */
@@ -16,7 +17,8 @@ const AGENT_SYSTEM =
   "steps. Use the provided tools when an action or lookup is needed; call one tool " +
   "at a time and use the result before the next. When the objective is met, reply " +
   "with a concise final answer and no further tool calls. Never claim a tool ran " +
-  "unless its result says so.";
+  "unless its result says so.\n\n" +
+  UNTRUSTED_CONTENT_NOTE;
 
 /**
  * Built-in local agent runtime. Iterative tool-use loop over the model gateway's
@@ -117,8 +119,11 @@ export class LocalAgentRuntime implements AgentRuntime {
         });
         // Feed the tool's model-facing output back so the agent can actually
         // reason over it (a read tool's summary alone is not enough). Bounded to
-        // keep one step from flooding the context.
-        const detail = exec.detail ? exec.detail.slice(0, DETAIL_BUDGET) : undefined;
+        // keep one step from flooding the context. EXTERNAL/untrusted content
+        // (web/research/MCP) is wrapped in an <untrusted_external_data> envelope
+        // so the model treats it as data, never instructions (THREAT_MODEL T1).
+        const bounded = exec.detail ? exec.detail.slice(0, DETAIL_BUDGET) : undefined;
+        const detail = bounded && exec.untrusted ? wrapUntrusted(`tool:${call.name}`, bounded) : bounded;
         messages.push({
           role: "tool",
           toolCallId: call.id,
@@ -126,7 +131,7 @@ export class LocalAgentRuntime implements AgentRuntime {
             ok: exec.ok,
             denied: exec.denied ?? false,
             summary: exec.summary,
-            ...(detail ? { detail, detailTruncated: (exec.detail?.length ?? 0) > DETAIL_BUDGET } : {}),
+            ...(detail ? { detail, ...(exec.untrusted ? { untrusted: true } : {}), detailTruncated: (exec.detail?.length ?? 0) > DETAIL_BUDGET } : {}),
           }),
         });
       }

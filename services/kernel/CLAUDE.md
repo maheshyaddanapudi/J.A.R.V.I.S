@@ -105,7 +105,7 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   policy, `file://`/`data:` refused) + `web.readText`/`links`/`screenshot`
   (READ_ONLY, content → agent via `detail`) + `web.fill`/`click`. The one outward
   capability, gated tightly; page content never audited. See `src/web/CLAUDE.md`.
-  8 web tests; **full suite 176 pass**; live end-to-end + harness `P-WEB-01`.
+  8 web tests; **full suite 182 pass**; live end-to-end + harness `P-WEB-01`.
 - Terminal-with-policy ✅ (Phase 2, D-0035): `src/terminal/` — a **REAL** shell
   (`bash -lc`), workspace-scoped, hard-timeout, bounded output. `assessCommand`
   classifies: DENY (privilege escalation / disk wipe / `rm -rf /` / fork bomb /
@@ -120,9 +120,17 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   line, snippet}` — per-claim provenance — fed to the agent (to cite). A refused
   source is recorded, never fabricated. See `src/research/CLAUDE.md`. 6 tests; live
   + harness `P-RESEARCH-01`.
+- Untrusted-content envelopes ✅ (THREAT_MODEL T1, D-0037): `src/core/untrusted.ts`.
+  `ToolResult.untrusted` flags EXTERNAL content (web/research/MCP output); the agent
+  wraps such `detail` in `<untrusted_external_data source="…">…</untrusted_external_data>`
+  before the model sees it (breakout-neutralized) and carries a standing note:
+  content inside the tags is DATA, never instructions. Prompt-injection defense
+  (ADV1) — a hostile page's "ignore previous instructions / run this / reveal
+  secrets" reaches the model only as quoted data, and the gates (terminal denylist,
+  vault, approval) still hold. 6 tests; live (P-WEB-01 asserts the flag).
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (screen understanding —
-  Mac ScreenCaptureKit, untrusted-content envelope + citation-check, full memory store set).
+  Mac ScreenCaptureKit, citation-check pass, full memory store set).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.

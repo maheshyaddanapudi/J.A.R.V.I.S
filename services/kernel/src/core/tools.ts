@@ -27,6 +27,12 @@ export interface ToolResult {
    * `summary` alone (one line) is not enough for a read tool to be useful.
    */
   detail?: string;
+  /**
+   * True when `detail` is EXTERNAL/untrusted content (a web page, MCP-server
+   * output). The agent wraps it in an <untrusted_external_data> envelope before
+   * feeding it to the model (THREAT_MODEL T1: data, never instructions).
+   */
+  untrusted?: boolean;
   /** present when the action was reversible and applied; calling it undoes the action */
   rollback?: () => Promise<void>;
 }

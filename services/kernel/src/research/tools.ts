@@ -65,6 +65,7 @@ export function researchTools(researcher: Researcher): Tool[] {
         data: r,
         // Sourced evidence for the agent to cite (per-claim provenance).
         detail: lines.join("\n"),
+        untrusted: true, // web-sourced content — enveloped before it reaches the model (T1)
       };
     },
   };

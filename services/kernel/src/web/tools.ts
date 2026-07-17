@@ -51,6 +51,7 @@ export function webTools(web: WebBrowser): Tool[] {
         summary: `opened ${nav.url} — "${nav.title}" (HTTP ${nav.status ?? "?"}, ${nav.provenance})`,
         data: nav,
         detail: `URL: ${nav.url}\nTitle: ${nav.title}\nStatus: ${nav.status ?? "?"}`,
+        untrusted: true,
       };
     },
   };
@@ -73,6 +74,7 @@ export function webTools(web: WebBrowser): Tool[] {
         summary: `read "${p.title}" — ${p.text.length} chars${p.truncated ? " (truncated)" : ""} (${p.provenance})`,
         data: p,
         detail: `# ${p.title}\n(${p.url})\n\n${p.text}`, // the page text — what the agent researches over
+        untrusted: true, // external page content — enveloped before it reaches the model (T1)
       };
     },
   };
@@ -95,6 +97,7 @@ export function webTools(web: WebBrowser): Tool[] {
         summary: `${r.links.length}${r.truncated ? "+" : ""} link(s) on ${r.url} (${r.provenance})`,
         data: r,
         detail: r.links.map((l) => `- ${l.text || "(no text)"} → ${l.href}`).join("\n") || "(no links)",
+        untrusted: true,
       };
     },
   };
