@@ -20,6 +20,11 @@ here, on this machine. Nothing is faked to look running.
 - **Docker Desktop or OrbStack** — Postgres (+ optional Jaeger)
 - **[Ollama](https://ollama.com)** — local models (local-capable-first, R-MODEL-04)
 - **Python 3.11+ with [`uv`](https://docs.astral.sh/uv/)** — the `jarvis-ears` speech service
+- **Chromium for Playwright** — the web/research tools drive a real headless browser.
+  `make install` pulls the `playwright` npm package (a kernel dependency); fetch the
+  browser once with `npx playwright install chromium` (run in `services/kernel`, or
+  set `JARVIS_CHROMIUM_PATH` to an existing Chromium). Without it, `web.*` /
+  `research.gather` return a clear "install Playwright" error; nothing else is affected.
 - **Xcode command-line tools** (`xcode-select --install`) — the Swift companion
 - macOS 26 login Keychain access (the vault KEK is stored there automatically)
 
@@ -27,11 +32,13 @@ here, on this machine. Nothing is faked to look running.
 
 ## 1. Install + database
 ```bash
-make install          # pnpm install (all JS packages)
+make install          # pnpm install (all JS packages, incl. playwright for web/research)
 make infra            # Postgres via docker compose (add PROFILE=observability for Jaeger)
-make migrate          # apply kernel migrations 0001–0008 (immutable, sha256-tracked)
+make migrate          # apply kernel migrations 0001–0010 (immutable, sha256-tracked)
+( cd services/kernel && npx playwright install chromium )   # browser for web/research tools
 ```
-Sanity: `docker exec jarvis-db pg_isready`.
+Sanity: `docker exec jarvis-db pg_isready`. The kernel self-migrates on startup too,
+so `make migrate` is optional if you go straight to `make dev`.
 
 ## 2. Local models (Ollama) — local-first, offline-capable
 Pull the models the gateway routes to by default (D-0012; adjust in the gateway
@@ -112,11 +119,20 @@ python scripts/acceptance_platform.py --kernel http://127.0.0.1:4150
 ```
 It drives core/trust, model gateway, the gated loop, memory (+ secret refusal),
 the secrets vault, context, proactivity, computer-control (SIMULATION),
-device-control interlock (SIMULATION), self-extension hard limit, and the MCP
-host, and prints honest PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / FAIL. In the
-container it is all green except the NEEDS-MAC rows (real macOS control, real HA,
-live voice, packaged app); those turn into real checks here on the Mac as their
-adapters are enabled at steps 6/8. Exits non-zero on any real FAIL.
+device-control interlock (SIMULATION), self-extension hard limit, the MCP host, and
+the REAL Phase-2 capabilities — **workspace files** (`P-KNOW-01`), **web research**
+(`P-WEB-01`), **terminal-with-policy** (`P-TERM-01`), **research-with-provenance**
+(`P-RESEARCH-01`), and **semantic memory** (`P-ENTMEM-01`) — printing honest
+PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / SKIP / FAIL (`21 PASS · 3
+verified-elsewhere · 4 NEEDS-MAC · 0 FAIL` in-container). Only four rows are
+NEEDS-MAC (real macOS control, real HA, live voice, packaged app); those turn into
+real checks here on the Mac as their adapters are enabled at steps 6/8. Exits
+non-zero on any real FAIL.
+
+**Live immediately (no check-in) once the stack is up:** the workspace files,
+terminal-with-policy, web/research (needs the Chromium from step 0), semantic
+memory, and MCP capabilities are REAL and gated — they work as soon as the kernel
+runs. Only the four Mac-hardware/adapter items in step 8 are gated behind a check-in.
 
 **Phase-1 voice/UX criteria** (docs/06):
 ```bash

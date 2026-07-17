@@ -44,5 +44,9 @@ of an already-loaded page are READ_ONLY.
   intact with no page content in it. Harness row **P-WEB-01**.
 
 ## Real-adapter note
-REAL in-container already (headless). On the Mac, install Playwright/Chromium (or
-set `JARVIS_CHROMIUM_PATH`); the contract, gating, and safety flow are unchanged.
+REAL in-container already (headless). `playwright` is a kernel dependency (pinned
+`^1.56.1` to match the container's Chromium), so `make install` pulls it; fetch the
+browser with `npx playwright install chromium` (or set `JARVIS_CHROMIUM_PATH` /
+`JARVIS_PLAYWRIGHT_PATH`). `loadChromium()` resolves `playwright` from node_modules
+first, falling back to the container's global install. The contract, gating, and
+safety flow are unchanged across container ↔ Mac.
