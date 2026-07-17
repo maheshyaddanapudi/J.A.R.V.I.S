@@ -96,3 +96,28 @@ def test_wake_word_ignores_other_speech(kokoro, wake):
     for start in range(0, len(pcm), 1280):
         events.extend(wake.push(pcm[start : start + 1280]))
     assert not events, f"false wake on unrelated speech: {events}"
+
+
+@pytest.fixture(scope="session")
+def stt():
+    from jarvis_ears.stt_sherpa import SherpaStreamingStt
+
+    return SherpaStreamingStt(MODELS / "stt")
+
+
+@pytest.mark.skipif(not (MODELS / "stt" / "tokens.txt").exists(), reason="stt model missing")
+def test_stt_transcribes_synthesized_speech(kokoro, stt):
+    """Real TTS -> real STT round trip: Kokoro speaks a command, STT must hear it.
+
+    A small streaming CPU model + synthetic voice has real WER limits (a Mac
+    Kyutai-MLX/WhisperKit adapter does better) — so we require the key content
+    words, not a byte-exact transcript."""
+    stt.reset()
+    phrase = "Jarvis remind me to call Pepper at noon"
+    audio_24k = np.concatenate([c.pcm for c in kokoro.synthesize(phrase, "bm_george")])
+    pcm = _resample_24k_to_16k(audio_24k)
+    for i in range(0, len(pcm), 1600):
+        stt.push(pcm[i : i + 1600])
+    heard = stt.finalize().text.lower()
+    for word in ["remind", "call", "pepper", "noon"]:
+        assert word in heard, f"STT missed '{word}' in {heard!r}"

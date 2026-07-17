@@ -196,12 +196,16 @@ AT1.1 install & start via documented commands · AT1.2 "Jarvis"/push-to-talk · 
 - ✅ **AT1.14** emergency stop halts execution (tools + conversation) — slice 1.4
 - ✅ **AT1.4 (partial)** streamed *visual* answer + text streaming through the loop from a real local model — slices 1.2/1.4; spoken half is 🖥
 - 🟡 **AT1.5** Command Center shows objective/state/tools/approval/result/audit/memory/e-stop — built & browser-verified; "selected model" display polish pending 1.7
-- 🖥 **AT1.2** wake word / push-to-talk on real mic — jarvis-ears wake engine verified on synthesized audio; live-mic path needs the Mac
-- 🖥 **AT1.3** natural interruption (barge-in) — needs VPIO echo-cancel on the Mac
-- 🖥 **AT1.4 (spoken half)** streamed *spoken* answer — needs Mac audio out + STT
-- 🖥 **AT1.12** full offline workflow with local STT/TTS/embeddings + providers disconnected — gateway offline mode ✅; local voice needs the Mac
+- ✅ **AT1.4 (spoken half — pipeline)** streamed *spoken* answer: full voice round-trip verified in-container (real STT → gated loop → real TTS audio out); needs Mac audio *device* for live playback — slice 1.3 part 2
+- 🟡 **AT1.2** wake word / push-to-talk: wake engine verified on synthesized audio; live-mic capture needs the Mac (CoreAudio)
+- 🟡 **AT1.3** natural interruption (barge-in): turn-taking/barge-in state machine built + tested; needs VPIO echo-cancel (or a headset) on the Mac for the live acoustic path
+- 🟡 **AT1.12** full offline workflow: gateway offline mode ✅ + local STT/TTS/wake all run offline on CPU (verified); end-to-end on the Mac with live audio pending
 - 🖥 **AT1.1** documented install/start of the packaged app — needs Tauri build on Mac
-The 🖥 items are the Mac-gated remainder of Phase 1; everything container-buildable is ✅.
+The voice pipeline (wake, VAD, streaming STT, TTS, turn-taking, and the full
+audio→STT→reason→TTS round-trip) is now REAL and verified in-container. The
+Mac-gated remainder is narrowed to: live mic/speaker device I/O, VPIO echo
+cancellation, the packaged app, expressive-voice identity pick, and real-audio
+latency metrics.
 
 ## Omissions surfaced at the Phase 0 check-in (none dropped) — check-in held 2026-07-17
 

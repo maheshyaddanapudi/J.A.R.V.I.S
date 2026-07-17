@@ -23,12 +23,29 @@ Audio convention: mono float32 PCM in [-1,1]. Localhost only (R-LOC-01). Port 41
 - Models fetched by `scripts/fetch_models.py` into `JARVIS_EARS_MODELS`
   (default /tmp/jarvis-ears-models); nothing is bundled in git.
 
-## Mac part of slice 1.3 (next)
-Streaming STT (Kyutai MLX primary, whisper.cpp re-scorer, WhisperKit option),
-echo-cancelled capture via Swift Voice Processing I/O in the Tauri companion,
-barge-in (VAD during TTS playback → duck+stop), latency metrics (R-VOICE-09),
-expressive-TTS listening test (Kyutai TTS / CSM / Chatterbox / OpenAI fable)
-to fix the voice identity (D-0004a).
+## Slice 1.3 part 2 ✅ (container-verified 2026-07-17)
+- **Streaming STT**: `stt_sherpa.py` — sherpa-onnx streaming zipformer en
+  2023-06-26 (Apache-2.0, CPU, runs identically in-container and on Mac).
+  Partial + final hypotheses, endpoint detection, accumulates across endpoints.
+  Verified: real TTS→STT round trip; transcribed "Jarvis remind me to call
+  Pepper at noon" perfectly, ~15× realtime on CPU. On Mac a Kyutai-MLX /
+  WhisperKit adapter can swap in behind the same SttEngine contract.
+- **Full voice round-trip** (`/voice-turn`): audio → STT → kernel `/core/converse`
+  (the real gated loop with audit + memory) → TTS audio out. Verified end-to-end:
+  spoken command transcribed, reasoned, answered in real synthesized speech, and
+  the turn persisted to conversation memory. (`/transcribe` and STT-in-`/listen`
+  also added.)
+- **Turn-taking / barge-in**: `turn_taking.py` — engine-neutral state machine
+  (IDLE/LISTENING/THINKING/SPEAKING/BARGED_IN); barge-in fires on sustained
+  speech during playback (<=200ms), ignores coughs; utterance start/end from
+  VAD. Fully tested. 9 ears tests pass.
+
+## Mac-only remainder of slice 1.3
+Live mic/speaker device I/O via CoreAudio, and macOS Voice Processing I/O (VPIO)
+echo cancellation so the barge-in VAD hears the USER not J.A.R.V.I.S. (headset
+works without it). Expressive-TTS listening test (Kyutai TTS / CSM / Chatterbox /
+OpenAI fable) to fix the voice identity (D-0004a). Latency metrics on real audio
+hardware (R-VOICE-09). Everything else in the voice pipeline is real and verified.
 
 ## Commands
 `uv venv .venv && VIRTUAL_ENV=$PWD/.venv uv pip install -e ".[dev]"` ·
