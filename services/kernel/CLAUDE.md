@@ -32,7 +32,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   record), `routes.ts` (/core/*: run-tool, converse SSE, activity SSE, estop,
   approvals, audit, audit/verify). Migration 0003. **build copies migrations
   to dist** (`build` script) — needed for `node dist/index.js`.
-- Next (1.3 Mac part + 1.5 approval-flow polish + 1.6 conversation memory).
+- Slice 1.6 ✅: memory service under `src/memory/` — conversation + preference
+  stores (migration 0004) with the mandatory metadata every store carries:
+  epistemic_status enum (R-MEM-05), provenance, confidence, sensitivity,
+  timestamps, retention. `memory.ts`: remember (supersede-old-first to respect
+  the unique-active-key index), get/search/list, correct (keeps history),
+  pin, delete (soft, excluded from retrieval immediately), forget (physical
+  purge), export; secrets refused on write (R-MEM-06). `memory.remember` tool
+  wired into the loop (LOW_REVERSIBLE, reversible via delete). Routes under
+  /memory/*. Verified: remember/view/correct/delete, secret refusal, **survives
+  restart**, history preserved, audit chain intact across all ops.
+- Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
+  check-in, 1.8 packaging (Tauri, Mac).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.

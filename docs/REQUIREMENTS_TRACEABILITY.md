@@ -185,6 +185,24 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 
 AT1.1 install & start via documented commands · AT1.2 "Jarvis"/push-to-talk · AT1.3 natural interruption · AT1.4 streamed spoken+visual answer · AT1.5 Command Center shows objective/state/model/tools/approval/result · AT1.6 one real read-only tool · AT1.7 reversible Mac action with disclosure · AT1.8 approve one action, deny another · AT1.9 remember a preference · AT1.10 view/correct/delete that memory · AT1.11 restart retains approved memory · AT1.12 local-only + offline workflow (Ollama/local STT/TTS/embeddings; providers disconnected) · AT1.13 review complete audit trail · AT1.14 emergency stop halts execution.
 
+### Verification status as of 2026-07-17 (container; ✅=verified here, 🖥=needs Mac, ◻=not yet)
+- ✅ **AT1.6** read-only tool (system.info, live host state) — slice 1.4
+- ✅ **AT1.7** reversible action + disclosure + rollback (workspace.writeNote) — slice 1.4
+- ✅ **AT1.8** approve one / deny another (broker + UI button) — slice 1.4
+- ✅ **AT1.9** remember a preference (memory.remember via loop) — slice 1.6
+- ✅ **AT1.10** view/correct/delete memory (routes + CC panel) — slice 1.6
+- ✅ **AT1.11** restart retains memory (verified across kernel restart) — slice 1.6
+- ✅ **AT1.13** review complete audit trail (hash-chained, integrity-checked) — slice 1.4
+- ✅ **AT1.14** emergency stop halts execution (tools + conversation) — slice 1.4
+- ✅ **AT1.4 (partial)** streamed *visual* answer + text streaming through the loop from a real local model — slices 1.2/1.4; spoken half is 🖥
+- 🟡 **AT1.5** Command Center shows objective/state/tools/approval/result/audit/memory/e-stop — built & browser-verified; "selected model" display polish pending 1.7
+- 🖥 **AT1.2** wake word / push-to-talk on real mic — jarvis-ears wake engine verified on synthesized audio; live-mic path needs the Mac
+- 🖥 **AT1.3** natural interruption (barge-in) — needs VPIO echo-cancel on the Mac
+- 🖥 **AT1.4 (spoken half)** streamed *spoken* answer — needs Mac audio out + STT
+- 🖥 **AT1.12** full offline workflow with local STT/TTS/embeddings + providers disconnected — gateway offline mode ✅; local voice needs the Mac
+- 🖥 **AT1.1** documented install/start of the packaged app — needs Tauri build on Mac
+The 🖥 items are the Mac-gated remainder of Phase 1; everything container-buildable is ✅.
+
 ## Omissions surfaced at the Phase 0 check-in (none dropped) — check-in held 2026-07-17
 
 1. **Module-level CLAUDE.md files** — deferred to Phase 1 slice 1.1 (D-0005) — accepted; now being created with modules.

@@ -45,18 +45,20 @@ export default function SystemPage() {
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
   const [audit, setAudit] = useState<{ seq: number; event: string; actor: string }[]>([]);
   const [chainOk, setChainOk] = useState<boolean | null>(null);
+  const [prefs, setPrefs] = useState<{ key: string; value: string; status: string }[]>([]);
   const activityRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let stop = false;
     async function poll() {
       try {
-        const [h, e, a, au, cv] = await Promise.all([
+        const [h, e, a, au, cv, pf] = await Promise.all([
           fetch(`${KERNEL_URL}/health`, { cache: "no-store" }).then((r) => r.json()),
           fetch(`${KERNEL_URL}/core/estop`, { cache: "no-store" }).then((r) => r.json()),
           fetch(`${KERNEL_URL}/core/approvals`, { cache: "no-store" }).then((r) => r.json()),
           fetch(`${KERNEL_URL}/core/audit?limit=8`, { cache: "no-store" }).then((r) => r.json()),
           fetch(`${KERNEL_URL}/core/audit/verify`, { cache: "no-store" }).then((r) => r.json()),
+          fetch(`${KERNEL_URL}/memory/preferences`, { cache: "no-store" }).then((r) => r.json()),
         ]);
         if (stop) return;
         setHealth(h);
@@ -65,6 +67,7 @@ export default function SystemPage() {
         setApprovals(a.pending ?? []);
         setAudit(au.entries ?? []);
         setChainOk(cv.intact);
+        setPrefs(pf.preferences ?? []);
       } catch {
         if (!stop) setReachable(false);
       }
@@ -117,6 +120,9 @@ export default function SystemPage() {
       body: JSON.stringify({ id, resolution, via: "command-center" }),
     });
   }
+  async function deletePref(key: string) {
+    await fetch(`${KERNEL_URL}/memory/preferences/${encodeURIComponent(key)}`, { method: "DELETE" });
+  }
 
   return (
     <main style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
@@ -125,7 +131,7 @@ export default function SystemPage() {
           <h1 style={{ fontSize: "1.05rem", letterSpacing: "0.2em", color: "var(--operational)", margin: 0 }}>
             J.A.R.V.I.S. — COMMAND CENTER
           </h1>
-          <p style={{ color: "var(--dim)", margin: "0.2rem 0 0" }}>slice 1.4 · live system state</p>
+          <p style={{ color: "var(--dim)", margin: "0.2rem 0 0" }}>slice 1.6 · live system state</p>
         </div>
         <EmergencyStopButton engaged={estop} onEngage={engageEstop} onResume={resumeEstop} />
       </header>
@@ -186,6 +192,21 @@ export default function SystemPage() {
                 </div>
               ))}
             </div>
+          </Panel>
+
+          <Panel tone="operational" title={`MEMORY (${prefs.length})`}>
+            {prefs.length === 0 && <span style={{ color: "var(--dim)" }}>no preferences stored</span>}
+            {prefs.map((p) => (
+              <div key={p.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+                <span>
+                  <span style={{ color: "var(--dim)" }}>{p.key}:</span> {p.value}{" "}
+                  <span style={{ color: "var(--dim)", fontSize: "0.7rem" }}>({p.status})</span>
+                </span>
+                <button onClick={() => deletePref(p.key)} style={btn("var(--critical)")}>
+                  forget
+                </button>
+              </div>
+            ))}
           </Panel>
         </div>
       )}

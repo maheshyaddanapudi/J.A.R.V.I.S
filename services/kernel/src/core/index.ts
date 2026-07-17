@@ -9,6 +9,8 @@ import { PolicyEngine } from "./policy.js";
 import { ToolRegistry } from "./tools.js";
 import { systemInfoTool } from "./tools/systemInfo.js";
 import { workspaceNoteTool } from "./tools/workspaceNote.js";
+import { rememberPreferenceTool } from "./tools/rememberPreference.js";
+import { MemoryService } from "../memory/memory.js";
 
 export interface Core {
   audit: AuditLog;
@@ -17,6 +19,7 @@ export interface Core {
   approvals: ApprovalBroker;
   activity: ActivityBus;
   tools: ToolRegistry;
+  memory: MemoryService;
   loop: CoreLoop;
 }
 
@@ -33,10 +36,12 @@ export async function buildCore(opts: {
   const policy = new PolicyEngine(audit, estop);
   const approvals = new ApprovalBroker(audit);
   const activity = new ActivityBus();
+  const memory = new MemoryService(opts.pool, audit);
 
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
+  tools.register(rememberPreferenceTool(memory));
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -55,5 +60,5 @@ export async function buildCore(opts: {
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
 
-  return { audit, estop, policy, approvals, activity, tools, loop };
+  return { audit, estop, policy, approvals, activity, tools, memory, loop };
 }
