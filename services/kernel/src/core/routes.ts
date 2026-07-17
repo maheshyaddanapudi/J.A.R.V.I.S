@@ -37,6 +37,7 @@ export function registerCoreRoutes(
     mcp: import("../mcp/registry.js").McpRegistry;
     connectMcp: (config: import("../mcp/client.js").McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
     secrets?: import("../crypto/secrets.js").SecretsVault;
+    context: import("../context/service.js").ContextService;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -101,6 +102,17 @@ export function registerCoreRoutes(
       parsed.data.via,
     );
     return { resolved: ok };
+  });
+
+  // Situational awareness (R-CTX) — "what does J.A.R.V.I.S. know right now".
+  // Read-only aggregation; the same snapshot is injected into conversations.
+  app.get("/context", async (req) => {
+    const at = (req.query as { at?: string }).at;
+    const now = at ? new Date(at) : new Date();
+    return {
+      snapshot: await deps.context.snapshot(now),
+      describe: await deps.context.describe(now),
+    };
   });
 
   // Audit trail + integrity.

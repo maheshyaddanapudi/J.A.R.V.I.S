@@ -59,6 +59,7 @@ export function createServer(opts: {
       mcp: opts.core.mcp,
       connectMcp: opts.core.connectMcp,
       ...(opts.core.secrets ? { secrets: opts.core.secrets } : {}),
+      context: opts.core.context,
     });
     registerMemoryRoutes(app, opts.core.memory);
   }

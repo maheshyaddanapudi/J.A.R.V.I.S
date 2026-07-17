@@ -7,6 +7,7 @@ import type { EmergencyStop } from "./estop.js";
 import type { Grant, PolicyEngine, RiskClass } from "./policy.js";
 import type { ToolContext, ToolRegistry } from "./tools.js";
 import type { MemoryService } from "../memory/memory.js";
+import type { ContextService } from "../context/service.js";
 
 /**
  * Z1 TRUST CORE — PROTECTED PATH (R-CAP-08).
@@ -33,6 +34,8 @@ export class CoreLoop {
       activity: ActivityBus;
       memory: MemoryService;
       toolCtx: ToolContext;
+      /** situational awareness injected into conversational context (read-only) */
+      context?: ContextService;
     },
   ) {}
 
@@ -200,6 +203,16 @@ export class CoreLoop {
 
     const messages: NeutralMessage[] = [];
     if (input.system) messages.push({ role: "system", content: input.system });
+    // Situational awareness (R-CTX): reference data, clearly labeled as
+    // background, never as an instruction to act. Assembly failure must never
+    // block a conversation.
+    if (this.deps.context) {
+      try {
+        messages.push({ role: "system", content: await this.deps.context.describe() });
+      } catch {
+        /* context is best-effort */
+      }
+    }
     if (input.sessionId) {
       const history = await this.deps.memory.conversation(input.sessionId, 20);
       for (const turn of history) {

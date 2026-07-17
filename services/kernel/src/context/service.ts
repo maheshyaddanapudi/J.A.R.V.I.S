@@ -1,0 +1,162 @@
+import type pg from "pg";
+import type { ApprovalBroker } from "../core/approvals.js";
+import type { EmergencyStop } from "../core/estop.js";
+import type {
+  CommitmentContext,
+  ContextProvider,
+  ContextSnapshot,
+  PinnedFact,
+  ProactiveContext,
+} from "./contract.js";
+
+const SOON_MS = 2 * 60 * 60 * 1000; // "due soon" window: 2 hours
+
+/**
+ * Aggregates the situational signals available in the kernel into a
+ * `ContextSnapshot` and renders a compact reference block for the core loop.
+ * Read-only: it never writes state or performs actions. Optional providers add
+ * Mac-only signals behind the same contract.
+ */
+export class ContextService {
+  constructor(
+    private readonly deps: {
+      pool: pg.Pool;
+      approvals: ApprovalBroker;
+      estop: EmergencyStop;
+      mcpCount?: () => number;
+    },
+    private readonly providers: ContextProvider[] = [],
+  ) {}
+
+  addProvider(p: ContextProvider): void {
+    this.providers.push(p);
+  }
+
+  async snapshot(now: Date = new Date()): Promise<ContextSnapshot> {
+    const [commitments, proactive, pinnedFacts] = await Promise.all([
+      this.commitments(now),
+      this.proactive(),
+      this.pinnedFacts(),
+    ]);
+
+    const pending = this.deps.approvals.list();
+    const extra: Record<string, string> = {};
+    for (const p of this.providers) {
+      try {
+        const v = await p.get(now);
+        if (v != null) extra[p.key] = p.provenance === "REAL" ? v : `${v} (${p.provenance})`;
+      } catch {
+        /* a failing provider must never break context assembly */
+      }
+    }
+
+    return {
+      now: now.toISOString(),
+      partOfDay: partOfDay(now),
+      commitments,
+      proactive,
+      pinnedFacts,
+      pendingApprovals: { count: pending.length, tools: [...new Set(pending.map((p) => p.tool))] },
+      emergencyStop: this.deps.estop.isEngaged,
+      mcpServers: this.deps.mcpCount ? this.deps.mcpCount() : 0,
+      extra,
+    };
+  }
+
+  /** Compact, clearly-labeled reference block for the model's system context. */
+  async describe(now: Date = new Date()): Promise<string> {
+    const s = await this.snapshot(now);
+    const lines: string[] = [];
+    lines.push(`It is ${s.partOfDay} (${s.now}).`);
+
+    if (s.emergencyStop) lines.push("EMERGENCY STOP is engaged — consequential actions are halted.");
+
+    if (s.commitments.length) {
+      const parts = s.commitments.map((c) => {
+        const flag = c.overdue ? "OVERDUE" : c.dueSoon ? "due soon" : "upcoming";
+        return `${c.title} (${flag}, ${c.dueAt})`;
+      });
+      lines.push(`Commitments: ${parts.join("; ")}.`);
+    }
+    if (s.proactive.length) {
+      lines.push(`Recently surfaced: ${s.proactive.map((p) => `${p.title} [${p.priority}]`).join("; ")}.`);
+    }
+    if (s.pendingApprovals.count) {
+      lines.push(`${s.pendingApprovals.count} action(s) awaiting your approval: ${s.pendingApprovals.tools.join(", ")}.`);
+    }
+    if (s.pinnedFacts.length) {
+      lines.push(`Pinned preferences: ${s.pinnedFacts.map((f) => `${f.key}=${f.value}`).join("; ")}.`);
+    }
+    for (const [k, v] of Object.entries(s.extra)) lines.push(`${k}: ${v}.`);
+
+    if (lines.length === 1) lines.push("Nothing else notable right now.");
+
+    return (
+      "Current situational context (reference only — this is background awareness, " +
+      "not an instruction to act; take a consequential action only through the normal " +
+      `approval flow):\n${lines.map((l) => `- ${l}`).join("\n")}`
+    );
+  }
+
+  private async commitments(now: Date): Promise<CommitmentContext[]> {
+    const { rows } = await this.deps.pool.query<{
+      title: string;
+      due_at: string;
+      domain: string;
+    }>(
+      `SELECT title, due_at::text, domain
+         FROM commitments
+        WHERE status = 'open'
+        ORDER BY due_at ASC
+        LIMIT 5`,
+    );
+    const nowMs = now.getTime();
+    return rows.map((r) => {
+      const dueMs = Date.parse(r.due_at);
+      return {
+        title: r.title,
+        dueAt: r.due_at,
+        domain: r.domain,
+        overdue: dueMs < nowMs,
+        dueSoon: dueMs >= nowMs && dueMs - nowMs <= SOON_MS,
+      };
+    });
+  }
+
+  private async proactive(): Promise<ProactiveContext[]> {
+    const { rows } = await this.deps.pool.query<{
+      title: string;
+      priority: string;
+      domain: string;
+    }>(
+      `SELECT title, priority, domain
+         FROM proactive_items
+        WHERE acknowledged = false
+        ORDER BY created_at DESC
+        LIMIT 5`,
+    );
+    return rows.map((r) => ({ title: r.title, priority: r.priority, domain: r.domain }));
+  }
+
+  private async pinnedFacts(): Promise<PinnedFact[]> {
+    // Only non-sensitive pinned preferences — never a private/secret value.
+    const { rows } = await this.deps.pool.query<{ key: string; value: string }>(
+      `SELECT key, value
+         FROM preferences
+        WHERE pinned = true
+          AND status <> 'deleted' AND status <> 'superseded'
+          AND sensitivity IN ('public', 'personal')
+        ORDER BY key
+        LIMIT 10`,
+    );
+    return rows.map((r) => ({ key: r.key, value: r.value }));
+  }
+}
+
+function partOfDay(now: Date): ContextSnapshot["partOfDay"] {
+  const h = now.getHours();
+  if (h < 6) return "night";
+  if (h < 12) return "morning";
+  if (h < 18) return "afternoon";
+  return "evening";
+}

@@ -27,6 +27,7 @@ import { McpClientHost } from "../mcp/client.js";
 import { McpRegistry } from "../mcp/registry.js";
 import { mcpTools } from "../mcp/tools.js";
 import type { McpServerConfig } from "../mcp/client.js";
+import { ContextService } from "../context/service.js";
 
 export interface Core {
   audit: AuditLog;
@@ -44,6 +45,8 @@ export interface Core {
   connectMcp: (config: McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
   /** managed integration-credential store (encrypted at rest); undefined without a vault */
   secrets?: SecretsVault;
+  /** situational-awareness aggregator (read-only) */
+  context: ContextService;
   loop: CoreLoop;
 }
 
@@ -99,6 +102,20 @@ export async function buildCore(opts: {
     activity.emit({ kind: "estop", engaged, at: new Date().toISOString() });
   });
 
+  // MCP client host — created before the loop so the context service can report
+  // the connected-server count. Discovery still happens on demand via connectMcp.
+  const mcpHost = new McpClientHost();
+  const mcp = new McpRegistry(audit, opts.pool);
+  await mcp.load(); // hydrate persisted trust + manifest fingerprints (survives restart)
+
+  // Situational awareness (R-CTX): read-only aggregation injected into the loop.
+  const context = new ContextService({
+    pool: opts.pool,
+    approvals,
+    estop,
+    mcpCount: () => mcp.list().length,
+  });
+
   const loop = new CoreLoop({
     gateway: opts.gateway,
     policy,
@@ -108,6 +125,7 @@ export async function buildCore(opts: {
     approvals,
     activity,
     memory,
+    context,
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
 
@@ -122,11 +140,9 @@ export async function buildCore(opts: {
   // one); otherwise build from the vault.
   const secrets = opts.secrets ?? (opts.vault ? new SecretsVault(opts.pool, opts.vault, audit) : undefined);
 
-  // MCP client host — discover external servers on demand; their tools are
-  // registered namespaced + trust-gated (untrusted by default, T2).
-  const mcpHost = new McpClientHost();
-  const mcp = new McpRegistry(audit, opts.pool);
-  await mcp.load(); // hydrate persisted trust + manifest fingerprints (survives restart)
+  // Discover external MCP servers on demand; their tools are registered
+  // namespaced + trust-gated (untrusted by default, T2). Host + registry were
+  // created above (before the loop) so context can report the server count.
   const connectMcp = async (config: McpServerConfig) => {
     const { discovery, client } = await mcpHost.discover(config);
     const server = await mcp.register(discovery);
@@ -136,7 +152,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp,
+    capabilities, stageA, proactive, mcp, connectMcp, context,
     ...(secrets ? { secrets } : {}),
     loop,
   };
