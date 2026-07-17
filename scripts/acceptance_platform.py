@@ -212,6 +212,24 @@ def main() -> int:
     except Exception as e:
         record("P-WEB-01", "web research", "FAIL", str(e))
 
+    # ---- Terminal-with-policy (REAL shell, gated) ----
+    try:
+        tmark = uuid.uuid4().hex[:8]
+        insp = post("/core/run-tool", {"tool": "terminal.inspect", "args": {"command": "pwd"}, "source": "accept"})
+        insp_bad = post("/core/run-tool", {"tool": "terminal.inspect", "args": {"command": "rm -f x"}, "source": "accept"})
+        danger = post("/core/run-tool", {"tool": "terminal.run", "args": {"command": "sudo rm -rf /"}, "source": "accept", "autoApprove": "allow-once"})
+        appr = post("/core/run-tool", {"tool": "terminal.run", "args": {"command": f"echo TERMMARK-{tmark}"}, "source": "accept", "autoApprove": "allow-once"})
+        deny = post("/core/run-tool", {"tool": "terminal.run", "args": {"command": "echo nope"}, "source": "accept", "autoApprove": "deny"})
+        ok = (insp.get("ok") and insp_bad.get("denied")
+              and danger.get("denied") and "refused" in danger.get("summary", "")
+              and appr.get("ok") and f"TERMMARK-{tmark}" in (appr.get("detail") or "")
+              and deny.get("denied"))
+        record("P-TERM-01", "terminal-with-policy: read-only auto + denylist + gated run",
+               "PASS" if ok else "FAIL",
+               f"inspect={insp.get('ok')} inspect_refused={insp_bad.get('denied')} danger_refused={danger.get('denied')} run={appr.get('ok')} deny={deny.get('denied')}")
+    except Exception as e:
+        record("P-TERM-01", "terminal-with-policy", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

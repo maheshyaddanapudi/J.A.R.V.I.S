@@ -105,10 +105,17 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   policy, `file://`/`data:` refused) + `web.readText`/`links`/`screenshot`
   (READ_ONLY, content → agent via `detail`) + `web.fill`/`click`. The one outward
   capability, gated tightly; page content never audited. See `src/web/CLAUDE.md`.
-  8 web tests; **full suite 156 pass**; live end-to-end + harness `P-WEB-01`.
+  8 web tests; **full suite 170 pass**; live end-to-end + harness `P-WEB-01`.
+- Terminal-with-policy ✅ (Phase 2, D-0035): `src/terminal/` — a **REAL** shell
+  (`bash -lc`), workspace-scoped, hard-timeout, bounded output. `assessCommand`
+  classifies: DENY (privilege escalation / disk wipe / `rm -rf /` / fork bomb /
+  pipe-to-shell / offensive tooling / cred-exfil — refused outright), READ_ONLY
+  (small safe allowlist, no shell operators → `terminal.inspect` auto-runs),
+  CONSEQUENTIAL (`terminal.run`, per-command approval). Output → agent via `detail`;
+  never audited. See `src/terminal/CLAUDE.md`. 14 tests; live + harness `P-TERM-01`.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
-  check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (terminal-with-policy,
-  screen understanding — Mac, per-claim research provenance, full memory store set).
+  check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (screen understanding —
+  Mac ScreenCaptureKit, per-claim research provenance, full memory store set).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.

@@ -20,6 +20,9 @@ import type { WorkspaceFiles } from "../knowledge/contract.js";
 import { PlaywrightBrowser } from "../web/playwright.js";
 import { webTools } from "../web/tools.js";
 import type { WebBrowser } from "../web/contract.js";
+import { LocalTerminal } from "../terminal/runner.js";
+import { terminalTools } from "../terminal/tools.js";
+import type { TerminalRunner } from "../terminal/contract.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -64,6 +67,8 @@ export interface Core {
   files: WorkspaceFiles;
   /** REAL headless browser for the web/research tools (gated per navigation) */
   web: WebBrowser;
+  /** REAL terminal runner (workspace-scoped; commands gated by policy) */
+  terminal: TerminalRunner;
   loop: CoreLoop;
 }
 
@@ -112,6 +117,11 @@ export async function buildCore(opts: {
    * PlaywrightBrowser (Chromium launches lazily on first navigation).
    */
   web?: WebBrowser;
+  /**
+   * Terminal runner for the terminal-with-policy tools. Defaults to a REAL
+   * LocalTerminal scoped to `workspaceRoot`.
+   */
+  terminal?: TerminalRunner;
 }): Promise<Core> {
   const audit = new AuditLog(opts.pool);
   const estop = new EmergencyStop(opts.pool, audit);
@@ -140,6 +150,10 @@ export async function buildCore(opts: {
       ...(opts.webAllowlist ? { allowlist: opts.webAllowlist } : {}),
     });
 
+  // Terminal-with-policy (REAL shell, workspace-scoped). Command safety is the
+  // policy's job (assessCommand) enforced by the gated tools.
+  const terminal = opts.terminal ?? new LocalTerminal(opts.workspaceRoot);
+
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
@@ -148,6 +162,7 @@ export async function buildCore(opts: {
   for (const t of deviceTools(devices, interlock)) tools.register(t);
   for (const t of knowledgeTools(files)) tools.register(t);
   for (const t of webTools(web)) tools.register(t);
+  for (const t of terminalTools(terminal)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -210,7 +225,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files, web,
+    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files, web, terminal,
     ...(secrets ? { secrets } : {}),
     loop,
   };
