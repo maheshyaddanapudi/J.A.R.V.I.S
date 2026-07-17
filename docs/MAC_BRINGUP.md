@@ -118,6 +118,18 @@ buffer audio path into a live full-duplex conversation. (`JarvisControl` in the
 same package is the real macOS computer-control adapter — do not activate it until
 the check-in in 8b.)
 
+> **Swift sources statically audited (2026-07-17).** `AudioBridge.swift`,
+> `main.swift`, and `MacDesktop.swift` were reviewed against the current
+> AVFoundation / ApplicationServices APIs — VPIO enable + `AVAudioConverter`
+> resampling to 16 kHz mono float32, the little-endian float32 WebSocket framing to
+> jarvis-ears, and the AX tree/perform/setValue path (including the correct, quirky
+> import asymmetry: `kAXTrustedCheckOptionPrompt` is `Unmanaged` →
+> `.takeUnretainedValue()`, while `kAX*Attribute` constants import as `String` →
+> `as CFString`) — and found API-correct with the package layout complete. This is a
+> **static review, not a compile** (no Swift toolchain/macOS SDK in the Linux
+> container); `swift build` here on the Mac is the real check. If a build error does
+> surface, it is far likelier to be an SDK-version/signing detail than a logic error.
+
 ### 6b. [Mac-only] The packaged app (Tauri 2) — menu-bar e-stop + push-to-talk
 The native shell is scaffolded (`apps/companion/src-tauri/`, D-0040); its
 kernel-client core is std-only and already compiled/tested/live-verified here (the
