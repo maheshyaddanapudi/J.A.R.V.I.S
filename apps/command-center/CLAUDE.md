@@ -111,6 +111,12 @@ never decoration (R-UI-03, R-CORE-02).
   (6/6)**: objective → agent called a consequential tool → paused → inline
   approval → executed → synthesized answer; the tool genuinely ran (the note file
   was written). No fabricated steps.
+- **Skills panel** at `/skills` (`app/skills/page.tsx`, 2026-07-17): save named
+  objectives (name + objective + max-steps), list, run, delete. Running a skill
+  executes via the gated agent — a consequential step surfaces an **inline
+  approval** resolved in-page; live gated-pipeline feed + result trace; e-stop.
+  R-CAP-01 / D-0031. **Verified live (6/6)**: saved → listed → ran → inline
+  approval → completed → deleted (the consequential step really wrote its note).
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
