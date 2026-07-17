@@ -146,10 +146,14 @@ never decoration (R-UI-03, R-CORE-02).
   time) — search the timeline (`?q=`), record a note (`memory.recordEpisode` via the
   gated loop), and **forget** any event (`POST /memory/episodes/:id/forget`).
   Consequential actions you take elsewhere appear here automatically (loop
-  auto-record). Kind is shown as a text label (R-UI-02). **Verified live via headless
-  Chromium (8/8)**: recorded an event from the UI, search narrowed to it, the
+  auto-record). Kind is shown as a text label (R-UI-02). The timeline search has a
+  **"recall by meaning" toggle** (`?semantic=1`, D-0042): with an embedding model it
+  ranks by cosine similarity and shows "semantic active"; without one it falls back
+  to text search (labeled). **Verified live via headless Chromium (8/8 + 4/4
+  semantic)**: recorded an event from the UI, search narrowed to it, the
   auto-recorded `workspace.writeNote` actions were visible, forget removed it
-  immediately, e-stop present, no console errors.
+  immediately; by-meaning search surfaced the reactor episode for a query with no
+  substring overlap; e-stop present, no console errors.
 - **Terminal panel** at `/terminal` (`app/terminal/page.tsx`, 2026-07-17, D-0035): a
   REAL, workspace-scoped shell in the cinematic UI, driven through the gated loop
   (`/core/run-tool`). `terminal.inspect` (READ_ONLY safe commands) runs immediately

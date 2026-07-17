@@ -27,6 +27,8 @@ export default function MemoryPage() {
   const [note, setNote] = useState("");
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [eq, setEq] = useState("");
+  const [byMeaning, setByMeaning] = useState(false);
+  const [semanticActive, setSemanticActive] = useState(false);
   const [evSummary, setEvSummary] = useState("");
   const [evKind, setEvKind] = useState("note");
 
@@ -36,11 +38,13 @@ export default function MemoryPage() {
       setEntities(r.entities ?? []);
     } catch { /* */ }
   }
-  async function refreshEpisodes(q = eq) {
+  async function refreshEpisodes(q = eq, semantic = byMeaning) {
     try {
-      const url = `${KERNEL_URL}/memory/episodes?limit=40${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`;
+      const sem = semantic && q.trim() ? "&semantic=1" : "";
+      const url = `${KERNEL_URL}/memory/episodes?limit=40${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}${sem}`;
       const r = await fetch(url, { cache: "no-store" }).then((x) => x.json());
       setEpisodes(r.episodes ?? []);
+      setSemanticActive(r.mode === "semantic");
     } catch { /* */ }
   }
   async function recordEpisode() {
@@ -176,7 +180,7 @@ export default function MemoryPage() {
           <div style={{ color: "var(--dim)", fontSize: "0.72rem", marginBottom: "0.4rem" }}>
             a recallable log of events — consequential actions are recorded here automatically (D-0041); encrypted at rest, forgettable
           </div>
-          <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.35rem", alignItems: "center" }}>
             <input
               value={eq}
               onChange={(e) => setEq(e.target.value)}
@@ -185,8 +189,15 @@ export default function MemoryPage() {
               style={{ flex: 1, ...inputStyle }}
             />
             <button onClick={() => refreshEpisodes()} style={btn("var(--operational)")}>search</button>
-            {eq && <button onClick={() => { setEq(""); void refreshEpisodes(""); }} style={btn("var(--dim)")}>clear</button>}
+            {eq && <button onClick={() => { setEq(""); setSemanticActive(false); void refreshEpisodes("", false); }} style={btn("var(--dim)")}>clear</button>}
           </div>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--dim)", fontSize: "0.72rem", marginBottom: "0.5rem", cursor: "pointer" }}>
+            <input type="checkbox" checked={byMeaning} onChange={(e) => { setByMeaning(e.target.checked); if (eq.trim()) void refreshEpisodes(eq, e.target.checked); }} />
+            recall by meaning (embeddings){" "}
+            {semanticActive
+              ? <span style={{ color: "var(--operational)" }}>· semantic active</span>
+              : byMeaning && <span style={{ color: "var(--advisory)" }}>· falls back to text if no embedding model</span>}
+          </label>
           <div style={{ maxHeight: 320, overflowY: "auto", fontSize: "0.78rem" }}>
             {episodes.length === 0 && <span style={{ color: "var(--dim)" }}>no events{eq ? " match that search" : " yet — actions you take will appear here"}</span>}
             {episodes.map((ev) => (
