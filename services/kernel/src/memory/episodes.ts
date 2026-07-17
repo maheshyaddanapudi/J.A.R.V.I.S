@@ -78,6 +78,27 @@ export class EpisodicMemory {
     return this.vault && stored.startsWith("v1.gcm.") ? this.vault.decrypt(stored) : stored;
   }
 
+  /**
+   * Auto-link (D-0045): find the first known active entity whose name appears in
+   * the event text (case-insensitive, longest name first so "Mark VII" beats
+   * "Mark"). Best-effort — returns null on any failure.
+   */
+  private async autoLink(text: string): Promise<string | null> {
+    try {
+      const { rows } = await this.pool.query<{ id: string; name: string }>(
+        `SELECT id, name FROM memory_entities
+         WHERE status NOT IN ('deleted','superseded') ORDER BY length(name) DESC LIMIT 200`,
+      );
+      const lower = text.toLowerCase();
+      for (const r of rows) {
+        if (r.name.length >= 3 && lower.includes(r.name.toLowerCase())) return r.id;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Resolve a named active entity to its id (never creates one — episodes only link). */
   private async resolveEntity(name: string): Promise<string | null> {
     const { rows } = await this.pool.query<{ id: string }>(
@@ -105,7 +126,13 @@ export class EpisodicMemory {
     if (!input.summary.trim()) throw new Error("refused: an episode needs a summary");
     const kind = normalizeKind(input.kind);
     const importance = Math.max(0, Math.min(1, input.importance ?? 0.5));
-    const entityId = input.entityName ? await this.resolveEntity(input.entityName) : null;
+    // Explicit link wins; otherwise AUTO-LINK (D-0045): if the event text mentions a
+    // known entity by name, attach it — the graph grows from real activity. Simple
+    // case-insensitive name match today; model-based extraction is a Mac upgrade.
+    let entityId = input.entityName ? await this.resolveEntity(input.entityName) : null;
+    if (!entityId) {
+      entityId = await this.autoLink(`${input.summary} ${input.detail ?? ""}`);
+    }
     // Detected secrets are masked (not rejected) so an auto-recorded event log
     // can never throw inside the loop (R-MEM-06) — same policy as conversation.
     const summary = redactSecrets(input.summary.trim());

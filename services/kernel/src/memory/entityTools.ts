@@ -1,5 +1,5 @@
 import type { Tool, ToolResult } from "../core/tools.js";
-import type { EntityMemory, Recall } from "./entities.js";
+import type { EntityMemory, GraphNeighborhood, GraphRecall, Recall } from "./entities.js";
 
 /**
  * Semantic-memory tools. Writing to J.A.R.V.I.S.'s knowledge of the user's world
@@ -128,7 +128,85 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
     },
   };
 
-  return [rememberEntity, rememberFact, relate, recall];
+  const related: Tool = {
+    name: "memory.related",
+    description:
+      "Walk the knowledge graph from a named entity — what is connected to it, and what is connected to those (multi-hop). Read-only.",
+    riskClass: "READ_ONLY",
+    action: "traverse knowledge graph",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        depth: { type: "number", description: "hops to walk (1-3, default 2)" },
+      },
+      required: ["name"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { name: string; depth?: number };
+      const g = await mem.traverse(a.name, a.depth ?? 2);
+      if (!g) return { ok: true, summary: `no memory of '${a.name}'`, data: null, detail: `Nothing known about '${a.name}'.` };
+      return {
+        ok: true,
+        summary: `${g.nodes.length} entity(ies), ${g.edges.length} relation(s) within ${a.depth ?? 2} hop(s) of '${a.name}'`,
+        data: g,
+        detail: renderNeighborhood(g),
+      };
+    },
+  };
+
+  const recallGraph: Tool = {
+    name: "memory.recallGraph",
+    description:
+      "Hybrid recall over the knowledge graph: finds entities/facts relevant to a query BY MEANING, then expands to what they are connected to. Read-only.",
+    riskClass: "READ_ONLY",
+    action: "hybrid graph recall",
+    inputSchema: {
+      type: "object",
+      properties: { query: { type: "string" } },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const { query } = args as { query: string };
+      const r = await mem.recallGraph(query);
+      if (r.entities.length === 0) {
+        return { ok: true, summary: "nothing relevant in the knowledge graph", data: r, detail: "The knowledge graph has nothing relevant to that." };
+      }
+      return {
+        ok: true,
+        summary: `${r.entities.length} entity(ies) + ${r.relations.length} relation(s) recalled (${r.mode})`,
+        data: r,
+        detail: renderGraphRecall(r),
+      };
+    },
+  };
+
+  return [rememberEntity, rememberFact, relate, recall, related, recallGraph];
+}
+
+function renderNeighborhood(g: GraphNeighborhood): string {
+  const lines = ["knowledge-graph neighborhood:"];
+  for (const n of g.nodes) lines.push(`  ${"  ".repeat(n.depth)}${n.depth === 0 ? "●" : "○"} ${n.kind} ${n.name}${n.depth ? ` (${n.depth} hop${n.depth > 1 ? "s" : ""})` : ""}`);
+  if (g.edges.length) {
+    lines.push("relations:");
+    for (const e of g.edges) lines.push(`  ${e.fromName} —${e.relation}→ ${e.toName}${e.note ? ` (${e.note})` : ""}`);
+  }
+  return lines.join("\n");
+}
+
+function renderGraphRecall(r: GraphRecall): string {
+  const lines = [`relevant knowledge (${r.mode} entry points + graph expansion):`];
+  for (const e of r.entities) {
+    lines.push(`  ${e.kind} — ${e.name}`);
+    for (const f of e.facts) lines.push(`    · ${f}`);
+  }
+  if (r.relations.length) {
+    lines.push("connections:");
+    for (const rel of r.relations) lines.push(`  ${rel.fromName} —${rel.relation}→ ${rel.toName}`);
+  }
+  return lines.join("\n");
 }
 
 function renderRecall(r: Recall): string {

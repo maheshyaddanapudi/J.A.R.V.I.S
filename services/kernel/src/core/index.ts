@@ -148,8 +148,6 @@ export async function buildCore(opts: {
   const approvals = new ApprovalBroker(audit);
   const activity = new ActivityBus();
   const memory = new MemoryService(opts.pool, audit, opts.vault);
-  // Semantic knowledge store (entities/facts/relations) — encrypted at rest.
-  const entityMemory = new EntityMemory(opts.pool, audit, opts.vault);
   // Semantic (vector) index over memory — recall-by-meaning (H1). Embeds via the
   // model gateway's embeddings role; best-effort, so a missing embedder never
   // blocks a write (recall falls back to lexical). Verified in-container against a
@@ -158,6 +156,10 @@ export async function buildCore(opts: {
     opts.pool,
     (texts) => opts.gateway.embed(texts, "LOCAL_ONLY", "memory").then((r) => r.embeddings),
   );
+  // Semantic knowledge store (entities/facts/relations) — encrypted at rest; the
+  // vector index enables hybrid graph recall (entry points by meaning → one-hop
+  // expansion, D-0045).
+  const entityMemory = new EntityMemory(opts.pool, audit, opts.vault, semanticMemory);
   // Episodic memory — the recallable timeline of notable events, encrypted at rest.
   const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault, semanticMemory);
 

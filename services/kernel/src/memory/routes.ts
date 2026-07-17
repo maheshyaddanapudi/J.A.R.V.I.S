@@ -48,7 +48,24 @@ export function registerMemoryRoutes(
       const name = decodeURIComponent((req.params as { name?: string }).name ?? "");
       const r = await entities.recall(name);
       if (!r) return reply.code(404).send({ error: `no memory of '${name}'` });
+      // ?depth=N adds the multi-hop graph neighborhood (D-0045)
+      const depth = Number((req.query as { depth?: string }).depth);
+      if (Number.isFinite(depth) && depth > 0) {
+        return { ...r, graph: await entities.traverse(name, depth) };
+      }
       return r;
+    });
+    // Hybrid graph recall: ?q= finds entry points by meaning (lexical fallback) and
+    // expands one hop; ?name=&depth= walks the neighborhood of a named entity.
+    app.get("/memory/graph", async (req, reply) => {
+      const q = req.query as { q?: string; name?: string; depth?: string };
+      if (q.q) return entities.recallGraph(q.q);
+      if (q.name) {
+        const g = await entities.traverse(q.name, Number(q.depth) || 2);
+        if (!g) return reply.code(404).send({ error: `no memory of '${q.name}'` });
+        return g;
+      }
+      return reply.code(400).send({ error: "q or name required" });
     });
     app.post("/memory/entities/:name/forget", async (req) => {
       const name = decodeURIComponent((req.params as { name?: string }).name ?? "");

@@ -171,6 +171,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   so the built-in default is the fallback (never a blank persona). Routes `/prompts`
   (list/active/set/activate/delete). 7 tests + live 6/6 (seeded AND a custom persona
   really reach the model through the gateway) + `P-PROMPT-01`.
+- Graph-brain memory ✅ (D-0045): the knowledge graph now acts as a BRAIN —
+  **multi-hop associative recall** (`EntityMemory.traverse`, cycle-safe recursive
+  CTE, depth ≤3 → `memory.related` tool + `?depth=` on recall + `GET /memory/graph`),
+  **hybrid GraphRAG-lite recall** (`recallGraph`: pgvector entry points by meaning →
+  one-hop graph expansion → `memory.recallGraph` tool + `GET /memory/graph?q=`;
+  lexical name-match fallback without an embedder), **episode auto-linking** (an
+  event mentioning a known entity attaches to it — the graph grows from real
+  activity), and **entities/facts vector-indexed** on remember (scrubbed on forget).
+  **NO graph DB** — deliberate (D-0045): Postgres recursive CTEs suffice at
+  single-user scale; Neo4j Community is GPLv3 (rule-8 flag) + an extra daemon; a
+  graph DB would slot in behind the same contract after a license check-in if scale
+  ever demands. 6 tests + live 8/8 (real gateway embed path) + `P-GRAPH-01`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

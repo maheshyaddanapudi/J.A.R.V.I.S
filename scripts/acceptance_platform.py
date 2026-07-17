@@ -388,6 +388,35 @@ def main() -> int:
     except Exception as e:
         record("P-RULE-01", "proactivity rules", "FAIL", str(e))
 
+    # ---- Graph-brain memory: multi-hop traversal + hybrid recall + auto-link ----
+    try:
+        gm = uuid.uuid4().hex[:6]
+        a, b, c = f"Person{gm}", f"Suit{gm}", f"Core{gm}"
+        for t, args in [
+            ("memory.rememberEntity", {"kind": "person", "name": a}),
+            ("memory.rememberEntity", {"kind": "project", "name": b}),
+            ("memory.rememberEntity", {"kind": "thing", "name": c}),
+            ("memory.relate", {"from": a, "to": b, "relation": "builds"}),
+            ("memory.relate", {"from": b, "to": c, "relation": "powered_by"}),
+        ]:
+            post("/core/run-tool", {"tool": t, "args": args, "source": "accept", "delegatedAutomation": True})
+        # multi-hop: depth 2 reaches C from A; depth 1 must not
+        d2 = post("/core/run-tool", {"tool": "memory.related", "args": {"name": a, "depth": 2}, "source": "accept"})
+        d1 = post("/core/run-tool", {"tool": "memory.related", "args": {"name": a, "depth": 1}, "source": "accept"})
+        hop2 = c in (d2.get("detail") or "") and c not in (d1.get("detail") or "")
+        # hybrid recall (semantic with an embedder, lexical fallback without) expands to connections
+        gr = post("/core/run-tool", {"tool": "memory.recallGraph", "args": {"query": f"status of the {b} project"}, "source": "accept"})
+        hybrid = b in (gr.get("detail") or "") and a in (gr.get("detail") or "")
+        # auto-link: an episode mentioning B attaches to it
+        post("/core/run-tool", {"tool": "memory.recordEpisode", "args": {"summary": f"Test flight of the {b} went well"}, "source": "accept", "delegatedAutomation": True})
+        linked = any(b in e.get("summary", "") for e in get(f"/memory/episodes?entity={b}").get("episodes", []))
+        ok = hop2 and hybrid and linked
+        record("P-GRAPH-01", "graph-brain: multi-hop traversal + hybrid graph recall + episode auto-link",
+               "PASS" if ok else "FAIL",
+               f"two_hop={hop2} hybrid_expansion={hybrid} auto_linked={linked} (semantic entry points with an embedder; lexical fallback without)")
+    except Exception as e:
+        record("P-GRAPH-01", "graph-brain memory", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

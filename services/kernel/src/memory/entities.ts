@@ -2,6 +2,7 @@ import type pg from "pg";
 import { redactSecrets } from "../core/audit.js";
 import type { AuditLog } from "../core/audit.js";
 import type { Vault } from "../crypto/vault.js";
+import type { SemanticMemory } from "./semantic.js";
 import type { EpistemicStatus, Sensitivity } from "./memory.js";
 
 /**
@@ -59,6 +60,20 @@ export interface Recall {
   relationsIn: (Relation & { fromName: string; fromKind: string })[];
 }
 
+/** A multi-hop neighborhood of the knowledge graph (D-0045). */
+export interface GraphNeighborhood {
+  nodes: { id: string; name: string; kind: string; depth: number }[];
+  edges: { from: string; to: string; fromName: string; toName: string; relation: string; note: string }[];
+}
+
+/** A hybrid (vector entry points → graph expansion) recall bundle (D-0045). */
+export interface GraphRecall {
+  entities: { name: string; kind: string; facts: string[] }[];
+  relations: { fromName: string; relation: string; toName: string }[];
+  /** how the entry points were found: semantic (embeddings) or lexical fallback */
+  mode: "semantic" | "lexical";
+}
+
 function assertNotSecret(value: string): void {
   if (redactSecrets(value) !== value) {
     throw new Error(
@@ -72,6 +87,8 @@ export class EntityMemory {
     private readonly pool: pg.Pool,
     private readonly audit: AuditLog,
     private readonly vault?: Vault,
+    /** optional vector index — enables hybrid graph recall (D-0045); best-effort */
+    private readonly semantic?: SemanticMemory,
   ) {}
 
   private enc(plaintext: string): string {
@@ -122,7 +139,13 @@ export class EntityMemory {
         event: "entity_remembered",
         payload: { kind: input.kind, name: input.name, provenance: input.provenance },
       });
-      return this.hydrateEntity(rows[0]);
+      const entity = this.hydrateEntity(rows[0]);
+      // Best-effort vector indexing (hybrid graph recall, D-0045) — embedded from
+      // the plaintext (never ciphertext); a missing embedder is a no-op.
+      if (this.semantic) {
+        void this.semantic.index("entity", entity.id, [input.name, input.kind, input.attributes ?? ""].join(". "));
+      }
+      return entity;
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;
@@ -179,7 +202,12 @@ export class EntityMemory {
       event: "fact_remembered",
       payload: { entity: entity.name, provenance: input.provenance },
     });
-    return this.hydrateFact(rows[0]);
+    const fact = this.hydrateFact(rows[0]);
+    // Best-effort vector indexing of the fact statement (plaintext, pre-encryption).
+    if (this.semantic) {
+      void this.semantic.index("fact", fact.id, `${entity.name}: ${input.statement}`);
+    }
+    return fact;
   }
 
   async relate(input: {
@@ -277,13 +305,165 @@ export class EntityMemory {
 
   /** Soft-delete an entity (excluded from recall immediately). */
   async forgetEntity(name: string): Promise<boolean> {
+    // capture ids first so the vector index can be scrubbed too (forget = gone)
+    const { rows: ids } = await this.pool.query<{ id: string }>(
+      `SELECT id FROM memory_entities WHERE lower(name) = lower($1) AND status NOT IN ('deleted','superseded')`,
+      [name],
+    );
     const { rowCount } = await this.pool.query(
       `UPDATE memory_entities SET status = 'deleted', updated_at = now()
        WHERE lower(name) = lower($1) AND status NOT IN ('deleted','superseded')`,
       [name],
     );
-    if (rowCount) await this.audit.append({ actor: "kernel", event: "entity_forgotten", payload: { name } });
+    if (rowCount) {
+      await this.audit.append({ actor: "kernel", event: "entity_forgotten", payload: { name } });
+      if (this.semantic) {
+        for (const { id } of ids) {
+          void this.semantic.remove("entity", id);
+          const { rows: facts } = await this.pool.query<{ id: string }>(
+            `SELECT id FROM memory_facts WHERE entity_id = $1`,
+            [id],
+          );
+          for (const f of facts) void this.semantic.remove("fact", f.id);
+        }
+      }
+    }
     return (rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Multi-hop, undirected traversal of the knowledge graph from a named entity
+   * (D-0045 — the associative "what's connected to what's connected to X" recall
+   * that vector similarity can't answer). Cycle-safe recursive CTE; depth ≤ 3;
+   * bounded node count. Read-only.
+   */
+  async traverse(name: string, depth = 2): Promise<GraphNeighborhood | null> {
+    const d = Math.max(1, Math.min(depth, 3));
+    const { rows: nodes } = await this.pool.query<{ id: string; name: string; kind: string; depth: number }>(
+      `WITH RECURSIVE walk AS (
+         SELECT e.id, 0 AS depth, ARRAY[e.id] AS path
+         FROM memory_entities e
+         WHERE lower(e.name) = lower($1) AND e.status NOT IN ('deleted','superseded')
+         UNION ALL
+         SELECT nxt.id, w.depth + 1, w.path || nxt.id
+         FROM walk w
+         JOIN memory_relations r ON r.from_entity = w.id OR r.to_entity = w.id
+         JOIN memory_entities nxt
+           ON nxt.id = CASE WHEN r.from_entity = w.id THEN r.to_entity ELSE r.from_entity END
+         WHERE w.depth < $2
+           AND nxt.status NOT IN ('deleted','superseded')
+           AND NOT nxt.id = ANY(w.path)
+       )
+       SELECT DISTINCT ON (w.id) w.id, e.name, e.kind, w.depth
+       FROM walk w JOIN memory_entities e ON e.id = w.id
+       ORDER BY w.id, w.depth ASC
+       LIMIT 100`,
+      [name, d],
+    );
+    if (nodes.length === 0) return null;
+    const ids = nodes.map((n) => n.id);
+    const { rows: edges } = await this.pool.query<{
+      from_entity: string; to_entity: string; relation: string; note: string; from_name: string; to_name: string;
+    }>(
+      `SELECT r.from_entity, r.to_entity, r.relation, r.note, ef.name AS from_name, et.name AS to_name
+       FROM memory_relations r
+       JOIN memory_entities ef ON ef.id = r.from_entity
+       JOIN memory_entities et ON et.id = r.to_entity
+       WHERE r.from_entity = ANY($1) AND r.to_entity = ANY($1)`,
+      [ids],
+    );
+    return {
+      nodes: nodes.sort((a, b) => a.depth - b.depth),
+      edges: edges.map((e) => ({
+        from: e.from_entity, to: e.to_entity,
+        fromName: e.from_name, toName: e.to_name,
+        relation: e.relation, note: this.dec(e.note ?? ""),
+      })),
+    };
+  }
+
+  /**
+   * Hybrid graph recall (GraphRAG-lite, D-0045): vector search finds ENTRY-POINT
+   * entities/facts by meaning, then the graph EXPANDS one hop to pull in connected
+   * context — similar + connected, which neither mechanism gives alone. Falls back
+   * to lexical name/fact matching when no embedder is available (never a mock).
+   */
+  async recallGraph(query: string, limit = 5): Promise<GraphRecall> {
+    const seedIds = new Set<string>();
+    let mode: GraphRecall["mode"] = "semantic";
+    if (this.semantic) {
+      const hits = await this.semantic.search(query, { kinds: ["entity", "fact"], limit: limit * 2 });
+      for (const h of hits) {
+        if (h.sourceKind === "entity") seedIds.add(h.sourceId);
+        else if (h.sourceKind === "fact") {
+          const { rows } = await this.pool.query<{ entity_id: string }>(
+            `SELECT entity_id FROM memory_facts WHERE id = $1`,
+            [h.sourceId],
+          );
+          if (rows[0]) seedIds.add(rows[0].entity_id);
+        }
+      }
+    }
+    if (seedIds.size === 0) {
+      // lexical fallback: entity names appearing in the query, or query terms in names
+      mode = "lexical";
+      const { rows } = await this.pool.query<{ id: string; name: string }>(
+        `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 200`,
+      );
+      const q = query.toLowerCase();
+      for (const r of rows) {
+        const n = r.name.toLowerCase();
+        if (q.includes(n) || n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) seedIds.add(r.id);
+      }
+    }
+    const seeds = [...seedIds].slice(0, limit);
+    const entities: GraphRecall["entities"] = [];
+    const relations: GraphRecall["relations"] = [];
+    const included = new Set<string>();
+    const addEntity = async (id: string) => {
+      if (included.has(id) || included.size >= limit * 3) return;
+      const { rows } = await this.pool.query<{ id: string; name: string; kind: string }>(
+        `SELECT id, name, kind FROM memory_entities WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
+        [id],
+      );
+      if (!rows[0]) return;
+      included.add(id);
+      const { rows: facts } = await this.pool.query<{ statement: string }>(
+        `SELECT statement FROM memory_facts
+         WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+         ORDER BY confidence DESC, created_at DESC LIMIT 3`,
+        [id],
+      );
+      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: facts.map((f) => this.dec(f.statement)) });
+    };
+    for (const id of seeds) {
+      await addEntity(id);
+      // one-hop expansion: pull in connected entities + the connecting edges
+      const { rows: rels } = await this.pool.query<{
+        from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string;
+      }>(
+        `SELECT r.from_entity, r.to_entity, r.relation, ef.name AS from_name, et.name AS to_name
+         FROM memory_relations r
+         JOIN memory_entities ef ON ef.id = r.from_entity AND ef.status NOT IN ('deleted','superseded')
+         JOIN memory_entities et ON et.id = r.to_entity AND et.status NOT IN ('deleted','superseded')
+         WHERE r.from_entity = $1 OR r.to_entity = $1
+         LIMIT 10`,
+        [id],
+      );
+      for (const r of rels) {
+        relations.push({ fromName: r.from_name, relation: r.relation, toName: r.to_name });
+        await addEntity(r.from_entity === id ? r.to_entity : r.from_entity);
+      }
+    }
+    // dedupe relations (same edge reachable from both endpoints)
+    const seen = new Set<string>();
+    const uniqueRelations = relations.filter((r) => {
+      const k = `${r.fromName}|${r.relation}|${r.toName}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return { entities, relations: uniqueRelations, mode };
   }
 
   private hydrateEntity(r: Record<string, unknown>): Entity {
