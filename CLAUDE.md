@@ -33,7 +33,11 @@ This repo builds **J.A.R.V.I.S.** — a real, working, local-first personal AI O
 
 **Option A — Hybrid (approved 2026-07-17, D-0002):** TypeScript kernel `jarvisd` (trust core Z1: policy/approval/audit/credentials/e-stop + registries + model-gateway adapters + client transport) · Python `jarvis-mind` (LangGraph 1.x behind our `AgentRuntime` interface) · Python `jarvis-ears` speech daemon (sherpa-onnx KWS, Silero VAD, Kyutai-MLX STT, Kokoro TTS) · Tauri 2 companion with minimal Swift bridge (AX, CGEvent, ScreenCaptureKit, Shortcuts, Keychain, Voice Processing I/O) · Next.js 16 + React 19 + R3F Command Center · Postgres 18 + pgvector · Ollama · OTel → Jaeger v2. Valkey deferred until needed (D-0006). Details: `docs/ARCHITECTURE.md §3`.
 
-**Parity matrix APPROVED 2026-07-17 (D-0003)** with amendments: full-suite simulators (D-0018), affect inference scheduled opt-in P4/P6 (D-0019), hardware inventory Quest 3S + Watch + iPhone (D-0020). **Phase 1 is unblocked and in progress.** Voice identity is not fixed until the listening demo (D-0004 condition).
+**Parity matrix APPROVED 2026-07-17 (D-0003)** with amendments: full-suite simulators (D-0018), affect inference scheduled opt-in P4/P6 (D-0019), hardware inventory Quest 3S + Watch + iPhone (D-0020). Voice identity is not fixed until the listening demo (D-0004 condition).
+
+## Build state (2026-07-17) — see `docs/IMPLEMENTATION_PLAN.md` → Current state for the live table
+The container-buildable platform is **complete and continuously verifiable**:
+`scripts/acceptance_platform.py` → **16 PASS · 2 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL** (record: `docs/verification/PLATFORM_ACCEPTANCE.md`). All eight goal pillars have a real, verified surface: voice pipeline (offline round-trip), contextual awareness (`context/`), proactive behavior (`proactive/`, gated), cinematic UI (full Command Center + Voice Orb), macOS computer control (SIMULATION + real adapter, gated D-0022), device control (SIMULATION + HA adapter, gated D-0025), local encrypted memory + secrets vault, controlled self-extension (Stage-A hard limit). Plus the model gateway, MCP host, and the **agent runtime** (multi-step plan-and-act through the gated loop, `agent/`). 123 kernel + 9 ears tests pass. **The 4 NEEDS-MAC rows** (live voice I/O, packaged Tauri app, real macOS control, real Home Assistant) require the physical M3 Max + their activation gates — run `docs/MAC_BRINGUP.md` on the Mac. Pending check-ins: D-0004a, D-0022, D-0024, D-0025, D-0026, D-0027, D-0023.
 
 ## Conventions (extend after architecture approval)
 
