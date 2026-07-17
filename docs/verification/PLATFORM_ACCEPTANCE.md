@@ -3,10 +3,12 @@
 **Recorded:** 2026-07-17 · **Environment:** Linux dev container (NOT the target Mac).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
-**Result:** **16 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
+**Result:** **17 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
 (against an online kernel; P-OFFLINE-01 is a live PASS when the kernel runs with
-`JARVIS_OFFLINE=1`). Re-confirmed 2026-07-17 with the agent runtime + skills
-registry in place.
+`JARVIS_OFFLINE=1` **and a local model is up** — its offline *gating*, i.e. remote
+providers refused, is confirmed live regardless). Re-confirmed 2026-07-17 with the
+agent runtime, skills registry, and the workspace knowledge/files capability
+(P-KNOW-01) in place.
 
 This is an honest record (honesty rule R-CORE-02). Everything achievable in the
 container is verified for real; the four capabilities whose remaining piece is the
@@ -27,6 +29,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-OFFLINE-01 fully offline when configured | PASS (offline kernel) | remote providers disabled, remote role refused, local path streams; zero external TCP egress during a converse (R-MODEL-04) |
 | P-LOOP-01 read-only tool | PASS | `system.info` real host state |
 | P-LOOP-02 consequential approve + deny + verify | PASS | approved wrote note, denied refused |
+| P-KNOW-01 workspace files: search/read + gated reversible edit + scope guard | PASS | REAL local fs; READ_ONLY auto-runs, `files.edit` denied→unchanged / approved→written + on-disk re-read verification; traversal/absolute refused |
 | P-MEM-01 remember + retrieve preference | PASS | stored + read back |
 | P-MEM-02 memory refuses secrets (R-MEM-06) | PASS | secret-shaped value refused |
 | P-SEC-01 secrets vault names-only + value never leaks | PASS | listed name only, value absent from listing + audit; ciphertext at rest |
@@ -46,9 +49,10 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-UI-01 natively-packaged app (Tauri) | **NEEDS-MAC** | Command Center runs in the browser; packaged `.app` built on the Mac |
 
 ## Automated test suites
-- **kernel:** 128 tests pass (`services/kernel` — config, migrate, audit, policy,
+- **kernel:** 145 tests pass (`services/kernel` — config, migrate, audit, policy,
   vault, memory, control, devices, selfext, proactive, mcp (+ persistence),
-  secrets, gateway-secrets, homeassistant, context, router, **agent**, **skills**).
+  secrets, gateway-secrets, homeassistant, context, router, agent, skills,
+  **knowledge**).
 - **ears:** 13 tests pass (engines, turn-taking, audio-io).
 
 ## Live end-to-end verifications (this environment)
@@ -74,6 +78,13 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 - **Skills registry** (R-CAP-01): create a named skill → run → its objective
   executes through the gated agent → synthesized answer; audit `skill_created →
   skill_run → agent_run_started → tool_call`. A skill grants no new capability.
+- **Workspace knowledge/files** (Phase 2 "files", D-0032, REAL not SIMULATION):
+  `files.list`/`read`/`search` auto-run READ_ONLY on a real workspace; `files.edit`
+  is CONSEQUENTIAL — the two-step approval flow (pending → resolve → write) applied
+  a real edit and the loop **independently re-read the file off disk** to confirm
+  the bytes match (`verification: "on-disk content matches the applied edit"`);
+  traversal (`../…`) and absolute paths are refused; an out-of-scope edit is a
+  clean pre-approval denial (no approval created). Audit chain intact throughout.
 - **Command Center** (headless-browser verified, all real kernel state): dashboard
   (13/13 panels), interactive secret/MCP controls (5/5), conversation `/chat`
   (7/7), proactivity `/proactive`, computer-control `/control` (8/8), device

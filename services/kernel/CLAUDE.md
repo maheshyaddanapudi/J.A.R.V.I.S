@@ -83,8 +83,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   other integration suites (the recurring "system_events already exists" /
   "relation … does not exist" flakiness). Full suite is now stable across
   repeated runs; `pnpm migrate` on `jarvis_test` afterward stays "up to date".
+- Knowledge / files ✅ (Phase 2 "files"/"repo analysis", D-0032): `src/knowledge/`
+  — a **REAL** (not SIMULATION), workspace-scoped filesystem capability. Contract
+  `WorkspaceFiles` + `LocalWorkspaceFiles` adapter (path-safe: no `..`/absolute
+  escape; reads refuse binary/oversize; search skips ignore-dirs, bounded) behind
+  five gated tools: `files.list`/`read`/`stat`/`search` (READ_ONLY, auto-run) and
+  `files.edit` (CONSEQUENTIAL, reversible — prior content captured before write;
+  the loop **re-reads the file off disk** to verify the edit, R-CORE-03). The agent
+  picks these up automatically. Fully local/offline. See `src/knowledge/CLAUDE.md`.
+  17 knowledge tests; full suite **145 pass**; live end-to-end + harness `P-KNOW-01`.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
-  check-in, 1.8 packaging (Tauri, Mac).
+  check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (browser automation,
+  terminal-with-policy, screen understanding, research-with-provenance).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.

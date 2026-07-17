@@ -289,6 +289,24 @@ export class CoreLoop {
         }
       }
     }
+    // files.edit reports its resulting content; re-read the file off disk and
+    // confirm it matches what the edit claims to have written (R-CORE-03) — an
+    // edit is only "verified" if the bytes on disk actually changed as stated.
+    if (toolName === "files.edit" && result.data && typeof result.data === "object") {
+      const { path, contentAfter } = result.data as { path?: string; contentAfter?: string };
+      if (typeof path === "string" && typeof contentAfter === "string") {
+        try {
+          const { readFile } = await import("node:fs/promises");
+          const { resolve } = await import("node:path");
+          const onDisk = await readFile(resolve(this.deps.toolCtx.workspaceRoot, path), "utf8");
+          return onDisk === contentAfter
+            ? { ok: true, summary: `verified: on-disk content of ${path} matches the applied edit` }
+            : { ok: false, summary: `verification FAILED: ${path} on disk differs from the applied edit` };
+        } catch {
+          return { ok: false, summary: `verification FAILED: ${path} unreadable after edit` };
+        }
+      }
+    }
     return { ok: result.ok, summary: "no independent check registered; used tool-reported status" };
   }
 }

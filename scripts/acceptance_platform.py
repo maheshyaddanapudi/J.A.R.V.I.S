@@ -140,6 +140,39 @@ def main() -> int:
     except Exception as e:
         record("P-LOOP-02", "approve/deny", "FAIL", str(e))
 
+    # ---- Knowledge / files (REAL, local, workspace-scoped) ----
+    try:
+        marker = uuid.uuid4().hex[:8]
+        fname = f"accept_know_{marker}.txt"
+        # seed a fixture through the reversible write tool (self-contained)
+        post("/core/run-tool", {"tool": "workspace.writeNote",
+             "args": {"filename": fname, "content": f"KNOWMARK-{marker} TODO calibrate\n"},
+             "source": "accept", "autoApprove": "allow-once"})
+        # READ_ONLY search + read auto-run and find real content
+        srch = post("/core/run-tool", {"tool": "files.search",
+                    "args": {"query": f"KNOWMARK-{marker}"}, "source": "accept"})
+        rd = post("/core/run-tool", {"tool": "files.read", "args": {"path": fname}, "source": "accept"})
+        # CONSEQUENTIAL edit: denied leaves it unchanged; approved changes it and is re-read to verify
+        deny = post("/core/run-tool", {"tool": "files.edit",
+                    "args": {"path": fname, "find": "calibrate", "replace": "recalibrate"},
+                    "source": "accept", "autoApprove": "deny"})
+        # appr.ok is True only when the loop's independent re-read verification
+        # confirmed the on-disk content matches the applied edit.
+        appr = post("/core/run-tool", {"tool": "files.edit",
+                    "args": {"path": fname, "find": "calibrate", "replace": "recalibrate"},
+                    "source": "accept", "autoApprove": "allow-once"})
+        # scope enforcement: traversal is refused as a clean denial (no approval requested)
+        esc = post("/core/run-tool", {"tool": "files.read",
+                   "args": {"path": "../../../etc/passwd"}, "source": "accept"})
+        ok = (srch.get("ok") and "1 match" in srch.get("summary", "")
+              and rd.get("ok") and deny.get("denied")
+              and appr.get("ok") and not esc.get("ok"))
+        record("P-KNOW-01", "workspace files: search/read + gated reversible edit + scope guard",
+               "PASS" if ok else "FAIL",
+               f"search={srch.get('summary','')[:24]} deny={deny.get('denied')} edit={appr.get('ok')} escape_refused={not esc.get('ok')}")
+    except Exception as e:
+        record("P-KNOW-01", "workspace files", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

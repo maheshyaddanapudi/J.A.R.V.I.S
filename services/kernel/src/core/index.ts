@@ -14,6 +14,9 @@ import { MemoryService } from "../memory/memory.js";
 import { SimulatedDesktop } from "../control/simulator.js";
 import { computerControlTools } from "../control/tools.js";
 import type { ComputerControl } from "../control/contract.js";
+import { LocalWorkspaceFiles } from "../knowledge/workspace.js";
+import { knowledgeTools } from "../knowledge/tools.js";
+import type { WorkspaceFiles } from "../knowledge/contract.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -82,6 +85,11 @@ export async function buildCore(opts: {
    * Home Assistant gateway is injected only on the Mac after that check-in.
    */
   devices?: DeviceGateway;
+  /**
+   * Workspace filesystem for the knowledge/files tools. Defaults to a
+   * LocalWorkspaceFiles scoped to `workspaceRoot`. This is REAL (not simulated).
+   */
+  files?: WorkspaceFiles;
 }): Promise<Core> {
   const audit = new AuditLog(opts.pool);
   const estop = new EmergencyStop(opts.pool, audit);
@@ -96,12 +104,18 @@ export async function buildCore(opts: {
   const devices = opts.devices ?? new StarkResidence();
   const interlock = new InterlockManager(audit);
 
+  // Real, workspace-scoped filesystem knowledge (Phase 2 "files"). Defaults to a
+  // LocalWorkspaceFiles over the workspace root; a caller may inject a different
+  // scope. This is a REAL capability (not simulated) and fully local/offline.
+  const files = opts.files ?? new LocalWorkspaceFiles(opts.workspaceRoot);
+
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
   tools.register(rememberPreferenceTool(memory));
   for (const t of computerControlTools(control)) tools.register(t);
   for (const t of deviceTools(devices, interlock)) tools.register(t);
+  for (const t of knowledgeTools(files)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
