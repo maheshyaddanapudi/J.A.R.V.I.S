@@ -138,9 +138,11 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
   (6/6, inline approval — the approved step really wrote its file), skills
   `/skills` (6/6, save/run/delete + inline approval), files `/files` (7/7 —
   real workspace browse/search/view over `/knowledge/*` + gated `files.edit` with
-  inline approval and on-disk re-read verification), memory `/memory` (6/6 —
-  R-MEM-04 user control of the semantic store: view/recall/remember/forget, kernel
-  cross-checked, encrypted at rest). Ambient Voice Orb tracks live activity + e-stop.
+  inline approval and on-disk re-read verification), memory `/memory` (6/6 semantic
+  store + 8/8 episodic TIMELINE — R-MEM-04 user control: view/recall/remember/forget
+  entities AND a live event timeline you can search, record to, and forget from;
+  consequential actions auto-record here, D-0041; kernel cross-checked, encrypted at
+  rest). Ambient Voice Orb tracks live activity + e-stop.
 
 ## What remains for the Mac (the 4 NEEDS-MAC rows)
 Run `docs/MAC_BRINGUP.md` on the M3 Max, then open the gate for each:

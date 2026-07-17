@@ -8,6 +8,7 @@ interface Entity { id: string; name: string; kind: string; attributes: string }
 interface Fact { id: string; statement: string; status: string }
 interface Rel { relation: string; toName?: string; toKind?: string; fromName?: string; fromKind?: string; note: string }
 interface Recall { entity: Entity; facts: Fact[]; relationsOut: Rel[]; relationsIn: Rel[] }
+interface Episode { id: string; occurred_at: string; kind: string; summary: string; detail: string; entity_name: string | null; importance: number; tags: string[]; provenance: string }
 
 /**
  * Semantic-memory panel (R-MEM-04 user control): view what J.A.R.V.I.S. knows about
@@ -24,6 +25,10 @@ export default function MemoryPage() {
   const [fact, setFact] = useState("");
   const [estop, setEstop] = useState(false);
   const [note, setNote] = useState("");
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [eq, setEq] = useState("");
+  const [evSummary, setEvSummary] = useState("");
+  const [evKind, setEvKind] = useState("note");
 
   async function refresh() {
     try {
@@ -31,7 +36,27 @@ export default function MemoryPage() {
       setEntities(r.entities ?? []);
     } catch { /* */ }
   }
-  useEffect(() => { void refresh(); }, []);
+  async function refreshEpisodes(q = eq) {
+    try {
+      const url = `${KERNEL_URL}/memory/episodes?limit=40${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`;
+      const r = await fetch(url, { cache: "no-store" }).then((x) => x.json());
+      setEpisodes(r.episodes ?? []);
+    } catch { /* */ }
+  }
+  async function recordEpisode() {
+    if (!evSummary.trim()) return;
+    await fetch(`${KERNEL_URL}/core/run-tool`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tool: "memory.recordEpisode", args: { summary: evSummary.trim(), kind: evKind }, source: "command-center", delegatedAutomation: true }),
+    });
+    setEvSummary("");
+    await refreshEpisodes();
+  }
+  async function forgetEpisode(id: string) {
+    await fetch(`${KERNEL_URL}/memory/episodes/${id}/forget`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    await refreshEpisodes();
+  }
+  useEffect(() => { void refresh(); void refreshEpisodes(""); }, []);
   useEffect(() => {
     const id = setInterval(async () => {
       try { setEstop(Boolean((await fetch(`${KERNEL_URL}/core/estop`, { cache: "no-store" }).then((r) => r.json())).engaged)); } catch { /* */ }
@@ -145,8 +170,62 @@ export default function MemoryPage() {
           )}
         </Panel>
       </div>
+
+      <div style={{ marginTop: "0.8rem" }}>
+        <Panel tone="advisory" title={`TIMELINE — WHAT HAPPENED (${episodes.length})`}>
+          <div style={{ color: "var(--dim)", fontSize: "0.72rem", marginBottom: "0.4rem" }}>
+            a recallable log of events — consequential actions are recorded here automatically (D-0041); encrypted at rest, forgettable
+          </div>
+          <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.5rem" }}>
+            <input
+              value={eq}
+              onChange={(e) => setEq(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void refreshEpisodes(); }}
+              placeholder="search the timeline…"
+              style={{ flex: 1, ...inputStyle }}
+            />
+            <button onClick={() => refreshEpisodes()} style={btn("var(--operational)")}>search</button>
+            {eq && <button onClick={() => { setEq(""); void refreshEpisodes(""); }} style={btn("var(--dim)")}>clear</button>}
+          </div>
+          <div style={{ maxHeight: 320, overflowY: "auto", fontSize: "0.78rem" }}>
+            {episodes.length === 0 && <span style={{ color: "var(--dim)" }}>no events{eq ? " match that search" : " yet — actions you take will appear here"}</span>}
+            {episodes.map((ev) => (
+              <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem", padding: "0.25rem 0", borderBottom: "1px solid var(--line)" }}>
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ color: "var(--advisory)", fontSize: "0.68rem", letterSpacing: "0.08em" }}>{ev.kind.toUpperCase()}</span>{" "}
+                  <span style={{ color: "var(--focal)" }}>{ev.summary}</span>
+                  {ev.entity_name && <span style={{ color: "var(--dim)" }}> · about {ev.entity_name}</span>}
+                  {ev.tags.length > 0 && <span style={{ color: "var(--operational)", fontSize: "0.68rem" }}> {ev.tags.map((t) => `#${t}`).join(" ")}</span>}
+                  <div style={{ color: "var(--dim)", fontSize: "0.66rem" }}>{relativeTime(ev.occurred_at)} · {ev.provenance}</div>
+                </div>
+                <button onClick={() => forgetEpisode(ev.id)} style={{ ...btn("var(--critical)"), flexShrink: 0 }}>forget</button>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: "0.6rem", borderTop: "1px solid var(--line)", paddingTop: "0.5rem", display: "flex", gap: "0.3rem" }}>
+            <input value={evSummary} onChange={(e) => setEvSummary(e.target.value)} placeholder="record an event…" style={{ flex: 1, ...inputStyle }} />
+            <select value={evKind} onChange={(e) => setEvKind(e.target.value)} style={inputStyle}>
+              <option>note</option><option>observation</option><option>decision</option><option>milestone</option>
+            </select>
+            <button onClick={recordEpisode} disabled={!evSummary.trim()} style={{ ...btn("var(--advisory)"), opacity: evSummary.trim() ? 1 : 0.5 }}>record</button>
+          </div>
+        </Panel>
+      </div>
     </main>
   );
+}
+
+/** Compact relative time for the timeline ("just now", "12m ago", "3h ago", "2d ago"). */
+function relativeTime(iso: string): string {
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return iso;
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (secs < 60) return "just now";
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
 
 const inputStyle: React.CSSProperties = {

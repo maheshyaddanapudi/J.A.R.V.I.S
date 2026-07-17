@@ -141,7 +141,15 @@ never decoration (R-UI-03, R-CORE-02).
   (D-0039). Persistent e-stop. **Verified live via headless Chromium (6/6
   functional; the only non-pass is the shared `/favicon.ico` dev 404)** + kernel
   cross-check: a remembered fact really persisted, recall rendered facts/relations,
-  and forget returned 404.
+  and forget returned 404. **Now also carries the episodic TIMELINE** (D-0041): a
+  live view of `GET /memory/episodes` (what happened, importance/kind/tags, relative
+  time) — search the timeline (`?q=`), record a note (`memory.recordEpisode` via the
+  gated loop), and **forget** any event (`POST /memory/episodes/:id/forget`).
+  Consequential actions you take elsewhere appear here automatically (loop
+  auto-record). Kind is shown as a text label (R-UI-02). **Verified live via headless
+  Chromium (8/8)**: recorded an event from the UI, search narrowed to it, the
+  auto-recorded `workspace.writeNote` actions were visible, forget removed it
+  immediately, e-stop present, no console errors.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
