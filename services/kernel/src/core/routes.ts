@@ -97,8 +97,13 @@ export function registerCoreRoutes(
   const ConverseSchema = z.object({
     text: z.string().min(1),
     source: z.string().default("api"),
+    sessionId: z.string().uuid().optional(),
     privacyClass: z.enum(["LOCAL_ONLY", "STANDARD"]).default("LOCAL_ONLY"),
   });
+  // Restrained British-butler persona (D-0004). The synthetic *voice* is chosen
+  // at the Mac listening test; this fixes the textual manner.
+  const BUTLER_PERSONA =
+    "You are J.A.R.V.I.S., a composed, dry-witted British butler-assistant. Be concise, precise, and understated. Address the user as 'sir' sparingly. Never invent facts.";
   app.post("/core/converse", async (req, reply) => {
     const parsed = ConverseSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
@@ -111,9 +116,11 @@ export function registerCoreRoutes(
     deps.activity.emit({ kind: "objective", text: body.text, at: new Date().toISOString() });
     try {
       for await (const token of deps.loop.runConversation({
-        messages: [{ role: "user", content: [{ type: "text", text: body.text }] }],
+        text: body.text,
         source: body.source,
+        system: BUTLER_PERSONA,
         privacyClass: body.privacyClass,
+        ...(body.sessionId ? { sessionId: body.sessionId } : {}),
       })) {
         reply.raw.write(`data: ${JSON.stringify({ type: "token", text: token })}\n\n`);
       }

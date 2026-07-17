@@ -42,6 +42,13 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   wired into the loop (LOW_REVERSIBLE, reversible via delete). Routes under
   /memory/*. Verified: remember/view/correct/delete, secret refusal, **survives
   restart**, history preserved, audit chain intact across all ops.
+- Conversation memory wired into the loop: `runConversation` retrieves prior
+  turns for a `sessionId`, injects them as context, persists both turns, and
+  applies the British-butler persona. Verified: turns persist + history is
+  injected. NOTE: the dev container runs SmolLM2-135M (a tiny test model that
+  hallucinates and ignores instructions) — response *quality* is a model-size
+  artifact, not a plumbing issue; the target M3 Max runs Qwen3.6-35B/gpt-oss-120b
+  (D-0012) where recall works. Response quality is only truly validated on the Mac.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac).
 

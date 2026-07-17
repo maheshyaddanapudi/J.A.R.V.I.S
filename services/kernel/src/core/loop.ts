@@ -6,6 +6,7 @@ import type { AuditLog } from "./audit.js";
 import type { EmergencyStop } from "./estop.js";
 import type { Grant, PolicyEngine, RiskClass } from "./policy.js";
 import type { ToolContext, ToolRegistry } from "./tools.js";
+import type { MemoryService } from "../memory/memory.js";
 
 /**
  * Z1 TRUST CORE — PROTECTED PATH (R-CAP-08).
@@ -30,6 +31,7 @@ export class CoreLoop {
       estop: EmergencyStop;
       approvals: ApprovalBroker;
       activity: ActivityBus;
+      memory: MemoryService;
       toolCtx: ToolContext;
     },
   ) {}
@@ -179,24 +181,50 @@ export class CoreLoop {
     return { ok: result.ok && verified.ok, summary: result.summary };
   }
 
-  /** Stream a conversational answer via the gateway; audit + emit activity. */
+  /**
+   * Stream a conversational answer via the gateway; persist both turns to
+   * conversation memory and carry prior context (R-MEM-01); audit + emit
+   * activity. When `sessionId` is given, prior turns for that session are
+   * prepended so J.A.R.V.I.S. actually remembers the conversation.
+   */
   async *runConversation(input: {
-    messages: NeutralMessage[];
+    text: string;
     source: string;
+    sessionId?: string;
     privacyClass?: "LOCAL_ONLY" | "STANDARD";
+    /** optional preface (persona/system); persisted separately, not to memory */
+    system?: string;
   }): AsyncGenerator<string> {
     this.deps.estop.assertClear();
     const now = () => new Date().toISOString();
+
+    const messages: NeutralMessage[] = [];
+    if (input.system) messages.push({ role: "system", content: input.system });
+    if (input.sessionId) {
+      const history = await this.deps.memory.conversation(input.sessionId, 20);
+      for (const turn of history) {
+        if (turn.role === "user")
+          messages.push({ role: "user", content: [{ type: "text", text: turn.content }] });
+        else messages.push({ role: "assistant", content: turn.content });
+      }
+    }
+    messages.push({ role: "user", content: [{ type: "text", text: input.text }] });
+
+    if (input.sessionId) await this.deps.memory.addTurn(input.sessionId, "user", input.text);
+
     const gen = this.deps.gateway.chatStream({
       role: "fast_conversation",
-      messages: input.messages,
+      messages,
       privacyClass: input.privacyClass ?? "LOCAL_ONLY",
       source: input.source,
     });
+    let answer = "";
     while (true) {
       // barge-in / e-stop can interrupt mid-stream
       if (this.deps.estop.isEngaged) {
         this.deps.activity.emit({ kind: "error", message: "halted by emergency stop", at: now() });
+        if (input.sessionId && answer)
+          await this.deps.memory.addTurn(input.sessionId, "assistant", answer + " [interrupted]");
         return;
       }
       const step = await gen.next();
@@ -208,9 +236,12 @@ export class CoreLoop {
           model: step.value.model,
           at: now(),
         });
+        if (input.sessionId && answer)
+          await this.deps.memory.addTurn(input.sessionId, "assistant", answer);
         return;
       }
       if (step.value.type === "text_delta") {
+        answer += step.value.text;
         this.deps.activity.emit({ kind: "token", text: step.value.text, at: now() });
         yield step.value.text;
       }

@@ -57,6 +57,7 @@ export async function buildCore(opts: {
     estop,
     approvals,
     activity,
+    memory,
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
 
