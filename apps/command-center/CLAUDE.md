@@ -102,6 +102,15 @@ never decoration (R-UI-03, R-CORE-02).
   no code path to activation; Stage B is gated on the dedicated D-0023 check-in.
   **Verified live (10/10)**: benign parked, malicious rejected with all
   violations shown, registry reflects both states, gap recorded.
+- **Agent panel** at `/agent` (`app/agent/page.tsx`, 2026-07-17): give J.A.R.V.I.S.
+  an objective → `POST /agent/run`; watch the multi-step plan execute in the live
+  "GATED PIPELINE" feed (activity SSE). A consequential step surfaces an **inline
+  approval** (polls `/core/approvals`, resolves via `/core/approvals/resolve`) so
+  the blocked run unblocks WITHOUT leaving the page; the RESULT panel shows the
+  step trace + final answer; persistent e-stop halts the plan. **Verified live
+  (6/6)**: objective → agent called a consequential tool → paused → inline
+  approval → executed → synthesized answer; the tool genuinely ran (the note file
+  was written). No fabricated steps.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
