@@ -35,6 +35,7 @@ import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
 import { StageAPipeline } from "../selfext/stageA.js";
 import { ProactivityEngine } from "../proactive/engine.js";
+import { ProactiveRules } from "../proactive/rules.js";
 import { StarkResidence } from "../devices/simulator.js";
 import { InterlockManager } from "../devices/interlock.js";
 import { deviceTools } from "../devices/tools.js";
@@ -64,6 +65,8 @@ export interface Core {
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
+  /** user-defined proactivity rules (what J.A.R.V.I.S. is proactive about) — R-CAP-01 */
+  proactiveRules: ProactiveRules;
   mcp: McpRegistry;
   /** discover a configured MCP server and register its (namespaced, gated) tools */
   connectMcp: (config: McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
@@ -241,7 +244,10 @@ export async function buildCore(opts: {
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);
-  const proactive = new ProactivityEngine(opts.pool, audit, activity);
+  // User-defined proactivity rules (R-CAP-01 "rules" kind) — add candidates that
+  // still pass the gate stack; the engine surfaces suggestions only, never acts.
+  const proactiveRules = new ProactiveRules(opts.pool, audit);
+  const proactive = new ProactivityEngine(opts.pool, audit, activity, undefined, proactiveRules);
 
   // Managed integration-credential store (R-MEM-06). Only available when a vault
   // is present — secrets are never stored in the clear. Adapters (gateway, HA,
@@ -262,7 +268,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
+    capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
     entityMemory, episodicMemory,
     ...(secrets ? { secrets } : {}),
     loop,

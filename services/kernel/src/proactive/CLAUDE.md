@@ -20,8 +20,21 @@ this" explanation. `now` is always injected (deterministic, testable).
 `commitments` (deadlines), `calendar_events`, `proactive_items` (surfaced, dedup-
 unique), `proactive_snoozes` (snooze/dismiss), `proactive_domain_settings`.
 
+## User-defined rules (`rules.ts`, migration 0014, D-0044, R-CAP-01 "rules" kind)
+Makes WHAT J.A.R.V.I.S. is proactive about **user-configurable**: `ProactiveRules`
+(list/set/setEnabled/remove/evaluate). A rule's condition is a **closed, typed
+set** — `part_of_day`, `commitment_due_within{minutes}`, `commitment_overdue` —
+evaluated in code (`parseCondition` refuses anything else on write, so a rule can
+NEVER execute code/shell). `evaluate(now)` turns enabled rules into `Candidate`s
+that `engine.run()` appends to the built-in generators and runs through the SAME
+gate stack — suggestion-only, never acts. Detail templates fill only
+`{commitment}`/`{due}` (plain replace). Best-effort: a rule failure never breaks a
+cycle. Background *delivery* is still gated at D-0024; rules only configure what's
+computed on demand.
+
 ## API
-`/proactive/{items, run (optional `at` preview time), snooze, dismiss, domain}`.
+`/proactive/{items, run (optional `at` preview time), snooze, dismiss, domain,
+rules (list/set), rules/:name/enabled, rules/:name (delete)}`.
 
 ## Verified (2026-07-17)
 10 proactive tests (79 kernel total). Live: daytime run surfaced overdue/due/

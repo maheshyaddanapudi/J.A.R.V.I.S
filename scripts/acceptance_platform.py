@@ -369,6 +369,25 @@ def main() -> int:
     except Exception as e:
         record("P-PROMPT-01", "prompts registry", "FAIL", str(e))
 
+    # ---- User-defined proactivity rules (R-CAP-01 "rules" kind + R-PRO) ----
+    try:
+        # SAFETY: a code-execution-style condition must be refused (closed typed set)
+        evil = httpx.post(f"{K}/proactive/rules",
+                          json={"name": "evil", "title": "x", "condition": {"type": "eval", "code": "process.exit()"}},
+                          timeout=5)
+        refused = evil.status_code == 400
+        rn = f"rule-{uuid.uuid4().hex[:6]}"
+        post("/proactive/rules", {"name": rn, "title": "morning nudge", "condition": {"type": "part_of_day", "value": "morning"}})
+        listed = any(r.get("name") == rn for r in get("/proactive/rules").get("rules", []))
+        httpx.request("DELETE", f"{K}/proactive/rules/{rn}", timeout=5)
+        gone = not any(r.get("name") == rn for r in get("/proactive/rules").get("rules", []))
+        ok = refused and listed and gone
+        record("P-RULE-01", "proactivity rules: safe closed-set condition + set/list/delete",
+               "PASS" if ok else "FAIL",
+               f"malicious_refused={refused} listed={listed} deleted={gone} (rule candidates surface through the gate stack — verified live)")
+    except Exception as e:
+        record("P-RULE-01", "proactivity rules", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

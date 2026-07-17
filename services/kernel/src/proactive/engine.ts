@@ -8,6 +8,7 @@ import {
   commitmentCandidates,
 } from "./generators.js";
 import type { Candidate, GateConfig, ProactiveItem, Suppression } from "./types.js";
+import type { ProactiveRules } from "./rules.js";
 
 /**
  * Proactivity engine (R-PRO-01…03). Generates candidates from real data, runs
@@ -29,6 +30,8 @@ export class ProactivityEngine {
     private readonly audit: AuditLog,
     private readonly activity: ActivityBus,
     gateConfig?: GateConfig,
+    /** optional user-defined rules — add candidates, still gated (R-CAP-01) */
+    private readonly rules?: ProactiveRules,
   ) {
     this.gates = new GateStack(pool, gateConfig);
   }
@@ -45,6 +48,15 @@ export class ProactivityEngine {
     ];
     const briefing = await briefingCandidate(this.pool, now);
     if (briefing) candidates.push(briefing);
+    // User-defined rules add candidates; they pass the SAME gate stack (suggestion-
+    // only, never act). Best-effort: a rule-evaluation failure must not break a cycle.
+    if (this.rules) {
+      try {
+        candidates.push(...(await this.rules.evaluate(now)));
+      } catch {
+        /* rule evaluation is best-effort */
+      }
+    }
 
     const { surfaced, suppressed } = await this.gates.apply(candidates, now);
 

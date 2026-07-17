@@ -10,7 +10,8 @@ export type ProactiveKind =
   | "deadline_due"
   | "commitment_overdue"
   | "calendar_conflict"
-  | "briefing";
+  | "briefing"
+  | "user_rule";
 
 /** A candidate item before gating. */
 export interface Candidate {

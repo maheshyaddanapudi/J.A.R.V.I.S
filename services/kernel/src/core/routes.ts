@@ -34,6 +34,7 @@ export function registerCoreRoutes(
     capabilities: import("../selfext/registry.js").CapabilityRegistry;
     stageA: import("../selfext/stageA.js").StageAPipeline;
     proactive: import("../proactive/engine.js").ProactivityEngine;
+    proactiveRules?: import("../proactive/rules.js").ProactiveRules;
     mcp: import("../mcp/registry.js").McpRegistry;
     connectMcp: (config: import("../mcp/client.js").McpServerConfig) => Promise<{ serverId: string; tools: number; trust: string }>;
     secrets?: import("../crypto/secrets.js").SecretsVault;
@@ -188,6 +189,44 @@ export function registerCoreRoutes(
     await deps.proactive.setDomainEnabled(b.domain, b.enabled ?? true);
     return { domain: b.domain, enabled: b.enabled ?? true };
   });
+
+  // User-defined proactivity rules (R-CAP-01 "rules" kind) — configure WHAT
+  // J.A.R.V.I.S. is proactive about. Rules add gated, suggestion-only candidates.
+  if (deps.proactiveRules) {
+    const rules = deps.proactiveRules;
+    app.get("/proactive/rules", async () => ({ rules: await rules.list() }));
+    app.post("/proactive/rules", async (req, reply) => {
+      const b = (req.body ?? {}) as {
+        name?: string; title?: string; condition?: unknown; detail?: string;
+        domain?: string; priority?: string; confidence?: number;
+      };
+      if (!b.name || !b.title || b.condition === undefined) {
+        return reply.code(400).send({ error: "name, title, and condition are required" });
+      }
+      try {
+        return await rules.set({
+          name: b.name,
+          title: b.title,
+          condition: b.condition,
+          ...(b.detail !== undefined ? { detail: b.detail } : {}),
+          ...(b.domain !== undefined ? { domain: b.domain } : {}),
+          ...(b.priority !== undefined ? { priority: b.priority as "low" | "normal" | "high" | "critical" } : {}),
+          ...(b.confidence !== undefined ? { confidence: b.confidence } : {}),
+        });
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+    app.post("/proactive/rules/:name/enabled", async (req) => {
+      const name = decodeURIComponent((req.params as { name: string }).name);
+      const enabled = Boolean((req.body as { enabled?: boolean } | undefined)?.enabled ?? true);
+      return { updated: await rules.setEnabled(name, enabled) };
+    });
+    app.delete("/proactive/rules/:name", async (req) => {
+      const name = decodeURIComponent((req.params as { name: string }).name);
+      return { removed: await rules.remove(name) };
+    });
+  }
 
   // MCP (R-CAP-02). Discover a configured server; its tools register namespaced
   // + trust-gated (untrusted by default). Everything a server returns is
