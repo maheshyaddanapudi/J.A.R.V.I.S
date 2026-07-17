@@ -37,6 +37,45 @@ interface PendingApproval {
   resourceScope: string | null;
 }
 
+interface McpServer {
+  id: string;
+  trust: string;
+  quarantined: boolean;
+  tools: string[];
+}
+
+interface ProactiveItem {
+  title: string;
+  priority: string;
+  domain: string;
+  detail?: string;
+}
+
+interface ContextData {
+  partOfDay: string;
+  commitments: { title: string; overdue: boolean; dueSoon: boolean }[];
+  pendingApprovals: { count: number };
+  mcpServers: number;
+  emergencyStop: boolean;
+}
+
+interface SecretInfo {
+  name: string;
+  description: string;
+}
+
+/** Resilient JSON GET: a missing/erroring endpoint yields the fallback rather
+ *  than blanking the whole dashboard (honest partial state, never fake data). */
+async function getJson<T>(url: string, fallback: T): Promise<T> {
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) return fallback;
+    return (await r.json()) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function SystemPage() {
   const [health, setHealth] = useState<HealthReport | null>(null);
   const [reachable, setReachable] = useState<boolean | null>(null);
@@ -46,31 +85,50 @@ export default function SystemPage() {
   const [audit, setAudit] = useState<{ seq: number; event: string; actor: string }[]>([]);
   const [chainOk, setChainOk] = useState<boolean | null>(null);
   const [prefs, setPrefs] = useState<{ key: string; value: string; status: string }[]>([]);
+  const [context, setContext] = useState<ContextData | null>(null);
+  const [mcp, setMcp] = useState<McpServer[]>([]);
+  const [proactive, setProactive] = useState<ProactiveItem[]>([]);
+  const [secrets, setSecrets] = useState<SecretInfo[]>([]);
+  const [secretsAvailable, setSecretsAvailable] = useState<boolean>(true);
   const activityRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let stop = false;
     async function poll() {
       try {
-        const [h, e, a, au, cv, pf] = await Promise.all([
-          fetch(`${KERNEL_URL}/health`, { cache: "no-store" }).then((r) => r.json()),
-          fetch(`${KERNEL_URL}/core/estop`, { cache: "no-store" }).then((r) => r.json()),
-          fetch(`${KERNEL_URL}/core/approvals`, { cache: "no-store" }).then((r) => r.json()),
-          fetch(`${KERNEL_URL}/core/audit?limit=8`, { cache: "no-store" }).then((r) => r.json()),
-          fetch(`${KERNEL_URL}/core/audit/verify`, { cache: "no-store" }).then((r) => r.json()),
-          fetch(`${KERNEL_URL}/memory/preferences`, { cache: "no-store" }).then((r) => r.json()),
-        ]);
+        // Health probe first — its failure means the kernel is unreachable.
+        const h = await fetch(`${KERNEL_URL}/health`, { cache: "no-store" }).then((r) => r.json());
         if (stop) return;
         setHealth(h);
         setReachable(true);
-        setEstop(Boolean(e.engaged));
-        setApprovals(a.pending ?? []);
-        setAudit(au.entries ?? []);
-        setChainOk(cv.intact);
-        setPrefs(pf.preferences ?? []);
       } catch {
         if (!stop) setReachable(false);
+        return;
       }
+      // Everything else loads resiliently — one missing endpoint never blanks the view.
+      const [e, a, au, cv, pf, ctx, ms, pi, sec] = await Promise.all([
+        getJson(`${KERNEL_URL}/core/estop`, { engaged: false }),
+        getJson<{ pending: PendingApproval[] }>(`${KERNEL_URL}/core/approvals`, { pending: [] }),
+        getJson<{ entries: { seq: number; event: string; actor: string }[] }>(`${KERNEL_URL}/core/audit?limit=8`, { entries: [] }),
+        getJson<{ intact: boolean | null }>(`${KERNEL_URL}/core/audit/verify`, { intact: null }),
+        getJson<{ preferences: { key: string; value: string; status: string }[] }>(`${KERNEL_URL}/memory/preferences`, { preferences: [] }),
+        getJson<{ snapshot: ContextData } | null>(`${KERNEL_URL}/context`, null),
+        getJson<{ servers: McpServer[] }>(`${KERNEL_URL}/mcp/servers`, { servers: [] }),
+        getJson<{ items: ProactiveItem[] }>(`${KERNEL_URL}/proactive/items`, { items: [] }),
+        fetch(`${KERNEL_URL}/secrets`, { cache: "no-store" }),
+      ]);
+      if (stop) return;
+      setEstop(Boolean((e as { engaged?: boolean }).engaged));
+      setApprovals(a.pending ?? []);
+      setAudit(au.entries ?? []);
+      setChainOk(cv.intact);
+      setPrefs(pf.preferences ?? []);
+      setContext(ctx?.snapshot ?? null);
+      setMcp(ms.servers ?? []);
+      setProactive(pi.items ?? []);
+      // /secrets returns 503 when no vault is configured — reflect that honestly.
+      setSecretsAvailable(sec.ok);
+      setSecrets(sec.ok ? ((await sec.json()).secrets ?? []) : []);
     }
     void poll();
     const id = setInterval(poll, 2000);
@@ -131,10 +189,44 @@ export default function SystemPage() {
           <h1 style={{ fontSize: "1.05rem", letterSpacing: "0.2em", color: "var(--operational)", margin: 0 }}>
             J.A.R.V.I.S. — COMMAND CENTER
           </h1>
-          <p style={{ color: "var(--dim)", margin: "0.2rem 0 0" }}>slice 1.6 · live system state</p>
+          <p style={{ color: "var(--dim)", margin: "0.2rem 0 0" }}>
+            live operations · all data is real kernel state{" "}
+            <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.6rem" }}>
+              open voice orb →
+            </a>
+          </p>
         </div>
         <EmergencyStopButton engaged={estop} onEngage={engageEstop} onResume={resumeEstop} />
       </header>
+
+      {reachable && context && (
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderLeft: "3px solid var(--focal)",
+            padding: "0.6rem 1.1rem",
+            marginBottom: "0.8rem",
+            fontSize: "0.85rem",
+            color: "var(--dim)",
+          }}
+        >
+          <span style={{ color: "var(--focal)", textTransform: "capitalize" }}>{context.partOfDay}</span>
+          {" · "}
+          {context.commitments.length
+            ? `${context.commitments.length} commitment(s)${
+                context.commitments.some((c) => c.overdue) ? " — some OVERDUE" : ""
+              }`
+            : "no open commitments"}
+          {" · "}
+          {context.pendingApprovals.count} awaiting approval
+          {" · "}
+          {context.mcpServers} MCP server(s)
+          {context.emergencyStop && (
+            <span style={{ color: "var(--critical)" }}> · EMERGENCY STOP ENGAGED</span>
+          )}
+        </div>
+      )}
 
       {reachable === false && (
         <Panel tone="critical" title="KERNEL — UNREACHABLE">
@@ -207,6 +299,60 @@ export default function SystemPage() {
                 </button>
               </div>
             ))}
+          </Panel>
+
+          <Panel
+            tone={mcp.some((s) => s.quarantined) ? "critical" : "operational"}
+            title={`MCP SERVERS (${mcp.length})`}
+          >
+            {mcp.length === 0 && <span style={{ color: "var(--dim)" }}>none connected</span>}
+            {mcp.map((s) => (
+              <div key={s.id} style={{ marginBottom: "0.35rem" }}>
+                <span style={{ color: s.quarantined ? "var(--critical)" : "var(--focal)" }}>{s.id}</span>{" "}
+                <span
+                  style={{
+                    color: s.trust === "trusted" ? "var(--operational)" : "var(--advisory)",
+                    fontSize: "0.72rem",
+                  }}
+                >
+                  [{s.quarantined ? "QUARANTINED" : s.trust}]
+                </span>
+                <div style={{ color: "var(--dim)", fontSize: "0.72rem" }}>
+                  {s.tools.length} tool(s): {s.tools.slice(0, 6).join(", ")}
+                </div>
+              </div>
+            ))}
+          </Panel>
+
+          <Panel tone={proactive.length ? "advisory" : "operational"} title={`PROACTIVE (${proactive.length})`}>
+            {proactive.length === 0 && <span style={{ color: "var(--dim)" }}>nothing surfaced</span>}
+            {proactive.map((p, i) => (
+              <div key={i} style={{ marginBottom: "0.3rem" }}>
+                <span style={{ color: "var(--advisory)" }}>{p.title}</span>{" "}
+                <span style={{ color: "var(--dim)", fontSize: "0.72rem" }}>
+                  [{p.priority}·{p.domain}]
+                </span>
+              </div>
+            ))}
+          </Panel>
+
+          <Panel tone="operational" title={`SECRETS (${secrets.length})`}>
+            {!secretsAvailable && <span style={{ color: "var(--dim)" }}>vault unavailable</span>}
+            {secretsAvailable && secrets.length === 0 && (
+              <span style={{ color: "var(--dim)" }}>none stored</span>
+            )}
+            {secrets.map((s) => (
+              <div key={s.name} style={{ marginBottom: "0.25rem" }}>
+                <span style={{ color: "var(--focal)" }}>{s.name}</span>{" "}
+                <span style={{ color: "var(--dim)", fontSize: "0.72rem" }}>{s.description}</span>
+                <span style={{ color: "var(--operational)", fontSize: "0.68rem" }}> · encrypted</span>
+              </div>
+            ))}
+            {secretsAvailable && (
+              <div style={{ color: "var(--dim)", fontSize: "0.68rem", marginTop: "0.3rem" }}>
+                names only — values never leave the encrypted vault
+              </div>
+            )}
           </Panel>
         </div>
       )}

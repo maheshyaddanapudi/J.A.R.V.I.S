@@ -20,6 +20,19 @@ never decoration (R-UI-03, R-CORE-02).
   reduced-motion honored. Verified live: flipped to "Speaking" during a real model
   conversation and "Emergency stop" on a real e-stop. `?preview=<state>` inspects
   a state without driving the pipeline.
+- **Operations dashboard** (2026-07-17): the system page (`app/page.tsx`) is now a
+  full live operations view over the whole kernel — added panels for **context**
+  (`/context` banner: part-of-day, commitments incl. OVERDUE, pending approvals,
+  MCP count, e-stop), **MCP servers** (`/mcp/servers`: trust level + QUARANTINED),
+  **proactive** (`/proactive/items`), and **secrets** (`/secrets`: names +
+  descriptions only, "values never leave the vault"; 503 → "vault unavailable"),
+  plus a link to `/orb`. Resilient per-endpoint loading (`getJson`) so one missing
+  endpoint never blanks the view; health failure still shows UNREACHABLE. All data
+  is real kernel state (R-UI-03/R-CORE-02). **Verified live via headless Chromium
+  against a running kernel: 13/13 panel checks pass** (real MCP servers with trust
+  labels, seeded commitment, stored secret by name). NOTE: Next 16 dev blocks its
+  client chunks over `127.0.0.1` — load the dev UI via `localhost:<port>` (prod
+  `next start` is unaffected).
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
