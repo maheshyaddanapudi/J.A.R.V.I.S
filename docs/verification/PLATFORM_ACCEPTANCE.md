@@ -90,7 +90,9 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
   (7/7), proactivity `/proactive`, computer-control `/control` (8/8), device
   `/devices` (8/8, interlock), self-extension `/selfext` (10/10), agent `/agent`
   (6/6, inline approval — the approved step really wrote its file), skills
-  `/skills` (6/6, save/run/delete + inline approval). Ambient Voice Orb tracks
+  `/skills` (6/6, save/run/delete + inline approval), files `/files` (7/7 —
+  real workspace browse/search/view over `/knowledge/*` + gated `files.edit` with
+  inline approval and on-disk re-read verification). Ambient Voice Orb tracks
   live activity + e-stop.
 
 ## What remains for the Mac (the 4 NEEDS-MAC rows)

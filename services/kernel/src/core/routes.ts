@@ -40,6 +40,7 @@ export function registerCoreRoutes(
     context: import("../context/service.js").ContextService;
     agent: import("../agent/contract.js").AgentRuntime;
     skills: import("../skills/registry.js").SkillRegistry;
+    files: import("../knowledge/contract.js").WorkspaceFiles;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -318,6 +319,51 @@ export function registerCoreRoutes(
     const result = await deps.skills.run(id, b.autoApprove ? { autoApprove: b.autoApprove } : undefined);
     if (!result) return reply.code(404).send({ error: "skill not found or disabled" });
     return result;
+  });
+
+  // Workspace knowledge/files — READ-ONLY read models (D-0032). These surface the
+  // structured data (listings, file content, search matches) the Command Center
+  // needs; they are the READ_ONLY half of the capability and enforce workspace
+  // scope in the adapter. MUTATION (files.edit) goes through the gated /core/run-tool
+  // loop, never here. Out-of-scope / refused paths return 400 with the reason.
+  app.get("/knowledge/list", async (req, reply) => {
+    const dir = (req.query as { dir?: string }).dir ?? "";
+    try {
+      return { dir, entries: await deps.files.list(dir) };
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  app.get("/knowledge/read", async (req, reply) => {
+    const q = req.query as { path?: string; maxBytes?: string };
+    if (!q.path) return reply.code(400).send({ error: "path required" });
+    try {
+      return await deps.files.read(q.path, q.maxBytes ? Number(q.maxBytes) : undefined);
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  app.get("/knowledge/stat", async (req, reply) => {
+    const q = req.query as { path?: string };
+    if (!q.path) return reply.code(400).send({ error: "path required" });
+    try {
+      return await deps.files.stat(q.path);
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  app.get("/knowledge/search", async (req, reply) => {
+    const q = req.query as { q?: string; regex?: string; glob?: string; maxMatches?: string };
+    if (!q.q) return reply.code(400).send({ error: "q required" });
+    try {
+      const opts: import("../knowledge/contract.js").SearchOptions = {};
+      if (q.regex === "1" || q.regex === "true") opts.regex = true;
+      if (q.glob) opts.glob = q.glob;
+      if (q.maxMatches) opts.maxMatches = Number(q.maxMatches);
+      return await deps.files.search(q.q, opts);
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
   });
 
   // Conversational answer through the core loop (objective → streamed tokens),

@@ -23,6 +23,14 @@ here touches the network.
     write). The core loop independently **re-reads the file off disk** and confirms
     it matches the applied edit (`loop.verify`, R-CORE-03).
 
+## Routes
+Read models for the Command Center are exposed as **READ_ONLY** routes that call
+the adapter directly (scope-enforced): `GET /knowledge/list?dir=`,
+`/knowledge/read?path=`, `/knowledge/stat?path=`, `/knowledge/search?q=` (they
+return structured data the gated `/core/run-tool` response doesn't carry).
+**Mutation is never here** — `files.edit` goes through the gated `/core/run-tool`
+loop. Out-of-scope paths return 400 with the refusal reason.
+
 ## Scope (deliberate)
 Confined to the kernel's workspace root (`buildCore({workspaceRoot | files})`).
 Reading within that root is READ_ONLY (consistent with `control.screenshot`/

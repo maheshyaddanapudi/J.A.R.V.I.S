@@ -117,6 +117,20 @@ never decoration (R-UI-03, R-CORE-02).
   approval** resolved in-page; live gated-pipeline feed + result trace; e-stop.
   R-CAP-01 / D-0031. **Verified live (6/6)**: saved → listed → ran → inline
   approval → completed → deleted (the consequential step really wrote its note).
+- **Files panel** at `/files` (`app/files/page.tsx`, 2026-07-17, D-0032): a real
+  workspace browser/search/viewer over the **read-only** `/knowledge/*` routes
+  (`/knowledge/list|read|search`), with **gated** editing through `/core/run-tool`
+  (`files.edit`). Browse directories (dirs navigate, files open), search contents
+  workspace-wide (file:line + preview, clickable), view a file, and propose a
+  find/replace edit — a consequential edit surfaces an **inline approval** resolved
+  in-page (`/core/approvals`), then the loop **independently re-reads the file** and
+  the view refreshes to the verified content; live gated-pipeline SSE feed +
+  persistent e-stop. This is a REAL local filesystem (not a simulator), confined to
+  the workspace root. **Verified live via headless Chromium (7/7 functional; the
+  only non-pass is the shared `/favicon.ico` dev 404)**: real listing + search +
+  file view, and the full disclosure→approval→execute→verify edit flow (the
+  approved edit really changed the file on disk and the pipeline showed
+  "on-disk content matches the applied edit").
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for

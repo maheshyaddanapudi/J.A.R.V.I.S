@@ -57,6 +57,8 @@ export interface Core {
   agent: AgentRuntime;
   /** user-defined skills (saved named objectives run via the agent) — R-CAP-01 */
   skills: SkillRegistry;
+  /** REAL workspace-scoped filesystem (read models for the /knowledge/* routes) */
+  files: WorkspaceFiles;
   loop: CoreLoop;
 }
 
@@ -178,7 +180,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills,
+    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files,
     ...(secrets ? { secrets } : {}),
     loop,
   };

@@ -224,6 +224,9 @@ export default function SystemPage() {
             <a href="/skills" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               skills →
             </a>{" "}
+            <a href="/files" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              files →
+            </a>{" "}
             <a href="/proactive" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               proactivity →
             </a>{" "}

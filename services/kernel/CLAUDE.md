@@ -90,8 +90,11 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   five gated tools: `files.list`/`read`/`stat`/`search` (READ_ONLY, auto-run) and
   `files.edit` (CONSEQUENTIAL, reversible — prior content captured before write;
   the loop **re-reads the file off disk** to verify the edit, R-CORE-03). The agent
-  picks these up automatically. Fully local/offline. See `src/knowledge/CLAUDE.md`.
-  17 knowledge tests; full suite **145 pass**; live end-to-end + harness `P-KNOW-01`.
+  picks these up automatically. READ_ONLY read models are also exposed as
+  `GET /knowledge/list|read|stat|search` (structured data for the Command Center;
+  mutation still only via the gated `/core/run-tool`). Fully local/offline. See
+  `src/knowledge/CLAUDE.md`. 17 knowledge tests; full suite **145 pass**; live
+  end-to-end + harness `P-KNOW-01`.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (browser automation,
   terminal-with-policy, screen understanding, research-with-provenance).
