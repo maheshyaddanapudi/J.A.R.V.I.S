@@ -5,6 +5,8 @@ import { loadConfig } from "./config.js";
 import { createPool } from "./db/pool.js";
 import { runMigrations } from "./db/migrate.js";
 import { createServer } from "./http/server.js";
+import { loadGatewayConfig } from "./gateway/config.js";
+import { GatewayRouter } from "./gateway/router.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = join(here, "db", "migrations");
@@ -18,7 +20,17 @@ const startedAt = Date.now();
 
 const migrated = await runMigrations(pool, migrationsDir);
 
-const app = createServer({ config, pool, migrationsDir, version: pkg.version, startedAt });
+const gatewayConfig = await loadGatewayConfig(config.gatewayConfigPath || undefined);
+const gateway = new GatewayRouter(gatewayConfig, pool, config.offline);
+
+const app = createServer({
+  config,
+  pool,
+  migrationsDir,
+  version: pkg.version,
+  startedAt,
+  gateway,
+});
 
 await pool.query(
   "INSERT INTO system_events (source, kind, detail) VALUES ($1, $2, $3)",

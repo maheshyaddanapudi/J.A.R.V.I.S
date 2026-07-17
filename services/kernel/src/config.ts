@@ -16,6 +16,13 @@ const ConfigSchema = z.object({
   /** OTLP HTTP endpoint; empty string disables trace export (offline mode stays clean). */
   otlpEndpoint: z.string().default(""),
   logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  /** Offline mode (R-MODEL-04): remote providers refused entirely. */
+  offline: z
+    .string()
+    .default("")
+    .transform((v) => v === "1" || v.toLowerCase() === "true"),
+  /** Path to gateway config JSON; empty = built-in local-first defaults. */
+  gatewayConfigPath: z.string().default(""),
 });
 
 export type KernelConfig = z.infer<typeof ConfigSchema>;
@@ -27,6 +34,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): KernelConfig {
     databaseUrl: env.JARVIS_DATABASE_URL,
     otlpEndpoint: env.JARVIS_OTLP_ENDPOINT,
     logLevel: env.JARVIS_LOG_LEVEL,
+    offline: env.JARVIS_OFFLINE,
+    gatewayConfigPath: env.JARVIS_GATEWAY_CONFIG,
   });
   if (!parsed.success) {
     throw new Error(`Invalid kernel configuration: ${parsed.error.message}`);

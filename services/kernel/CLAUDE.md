@@ -9,7 +9,16 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
 - Slice 1.1 ✅: config (zod, loopback-only defaults), Postgres pool, immutable SQL
   migration runner (sha256-tracked), real `/health` (measured DB latency + migration
   status — nothing hardcoded green), `system_events` journal, Fastify server.
-- Next (1.2): model gateway — neutral message/tool schema + Ollama & one cloud adapter.
+- Slice 1.2 ✅: model gateway under `src/gateway/` — neutral message/tool schema
+  (`schema.ts`, adapters are the ONLY code knowing wire formats, R-MODEL-02);
+  adapters: ollama, anthropic, openai_compat (llama.cpp/vLLM/OpenAI dialect);
+  router: local-first target order, LOCAL_ONLY privacy gate, offline mode,
+  fallback only pre-stream (never silent mid-answer model switches),
+  structured-output validation (ajv), `model_calls` audit (no message content);
+  routes: POST /gateway/chat (SSE), GET /gateway/status, GET /gateway/roles.
+  Config: JSON file via `JARVIS_GATEWAY_CONFIG` (defaults in `gateway/config.ts`);
+  `JARVIS_OFFLINE=1` refuses all remote providers.
+- Next (1.3): voice pipeline (Python `jarvis-ears` + Swift audio path on Mac).
 
 ## Conventions
 - TypeScript ESM, Node 22, strict tsconfig from repo root.
