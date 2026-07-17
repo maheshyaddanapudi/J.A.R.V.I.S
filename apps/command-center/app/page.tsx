@@ -224,6 +224,9 @@ export default function SystemPage() {
             <a href="/control" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               control →
             </a>{" "}
+            <a href="/devices" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              devices →
+            </a>{" "}
             <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               voice orb →
             </a>

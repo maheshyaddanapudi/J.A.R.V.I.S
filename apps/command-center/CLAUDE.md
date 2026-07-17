@@ -80,6 +80,18 @@ never decoration (R-UI-03, R-CORE-02).
   tool_call → verification with the chain intact; deny path shows a denied
   outcome. This exercises the whole macOS-control approval UX before the real
   adapter is enabled.
+- **Device-control preview** at `/devices` (`app/devices/page.tsx`, 2026-07-17):
+  drives the labeled Stark-residence SIMULATION (lights, thermostat, front lock,
+  garage, water valve) through the REAL gated loop. Lights/climate are
+  CONSEQUENTIAL (approval); locks/garage/utilities are HIGH_RISK_PHYSICAL and show
+  the full safety rule (R-AUTO-01): unlock is REFUSED without an armed interlock,
+  succeeds once after `device.armInterlock` + approval, and the single-use
+  interlock refuses the next unlock until re-armed. Live "GATED PIPELINE" SSE feed
+  + e-stop. **Verified live (8/8)**: lights-on executed; unlock-without-interlock
+  refused; arm→unlock succeeded; second unlock refused (single-use). Real HA
+  gateway (same contract) binds at D-0025. NOTE: `device.armInterlock` is
+  LOW_REVERSIBLE → still needs approval unless delegated, so the UI passes
+  autoApprove on the arm button.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
