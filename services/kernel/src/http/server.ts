@@ -66,6 +66,7 @@ export function createServer(opts: {
       ...(opts.core.secrets ? { secrets: opts.core.secrets } : {}),
       context: opts.core.context,
       agent: opts.core.agent,
+      skills: opts.core.skills,
     });
     registerMemoryRoutes(app, opts.core.memory);
   }

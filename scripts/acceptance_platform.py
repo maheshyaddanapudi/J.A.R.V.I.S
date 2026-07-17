@@ -272,6 +272,20 @@ def main() -> int:
     except Exception as e:
         record("P-MCP-01", "MCP host", "FAIL", str(e))
 
+    # ---- Skills registry (R-CAP-01) ----
+    try:
+        sk = post("/skills", {"name": f"accept skill {uuid.uuid4().hex[:4]}",
+                              "objective": "Report system status.", "maxSteps": 3})
+        sid = sk.get("id")
+        listed = any(s.get("id") == sid for s in get("/skills").get("skills", []))
+        httpx.delete(f"{K}/skills/{sid}", timeout=5)
+        gone = not any(s.get("id") == sid for s in get("/skills").get("skills", []))
+        ok = bool(sid) and listed and gone
+        record("P-SKILL-01", "skills registry: create/list/delete (runs via gated agent)",
+               "PASS" if ok else "FAIL", f"created={bool(sid)} listed={listed} deleted={gone}")
+    except Exception as e:
+        record("P-SKILL-01", "skills registry", "FAIL", str(e))
+
     # ---- Encryption at rest / restart persistence (DB-level; verified in tests) ----
     record("P-ENC-01", "field encryption at rest (AES-256-GCM)", "VERIFIED-ELSEWHERE",
            "vault + memory tests: DB holds v1.gcm.* only, grep for plaintext = 0 rows; wrong-key fatal")

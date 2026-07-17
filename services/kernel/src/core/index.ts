@@ -30,6 +30,7 @@ import type { McpServerConfig } from "../mcp/client.js";
 import { ContextService } from "../context/service.js";
 import { LocalAgentRuntime } from "../agent/runtime.js";
 import type { AgentRuntime } from "../agent/contract.js";
+import { SkillRegistry } from "../skills/registry.js";
 
 export interface Core {
   audit: AuditLog;
@@ -51,6 +52,8 @@ export interface Core {
   context: ContextService;
   /** multi-step plan-and-act runtime (jarvis-mind); orchestrates through the gated loop */
   agent: AgentRuntime;
+  /** user-defined skills (saved named objectives run via the agent) — R-CAP-01 */
+  skills: SkillRegistry;
   loop: CoreLoop;
 }
 
@@ -135,6 +138,8 @@ export async function buildCore(opts: {
 
   // Agent runtime (jarvis-mind) — multi-step plan-and-act over the gated loop.
   const agent = new LocalAgentRuntime({ gateway: opts.gateway, loop, tools, audit, activity, estop });
+  // Skills registry — saved named objectives, run via the agent (still gated).
+  const skills = new SkillRegistry(opts.pool, audit, agent);
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);
@@ -159,7 +164,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, mcp, connectMcp, context, agent,
+    capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills,
     ...(secrets ? { secrets } : {}),
     loop,
   };

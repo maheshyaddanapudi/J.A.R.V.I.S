@@ -39,6 +39,7 @@ export function registerCoreRoutes(
     secrets?: import("../crypto/secrets.js").SecretsVault;
     context: import("../context/service.js").ContextService;
     agent: import("../agent/contract.js").AgentRuntime;
+    skills: import("../skills/registry.js").SkillRegistry;
   },
 ): void {
   app.get("/core/tools", async () => ({
@@ -281,6 +282,42 @@ export function registerCoreRoutes(
       ...(b.maxSteps !== undefined ? { maxSteps: b.maxSteps } : {}),
       ...(b.autoApprove !== undefined ? { autoApprove: b.autoApprove } : {}),
     });
+  });
+
+  // Skills registry (R-CAP-01) — saved named objectives, run via the agent (still
+  // gated). A skill grants no new capability; it reuses what the agent can do.
+  app.get("/skills", async () => ({ skills: await deps.skills.list() }));
+  const SkillSchema = z.object({
+    name: z.string().min(1),
+    objective: z.string().min(1),
+    description: z.string().optional(),
+    maxSteps: z.number().int().min(1).max(20).optional(),
+  });
+  app.post("/skills", async (req, reply) => {
+    const parsed = SkillSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const d = parsed.data;
+    try {
+      return await deps.skills.create({
+        name: d.name,
+        objective: d.objective,
+        ...(d.description !== undefined ? { description: d.description } : {}),
+        ...(d.maxSteps !== undefined ? { maxSteps: d.maxSteps } : {}),
+      });
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  app.delete("/skills/:id", async (req) => {
+    const id = (req.params as { id?: string }).id ?? "";
+    return { deleted: await deps.skills.delete(id) };
+  });
+  app.post("/skills/:id/run", async (req, reply) => {
+    const id = (req.params as { id?: string }).id ?? "";
+    const b = (req.body ?? {}) as { autoApprove?: ApprovalResolution };
+    const result = await deps.skills.run(id, b.autoApprove ? { autoApprove: b.autoApprove } : undefined);
+    if (!result) return reply.code(404).send({ error: "skill not found or disabled" });
+    return result;
   });
 
   // Conversational answer through the core loop (objective → streamed tokens),

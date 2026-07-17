@@ -57,7 +57,7 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 
 | ID | Requirement | Spec § | Parity | Phase | Acceptance | Status | Decisions |
 |---|---|---|---|---|---|---|---|
-| R-CAP-01 | No fixed connector list; registries for 14 entity kinds | 5.1 | G1, G6 | 3 | AT3.* | SPEC | — |
+| R-CAP-01 | No fixed connector list; registries for 14 entity kinds | 5.1 | G1, G6 | 3 | AT3.* | **PARTIAL 2026-07-17** — registries built: tools (`core/tools`), models (gateway config), MCP servers (`mcp/`), capabilities (`selfext/`), devices (`devices/`), **skills** (`skills/`, migration 0009 — saved named objectives run via the gated agent, D-0031). Remaining kinds (rules/workflows/prompts/agents/plugins/integrations/simulators/displays/sensors) follow the same shape | D-0031 |
 | R-CAP-02 | MCP primary protocol + adapter families (CLI/HTTP/OpenAPI/GraphQL/WS/DB/FS/HA/MQTT/Matter/…/ROS 2) | 5.2 | G6, E1 | 3/5 | AT3.*, AT5.* | **BUILT+VERIFIED 2026-07-17 (MCP)** — MCP client host (`mcp/`) discovers a REAL stdio server (SDK 1.29), registers tools namespaced + trust-gated (untrusted→CONSEQUENTIAL), rug-pull quarantine + name-shadow prevention live (T2); other adapter families remain SPEC | D-0011, D-0027 |
 | R-CAP-03 | Discover MCP/OpenAPI/CLI; generate typed integrations, tools, skills, rules, agents, workflows, plugins, simulators, tests, docs, schemas, manifests; diagnose/repair/version/rollback | 5.2–5.3 | G2, G6 | 3 | AT3.* end-to-end demo | SPEC | — |
 | R-CAP-04 | Stage A: generation without activation (full pipeline incl. scans, sandbox, report) | 5.3 | G2 | 3 | AT3.* | SPEC | — |
