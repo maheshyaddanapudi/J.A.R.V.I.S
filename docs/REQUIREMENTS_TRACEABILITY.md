@@ -99,7 +99,7 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 
 | ID | Requirement | Spec § | Parity | Phase | Acceptance | Status | Decisions |
 |---|---|---|---|---|---|---|---|
-| R-UI-01 | Functional Stark visual language WITHOUT Marvel IP/actor likeness/production assets | 9.1 | I1, I2 | 1→ | design check-in | PENDING-CHECKIN | — |
+| R-UI-01 | Functional Stark visual language WITHOUT Marvel IP/actor likeness/production assets | 9.1 | I1, I2 | 1→ | design check-in | **PROPOSED for check-in** (`docs/DESIGN_SYSTEM.md`, D-0026); CC + Voice Orb built on it | D-0026 |
 | R-UI-02 | Color semantics, motion-communicates-state, accessibility (reduced-motion/high-contrast/scalable type) | 9.1 | I1 | 1→ | AT1.5 + a11y check | SPEC | — |
 | R-UI-03 | No decoration: no fake code/random telemetry/meaningless charts | 9.1 | I1 | all | phase-gate review | SPEC | — |
 | R-UI-04 | 10 interface modes as real vertical slices (live data or labeled simulator, never empty) | 9.2 | I1–I5, F1 | per-mode phases | per-mode DoD §9.2 | SPEC | — |

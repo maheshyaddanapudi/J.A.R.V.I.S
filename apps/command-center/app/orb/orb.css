@@ -1,0 +1,99 @@
+/* Ambient Voice Orb — every animation communicates a real state (R-UI-03).
+   Reduced-motion replaces motion with a static color + label (R-UI-02). */
+
+.orb-stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  background: radial-gradient(ellipse at center, #0a121a 0%, var(--bg) 70%);
+}
+
+.orb {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  display: grid;
+  place-items: center;
+}
+
+.orb-core {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--state), transparent 70%);
+  box-shadow: 0 0 60px 4px color-mix(in srgb, var(--state) 45%, transparent);
+  transition: background 300ms ease, box-shadow 300ms ease;
+}
+
+.orb-ring {
+  position: absolute;
+  border: 1.5px solid var(--state);
+  border-radius: 50%;
+  inset: 0;
+  opacity: 0.25;
+}
+
+/* idle: slow breathing pulse */
+.state-idle .orb-core { animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: scale(0.94); opacity: 0.8; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+/* listening: quick concentric ripples */
+.state-listening .orb-ring { animation: ripple 1.4s ease-out infinite; }
+.state-listening .orb-ring:nth-child(2) { animation-delay: 0.45s; }
+.state-listening .orb-ring:nth-child(3) { animation-delay: 0.9s; }
+@keyframes ripple {
+  0% { transform: scale(0.5); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+/* thinking: rotating indeterminate sweep */
+.state-thinking .orb-sweep {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--state);
+  border-right-color: color-mix(in srgb, var(--state) 40%, transparent);
+  animation: sweep 1.1s linear infinite;
+}
+@keyframes sweep { to { transform: rotate(360deg); } }
+
+/* speaking: amplitude bars */
+.state-speaking .orb-bars { position: absolute; bottom: -2rem; display: flex; gap: 5px; height: 28px; align-items: flex-end; }
+.state-speaking .orb-bars span { width: 5px; background: var(--state); animation: bars 0.7s ease-in-out infinite; }
+.state-speaking .orb-bars span:nth-child(2) { animation-delay: 0.1s; }
+.state-speaking .orb-bars span:nth-child(3) { animation-delay: 0.2s; }
+.state-speaking .orb-bars span:nth-child(4) { animation-delay: 0.15s; }
+.state-speaking .orb-bars span:nth-child(5) { animation-delay: 0.05s; }
+@keyframes bars { 0%, 100% { height: 6px; } 50% { height: 26px; } }
+
+/* emergency stop: hard halted ring */
+.state-stopped .orb-core { animation: none; }
+.state-stopped .orb-ring { animation: none; opacity: 0.9; border-width: 3px; }
+
+.orb-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--state);
+}
+.orb-sub { color: var(--dim); font-size: 0.8rem; max-width: 30rem; text-align: center; }
+
+.orb-estop {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: transparent; border: 1px solid var(--critical); color: var(--critical);
+  padding: 0.6rem 1rem; font-family: var(--mono); font-size: 0.8rem; cursor: pointer;
+  letter-spacing: 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-core, .orb-ring, .orb-sweep, .orb-bars span { animation: none !important; }
+  .orb-core { transform: none; opacity: 1; }
+}

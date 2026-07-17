@@ -116,9 +116,9 @@
 
 | ID | Movie capability (source) | Real-world equivalent | State | Phase | Notes |
 |---|---|---|---|---|---|
-| I1 | Cinematic animated interfaces — layered glass, cyan/amber/red states, radial diagnostics (IM1–IM3 workshop/HUD) | Original functional design system with that visual language; every animation communicates state | **REAL** | 1→ each mode's phase | Design-system check-in before hardening. |
+| I1 | Cinematic animated interfaces — layered glass, cyan/amber/red states, radial diagnostics (IM1–IM3 workshop/HUD) | Original functional design system with that visual language; every animation communicates state | **REAL** | 1→ each mode's phase | Design-system check-in before hardening. **Design system proposed 2026-07-17** (`docs/DESIGN_SYSTEM.md`, D-0026); Command Center + Voice Orb built on it (live data, every element communicates state). |
 | I2 | Marvel frames, logos, SFX, score, actor likeness | — | **PROHIBITED** | — | IP violation; original assets only (R-UI-01). |
-| I3 | Ambient presence indicator (J.A.R.V.I.S. "is just there") | Voice Orb: wake/listen/think/speak states | **REAL** | 1 | |
+| I3 | Ambient presence indicator (J.A.R.V.I.S. "is just there") | Voice Orb: wake/listen/think/speak states | **REAL** | 1 | **BUILT+verified live 2026-07-17** (`app/orb/`): functional ambient orb driven by real kernel activity SSE + e-stop; idle/listening/thinking/speaking/advisory/critical/stopped, each communicating state; verified flipping to Speaking on a real conversation and Emergency-stop on a real e-stop. |
 | I4 | Mission-wide status walls (AV helicarrier-style ops views) | Mission Control mode over real agents/tasks | **REAL** | 10 | |
 | I5 | Gesture+gaze-driven spatial UI (IM2 Expo; AoU lab) | Look-and-pinch (Vision Pro official model), hand tracking (Quest/webcam), gaze-hover — per platform privacy APIs | **REAL** (per-platform) | 6–11 | No raw-gaze dependence on visionOS (R-SPA-03; verified 2026-07-16). |
 

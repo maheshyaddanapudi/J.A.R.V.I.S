@@ -8,6 +8,17 @@ import type { CoreLoop } from "./loop.js";
 import type { ToolRegistry } from "./tools.js";
 
 /**
+ * SSE responses write raw headers (bypassing the onSend CORS hook), so they must
+ * echo the CORS header themselves for a cross-origin EventSource (the dev
+ * Command Center / Voice Orb on a different localhost port). Localhost only.
+ */
+function sseCorsHeaders(origin: string | undefined): Record<string, string> {
+  return origin && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+    ? { "access-control-allow-origin": origin }
+    : {};
+}
+
+/**
  * Z1 trust-core HTTP surface (localhost only). Wires the core loop, approvals,
  * e-stop, and audit to the Command Center. SSE for the live activity timeline.
  */
@@ -39,6 +50,7 @@ export function registerCoreRoutes(
       "content-type": "text/event-stream",
       "cache-control": "no-cache",
       connection: "keep-alive",
+      ...sseCorsHeaders(req.headers.origin),
     });
     const unsubscribe = deps.activity.subscribe((e) => {
       reply.raw.write(`data: ${JSON.stringify(e)}\n\n`);
@@ -178,6 +190,7 @@ export function registerCoreRoutes(
       "content-type": "text/event-stream",
       "cache-control": "no-cache",
       connection: "keep-alive",
+      ...sseCorsHeaders(req.headers.origin),
     });
     deps.activity.emit({ kind: "objective", text: body.text, at: new Date().toISOString() });
     try {

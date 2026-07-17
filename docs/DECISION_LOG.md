@@ -113,6 +113,11 @@ Statuses below marked PROPOSED are **awaiting the Phase 0 check-in** — nothing
 - **Decision:** The Phase-5 device-control HAL (`kernel/src/devices/`) is built and verified in-container against the labeled **Stark-residence SIMULATION** gateway, wired through the full policy/approval/audit/verification pipeline with the physical-safety rules: lights/media/climate are CONSEQUENTIAL (approval); locks/garage/utilities are HIGH_RISK_PHYSICAL and require per-action approval **PLUS** a single-use, time-boxed hardware **interlock** (R-AUTO-01). The **real Home Assistant gateway** (`devices/homeassistant.ts`) implements the same contract (LAN-only, token from the vault) but is **NOT bound** until the check-in; `buildCore({devices})` injects it only on the Mac after approval.
 - **Check-in requested:** approve enabling real physical-device control — the HA base URL + token, the per-device-type risk defaults, the interlock mechanism (physical control vs. phone confirmation), and any device the user wants excluded.
 
+## D-0026 — Visual design system proposed for the R-UI-01 check-in; Ambient Voice Orb built
+- **Date:** 2026-07-17 · **Status:** PROPOSED — **the visual design system check-in (R-UI-01, docs/06) is requested.**
+- **Decision:** `docs/DESIGN_SYSTEM.md` proposes the cinematic functional design language (color semantics, typography, motion-communicates-state, surfaces, accessibility, interface-mode catalog) — original, no Marvel IP. The **Ambient Voice Orb** (`apps/command-center/app/orb/`) is built as a functional vertical slice on those tokens, driven by real kernel state (activity SSE + e-stop), verified live. Approving this fixes the design language before Phase-1 UI hardens.
+- **Check-in requested:** approve or amend `docs/DESIGN_SYSTEM.md` as the system's visual language.
+
 ## D-0017 — Session continuity mechanics
 - **Date:** 2026-07-16 · **Status:** PROPOSED
 - **Decision:** Every future session starts by reading `docs/IMPLEMENTATION_PLAN.md` → `docs/DECISION_LOG.md` → `docs/CAPABILITY_PARITY_MATRIX.md` → root `CLAUDE.md` (and module CLAUDE.md for touched modules), then resumes at the recorded current slice. Conflicts with recorded decisions are surfaced at a check-in, never silently re-decided. End-of-session updates are mandatory (docs/07).
