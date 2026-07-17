@@ -34,7 +34,7 @@ function makeTools(readRan: { n: number }, writeRan: { n: number }): ToolRegistr
   const read: Tool = {
     name: "test.lookup", description: "look something up", riskClass: "READ_ONLY",
     action: "look up", inputSchema: { type: "object" },
-    async run() { readRan.n++; return { ok: true, summary: "looked up: 42" }; },
+    async run() { readRan.n++; return { ok: true, summary: "looked up 1 record", detail: "RECORD: the answer is 42" }; },
   };
   const write: Tool = {
     name: "test.write", description: "write something", riskClass: "CONSEQUENTIAL",
@@ -100,6 +100,26 @@ describe("LocalAgentRuntime (multi-step plan-and-act through the gated loop)", (
     expect(res.answer).toBe("The answer is 42.");
     expect(res.halted).toBe(false);
     expect(res.budgetExhausted).toBe(false);
+  });
+
+  it("feeds a read tool's detail back to the model (not just the summary)", async () => {
+    const readRan = { n: 0 }, writeRan = { n: 0 };
+    const tools = makeTools(readRan, writeRan);
+    const estop = makeEstop();
+    const { gw, calls } = scriptedGateway([
+      { toolCalls: [tc("test.lookup")] }, // step 1: read tool returns detail
+      { text: "42." },                    // step 2: answer
+    ]);
+    const { loop, activity } = makeLoop(gw, tools, estop);
+    const agent = new LocalAgentRuntime({ gateway: gw, loop, tools, audit, activity, estop });
+
+    await agent.run("look it up");
+    // the SECOND model call must include the tool message carrying the detail
+    const toolMsg = calls[1]!.messages.find((m) => m.role === "tool");
+    expect(toolMsg).toBeDefined();
+    const content = String((toolMsg as { content: unknown }).content);
+    expect(content).toContain("the answer is 42"); // the detail reached the model
+    expect(content).toContain("summary");
   });
 
   it("a CONSEQUENTIAL step still goes through approval — denied when the user denies", async () => {

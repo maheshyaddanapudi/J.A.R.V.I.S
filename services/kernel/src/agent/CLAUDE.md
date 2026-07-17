@@ -15,6 +15,14 @@ real multi-step task, not a single tool call.
   native tool calling (`planning` role). Each `toolCall` from the model runs via
   `CoreLoop.runTool`, and its result is fed back as a `tool` message.
 
+## Tool output reaches the model (D-0033)
+A tool step feeds `{ok, denied, summary, detail}` back to the model — the opt-in
+`ToolResult.detail` (file content, search matches, …) is what lets the agent
+actually *reason over* a read tool's output, not just see a one-line summary. It
+is bounded per step (6000 chars, `detailTruncated` flag) and **never audited**
+(content stays local). Read tools that populate it: `files.read`/`search`/`list`/
+`stat`, `system.info`.
+
 ## Safety (it ORCHESTRATES, never bypasses a gate)
 - Every tool step is the ordinary gated `runTool`: policy → approval →
   execution → independent verification. A **consequential step still requires

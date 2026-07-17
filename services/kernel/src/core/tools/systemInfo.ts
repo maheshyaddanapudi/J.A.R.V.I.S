@@ -26,6 +26,7 @@ export const systemInfoTool: Tool = {
       ok: true,
       summary: `${data.hostname} · ${data.platform}/${data.arch} · ${data.memoryFreeGB}/${data.memoryTotalGB} GB free · load ${data.loadAverage[0]}`,
       data,
+      detail: JSON.stringify(data),
     };
   },
 };

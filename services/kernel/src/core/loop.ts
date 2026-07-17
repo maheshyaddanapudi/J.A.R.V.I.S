@@ -55,7 +55,7 @@ export class CoreLoop {
      * broker (an interface calls /core/approvals/resolve).
      */
     autoApprove?: ApprovalResolution;
-  }): Promise<{ ok: boolean; summary: string; denied?: boolean }> {
+  }): Promise<{ ok: boolean; summary: string; denied?: boolean; detail?: string }> {
     const now = () => new Date().toISOString();
     if (this.deps.estop.isEngaged) {
       return { ok: false, summary: "emergency stop engaged — execution halted", denied: true };
@@ -181,7 +181,14 @@ export class CoreLoop {
       payload: { tool: tool.name, ok: verified.ok, summary: verified.summary },
     });
 
-    return { ok: result.ok && verified.ok, summary: result.summary };
+    // `detail` (a tool's model-facing output) is returned to callers — the agent
+    // feeds it to the model, the HTTP caller gets the structured read. It is NOT
+    // audited (content stays local; audit records the summary only).
+    return {
+      ok: result.ok && verified.ok,
+      summary: result.summary,
+      ...(result.detail !== undefined ? { detail: result.detail } : {}),
+    };
   }
 
   /**

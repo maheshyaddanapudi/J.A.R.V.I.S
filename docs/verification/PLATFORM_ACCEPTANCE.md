@@ -49,7 +49,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-UI-01 natively-packaged app (Tauri) | **NEEDS-MAC** | Command Center runs in the browser; packaged `.app` built on the Mac |
 
 ## Automated test suites
-- **kernel:** 145 tests pass (`services/kernel` — config, migrate, audit, policy,
+- **kernel:** 148 tests pass (`services/kernel` — config, migrate, audit, policy,
   vault, memory, control, devices, selfext, proactive, mcp (+ persistence),
   secrets, gateway-secrets, homeassistant, context, router, agent, skills,
   **knowledge**).
@@ -74,7 +74,10 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 - **Agent runtime**: objective → model tool-call → gated execution → synthesized
   answer; consequential step denied → tool never ran; e-stop halts; step budget
   bounds; audit `agent_run_started → policy_decision → tool_call → verification →
-  agent_run_finished`, intact.
+  agent_run_finished`, intact. **Tool output reaches the model (D-0033):** a read
+  tool's `detail` (file content, search matches) is fed back to the model, bounded,
+  so the agent can reason over it — verified the `detail` reaches the tool message
+  and that it is **not** written to the audit (content stays local).
 - **Skills registry** (R-CAP-01): create a named skill → run → its objective
   executes through the gated agent → synthesized answer; audit `skill_created →
   skill_run → agent_run_started → tool_call`. A skill grants no new capability.

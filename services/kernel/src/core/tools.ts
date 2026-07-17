@@ -20,6 +20,13 @@ export interface ToolResult {
   ok: boolean;
   summary: string;
   data?: unknown;
+  /**
+   * Concise, model-facing rendering of the result (e.g. the file's text, the
+   * search matches). Opt-in: tools whose OUTPUT should inform the agent's
+   * reasoning set this. The agent feeds a bounded slice of it back to the model;
+   * `summary` alone (one line) is not enough for a read tool to be useful.
+   */
+  detail?: string;
   /** present when the action was reversible and applied; calling it undoes the action */
   rollback?: () => Promise<void>;
 }

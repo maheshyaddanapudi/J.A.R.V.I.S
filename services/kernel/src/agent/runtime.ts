@@ -8,6 +8,8 @@ import type { EmergencyStop } from "../core/estop.js";
 import type { AgentResult, AgentRunOptions, AgentRuntime, AgentStep } from "./contract.js";
 
 const DEFAULT_MAX_STEPS = 6;
+/** Per-step cap on tool `detail` fed to the model (chars) — bounds context growth. */
+const DETAIL_BUDGET = 6000;
 
 const AGENT_SYSTEM =
   "You are J.A.R.V.I.S. carrying out a task for the user. Break the objective into " +
@@ -113,10 +115,19 @@ export class LocalAgentRuntime implements AgentRuntime {
           summary: exec.summary,
           at: now(),
         });
+        // Feed the tool's model-facing output back so the agent can actually
+        // reason over it (a read tool's summary alone is not enough). Bounded to
+        // keep one step from flooding the context.
+        const detail = exec.detail ? exec.detail.slice(0, DETAIL_BUDGET) : undefined;
         messages.push({
           role: "tool",
           toolCallId: call.id,
-          content: JSON.stringify({ ok: exec.ok, denied: exec.denied ?? false, summary: exec.summary }),
+          content: JSON.stringify({
+            ok: exec.ok,
+            denied: exec.denied ?? false,
+            summary: exec.summary,
+            ...(detail ? { detail, detailTruncated: (exec.detail?.length ?? 0) > DETAIL_BUDGET } : {}),
+          }),
         });
       }
 

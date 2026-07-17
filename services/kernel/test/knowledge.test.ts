@@ -191,6 +191,22 @@ describe("knowledge tools through the gated core loop", () => {
     expect(res.summary).toMatch(/match/);
   });
 
+  it("files.read returns the file content as detail (so the agent can read it)", async () => {
+    const { loop } = makeLoop();
+    const res = await loop.runTool({ tool: "files.read", args: { path: "src/index.ts" }, source: "test" });
+    expect(res.ok).toBe(true);
+    expect(res.detail).toBeDefined();
+    expect(res.detail).toContain("answer = 42"); // real file content flows back, not just a one-line summary
+  });
+
+  it("files.search returns matches (file:line: preview) as detail", async () => {
+    const { loop } = makeLoop();
+    const res = await loop.runTool({ tool: "files.search", args: { query: "TODO" }, source: "test" });
+    expect(res.detail).toBeDefined();
+    expect(res.detail).toMatch(/README\.md:\d+:/);
+    expect(res.detail).not.toContain("node_modules");
+  });
+
   it("files.edit is CONSEQUENTIAL — denied means the file is NOT modified", async () => {
     const { loop } = makeLoop();
     const before = await readFile(join(root, "src", "index.ts"), "utf8");

@@ -35,6 +35,7 @@ export function knowledgeTools(files: WorkspaceFiles): Tool[] {
         ok: true,
         summary: `${dir ? dir : "(root)"}: ${dirs} dir(s), ${fileCount} file(s)`,
         data: { dir: dir ?? "", entries },
+        detail: entries.map((e) => `${e.kind === "dir" ? "d" : "-"} ${e.path}${e.kind === "file" ? ` (${e.size}b)` : ""}`).join("\n") || "(empty)",
       };
     },
   };
@@ -61,6 +62,7 @@ export function knowledgeTools(files: WorkspaceFiles): Tool[] {
         ok: true,
         summary: `read ${fc.path} (${fc.bytes} bytes${fc.truncated ? ", truncated" : ""})`,
         data: fc,
+        detail: fc.content, // the file's text — what the agent needs to reason over
       };
     },
   };
@@ -79,7 +81,12 @@ export function knowledgeTools(files: WorkspaceFiles): Tool[] {
     async run(args: unknown): Promise<ToolResult> {
       const { path } = args as { path: string };
       const info = await files.stat(path);
-      return { ok: true, summary: `${info.path}: ${info.kind}, ${info.size} bytes`, data: info };
+      return {
+        ok: true,
+        summary: `${info.path}: ${info.kind}, ${info.size} bytes`,
+        data: info,
+        detail: `path=${info.path} kind=${info.kind} size=${info.size} modified=${info.modified}`,
+      };
     },
   };
 
@@ -111,6 +118,7 @@ export function knowledgeTools(files: WorkspaceFiles): Tool[] {
         ok: true,
         summary: `${res.matches.length}${res.truncated ? "+" : ""} match(es) for '${res.query}' across ${res.filesScanned} file(s)`,
         data: res,
+        detail: res.matches.map((m) => `${m.path}:${m.line}: ${m.preview}`).join("\n") || "(no matches)",
       };
     },
   };
