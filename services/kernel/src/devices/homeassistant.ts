@@ -28,15 +28,15 @@ export class HomeAssistantGateway implements DeviceGateway {
 
   constructor(
     private readonly baseUrl: string, // e.g. http://homeassistant.local:8123
-    private readonly token: () => string, // pulled from the vault at call time
+    private readonly token: () => Promise<string>, // resolved from the vault at call time
   ) {}
 
-  private headers(): Record<string, string> {
-    return { authorization: `Bearer ${this.token()}`, "content-type": "application/json" };
+  private async headers(): Promise<Record<string, string>> {
+    return { authorization: `Bearer ${await this.token()}`, "content-type": "application/json" };
   }
 
   async listDevices(): Promise<DeviceInfo[]> {
-    const res = await fetch(`${this.baseUrl}/api/states`, { headers: this.headers() });
+    const res = await fetch(`${this.baseUrl}/api/states`, { headers: await this.headers() });
     if (!res.ok) throw new Error(`HA /api/states HTTP ${res.status}`);
     const states = (await res.json()) as { entity_id: string; attributes: Record<string, unknown> }[];
     const out: DeviceInfo[] = [];
@@ -55,7 +55,7 @@ export class HomeAssistantGateway implements DeviceGateway {
   }
 
   async getState(deviceId: string): Promise<DeviceState | null> {
-    const res = await fetch(`${this.baseUrl}/api/states/${deviceId}`, { headers: this.headers() });
+    const res = await fetch(`${this.baseUrl}/api/states/${deviceId}`, { headers: await this.headers() });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`HA state HTTP ${res.status}`);
     const s = (await res.json()) as { state: string; attributes: Record<string, unknown>; last_updated: string };
@@ -72,7 +72,7 @@ export class HomeAssistantGateway implements DeviceGateway {
     const { service, data } = toService(domain ?? "", command.set);
     const res = await fetch(`${this.baseUrl}/api/services/${domain}/${service}`, {
       method: "POST",
-      headers: this.headers(),
+      headers: await this.headers(),
       body: JSON.stringify({ entity_id: command.deviceId, ...data }),
     });
     if (!res.ok) {
@@ -86,6 +86,24 @@ export class HomeAssistantGateway implements DeviceGateway {
       ...(observed ? { observed } : {}),
     };
   }
+}
+
+/**
+ * Build a Home Assistant gateway whose token is drawn from the managed
+ * SecretsVault by name (R-MEM-06/D-0028) — the token never lives in code or
+ * config. Fails closed at call time if the secret is not set. This is the
+ * constructor used at the D-0025 check-in on the Mac.
+ */
+export function homeAssistantFromVault(
+  baseUrl: string,
+  secrets: { get(name: string): Promise<string | undefined> },
+  secretName = "home_assistant_token",
+): HomeAssistantGateway {
+  return new HomeAssistantGateway(baseUrl, async () => {
+    const token = await secrets.get(secretName);
+    if (!token) throw new Error(`Home Assistant token secret '${secretName}' is not set`);
+    return token;
+  });
 }
 
 function domainToType(domain: string): DeviceType | null {
