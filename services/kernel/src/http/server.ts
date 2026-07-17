@@ -23,10 +23,15 @@ export function createServer(opts: {
 
   // Browser Command Center (localhost, different port) needs CORS for now.
   // Replaced by an authenticated same-origin proxy in slice 1.7 (T9).
+  // POST/DELETE with a JSON body are non-simple requests, so the preflight must
+  // advertise the allowed methods + headers or the browser blocks every write.
   app.addHook("onSend", async (req, reply) => {
     const origin = req.headers.origin;
     if (origin && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
       reply.header("access-control-allow-origin", origin);
+      reply.header("access-control-allow-methods", "GET, POST, DELETE, OPTIONS");
+      reply.header("access-control-allow-headers", "content-type");
+      reply.header("access-control-max-age", "600");
     }
   });
   app.options("/*", async (_req, reply) => reply.code(204).send());

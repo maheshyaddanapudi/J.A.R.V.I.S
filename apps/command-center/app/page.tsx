@@ -181,6 +181,30 @@ export default function SystemPage() {
   async function deletePref(key: string) {
     await fetch(`${KERNEL_URL}/memory/preferences/${encodeURIComponent(key)}`, { method: "DELETE" });
   }
+  async function storeSecret(name: string, value: string, description: string) {
+    await fetch(`${KERNEL_URL}/secrets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, value, description }),
+    });
+  }
+  async function forgetSecret(name: string) {
+    await fetch(`${KERNEL_URL}/secrets/${encodeURIComponent(name)}`, { method: "DELETE" });
+  }
+  async function connectMcpServer(id: string, command: string, args: string[]) {
+    await fetch(`${KERNEL_URL}/mcp/connect`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, command, args }),
+    });
+  }
+  async function setMcpTrust(id: string, trust: string) {
+    await fetch(`${KERNEL_URL}/mcp/trust`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, trust }),
+    });
+  }
 
   return (
     <main style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
@@ -307,7 +331,7 @@ export default function SystemPage() {
           >
             {mcp.length === 0 && <span style={{ color: "var(--dim)" }}>none connected</span>}
             {mcp.map((s) => (
-              <div key={s.id} style={{ marginBottom: "0.35rem" }}>
+              <div key={s.id} style={{ marginBottom: "0.5rem" }}>
                 <span style={{ color: s.quarantined ? "var(--critical)" : "var(--focal)" }}>{s.id}</span>{" "}
                 <span
                   style={{
@@ -320,8 +344,28 @@ export default function SystemPage() {
                 <div style={{ color: "var(--dim)", fontSize: "0.72rem" }}>
                   {s.tools.length} tool(s): {s.tools.slice(0, 6).join(", ")}
                 </div>
+                <div style={{ display: "flex", gap: "0.3rem", marginTop: "0.2rem" }}>
+                  {(["untrusted", "limited", "trusted"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setMcpTrust(s.id, t)}
+                      disabled={s.trust === t && !s.quarantined}
+                      style={{
+                        ...btn(t === "trusted" ? "var(--operational)" : "var(--advisory)"),
+                        opacity: s.trust === t && !s.quarantined ? 0.4 : 1,
+                        fontSize: "0.68rem",
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
+            <div style={{ color: "var(--dim)", fontSize: "0.66rem", marginTop: "0.3rem" }}>
+              raising trust above untrusted re-attests on reconnect (D-0027)
+            </div>
+            <McpConnectForm onConnect={connectMcpServer} />
           </Panel>
 
           <Panel tone={proactive.length ? "advisory" : "operational"} title={`PROACTIVE (${proactive.length})`}>
@@ -342,16 +386,27 @@ export default function SystemPage() {
               <span style={{ color: "var(--dim)" }}>none stored</span>
             )}
             {secrets.map((s) => (
-              <div key={s.name} style={{ marginBottom: "0.25rem" }}>
-                <span style={{ color: "var(--focal)" }}>{s.name}</span>{" "}
-                <span style={{ color: "var(--dim)", fontSize: "0.72rem" }}>{s.description}</span>
-                <span style={{ color: "var(--operational)", fontSize: "0.68rem" }}> · encrypted</span>
+              <div
+                key={s.name}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}
+              >
+                <span>
+                  <span style={{ color: "var(--focal)" }}>{s.name}</span>{" "}
+                  <span style={{ color: "var(--dim)", fontSize: "0.72rem" }}>{s.description}</span>
+                  <span style={{ color: "var(--operational)", fontSize: "0.68rem" }}> · encrypted</span>
+                </span>
+                <button onClick={() => forgetSecret(s.name)} style={btn("var(--critical)")}>
+                  forget
+                </button>
               </div>
             ))}
             {secretsAvailable && (
-              <div style={{ color: "var(--dim)", fontSize: "0.68rem", marginTop: "0.3rem" }}>
-                names only — values never leave the encrypted vault
-              </div>
+              <>
+                <div style={{ color: "var(--dim)", fontSize: "0.68rem", margin: "0.3rem 0" }}>
+                  names only — values never leave the encrypted vault
+                </div>
+                <SecretForm onStore={storeSecret} />
+              </>
             )}
           </Panel>
         </div>
@@ -439,6 +494,70 @@ function Row(props: { k: string; v: string }) {
     <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
       <span style={{ color: "var(--dim)" }}>{props.k}</span>
       <span>{props.v}</span>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  background: "var(--bg)",
+  border: "1px solid var(--line)",
+  color: "var(--focal)",
+  fontFamily: "var(--mono)",
+  fontSize: "0.72rem",
+  padding: "0.25rem 0.4rem",
+  flex: 1,
+  minWidth: 0,
+};
+
+function SecretForm(props: { onStore: (name: string, value: string, description: string) => Promise<void> }) {
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+  const [desc, setDesc] = useState("");
+  const canStore = name.trim() !== "" && value !== "";
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.3rem" }}>
+      <input style={inputStyle} placeholder="name (e.g. anthropic_api_key)" value={name} onChange={(e) => setName(e.target.value)} />
+      <input style={inputStyle} type="password" placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />
+      <input style={inputStyle} placeholder="description" value={desc} onChange={(e) => setDesc(e.target.value)} />
+      <button
+        disabled={!canStore}
+        onClick={async () => {
+          await props.onStore(name.trim(), value, desc);
+          setName("");
+          setValue("");
+          setDesc("");
+        }}
+        style={{ ...btn("var(--operational)"), opacity: canStore ? 1 : 0.4 }}
+      >
+        store (encrypted)
+      </button>
+    </div>
+  );
+}
+
+function McpConnectForm(props: { onConnect: (id: string, command: string, args: string[]) => Promise<void> }) {
+  const [id, setId] = useState("");
+  const [command, setCommand] = useState("");
+  const [argsText, setArgsText] = useState("");
+  const canConnect = id.trim() !== "" && command.trim() !== "";
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.3rem" }}>
+      <input style={inputStyle} placeholder="id" value={id} onChange={(e) => setId(e.target.value)} />
+      <input style={inputStyle} placeholder="command (e.g. node)" value={command} onChange={(e) => setCommand(e.target.value)} />
+      <input style={inputStyle} placeholder="args (space-separated)" value={argsText} onChange={(e) => setArgsText(e.target.value)} />
+      <button
+        disabled={!canConnect}
+        onClick={async () => {
+          const args = argsText.trim() ? argsText.trim().split(/\s+/) : [];
+          await props.onConnect(id.trim(), command.trim(), args);
+          setId("");
+          setCommand("");
+          setArgsText("");
+        }}
+        style={{ ...btn("var(--operational)"), opacity: canConnect ? 1 : 0.4 }}
+      >
+        connect
+      </button>
     </div>
   );
 }

@@ -69,6 +69,14 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   before `cp -r` — the old `cp -r` nested into an existing dir on rebuild,
   shipping a stale 3-file migrations dir so `node dist/index.js` applied only
   0001–0003. Always confirm `dist/db/migrations` has all 8 files after a build.
+- **CORS preflight fix (2026-07-17):** the browser-CORS `onSend` hook set only
+  `access-control-allow-origin`. POST/DELETE with a JSON body are non-simple
+  requests, so their preflight OPTIONS was missing `allow-methods`/`allow-headers`
+  and the browser blocked **every write** from the cross-origin Command Center
+  (approve/deny, e-stop, secrets, MCP). Now advertises
+  `GET, POST, DELETE, OPTIONS` + `content-type` (+ max-age). Reads (simple GETs)
+  were unaffected, which is why it hid so long. Replaced by an authed same-origin
+  proxy in slice 1.7 (T9).
 - **Test-harness fix (2026-07-17):** `test/migrate.test.ts` now runs in a private
   Postgres schema (`search_path`) instead of dropping `schema_migrations` in the
   shared `jarvis_test` DB — that drop used to corrupt migration tracking for the

@@ -33,6 +33,17 @@ never decoration (R-UI-03, R-CORE-02).
   labels, seeded commitment, stored secret by name). NOTE: Next 16 dev blocks its
   client chunks over `127.0.0.1` — load the dev UI via `localhost:<port>` (prod
   `next start` is unaffected).
+- **Interactive controls** (2026-07-17): the dashboard is now a control surface,
+  not just a view. SECRETS panel has a store form (POST /secrets, encrypted) +
+  per-secret `forget`; MCP panel has a connect form (POST /mcp/connect) +
+  per-server trust buttons untrusted/limited/trusted (POST /mcp/trust, labeled
+  "re-attests on reconnect, D-0027"). All through the existing gated endpoints.
+  **Verified live via headless browser (5/5) + kernel-side cross-check**: a secret
+  stored (ciphertext at rest, 0 plaintext), an MCP server connected and elevated
+  to trusted — all from the browser. **This surfaced a real bug** (see kernel
+  CORS note): POST/DELETE from the cross-origin UI were being blocked by an
+  incomplete CORS preflight — every write button (incl. approve/deny + e-stop)
+  was affected until fixed.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
