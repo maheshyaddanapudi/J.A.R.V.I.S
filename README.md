@@ -52,6 +52,26 @@ verification → hash-chained audit*, with a persistent emergency stop in every 
 
 ---
 
+## Screenshots
+
+Captured from the **live system** (Linux dev container): every panel shows real kernel
+state — the audit chain, MCP server, secret, memories, and proactive items below were
+created through the real gated endpoints moments before capture. Simulation surfaces are
+labeled `SIMULATION`. Full set in [`docs/screenshots/`](docs/screenshots/).
+
+**Command Center — live operations dashboard** (context banner, hash-chained audit,
+approvals, MCP trust controls, name-only secrets, surfaced proactive items, emergency stop):
+
+![Command Center dashboard](docs/screenshots/dashboard.png)
+
+| | |
+|---|---|
+| **Ambient Voice Orb** — state-labeled presence driven by the kernel activity stream ![Voice orb](docs/screenshots/voice-orb.png) | **Memory** — entities/facts/relations + the episodic timeline (note the auto-recorded `ACTION`) ![Memory](docs/screenshots/memory.png) |
+| **Proactivity** — surfaced items each with their "why", snooze/dismiss, user-defined rules ![Proactivity](docs/screenshots/proactivity.png) | **Device control** — labeled `SIMULATION` home; HIGH_RISK_PHYSICAL needs approval **+** an armed single-use interlock ![Devices](docs/screenshots/device-control.png) |
+| **Persona** — how J.A.R.V.I.S. speaks, as user-editable versioned data ![Persona](docs/screenshots/persona.png) | **Files** — real workspace browse/search with gated, verified editing ![Files](docs/screenshots/files.png) |
+
+---
+
 ## Architecture
 
 **Option A — Hybrid** (approved, `docs/DECISION_LOG.md` D-0002):
