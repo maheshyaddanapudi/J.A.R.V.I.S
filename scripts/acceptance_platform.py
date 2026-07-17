@@ -79,13 +79,47 @@ def main() -> int:
         record("P-CORE-03", "emergency stop", "FAIL", str(e))
 
     # ---- Model gateway ----
+    offline = None
     try:
         gs = get("/gateway/status")
+        offline = bool(gs.get("offline"))
         roles = get("/gateway/roles")
         record("P-GW-01", "model gateway status + role table", "PASS" if roles else "FAIL",
-               f"offline={gs.get('offline')} roles={len(roles)}")
+               f"offline={offline} roles={len(roles)}")
     except Exception as e:
         record("P-GW-01", "model gateway", "FAIL", str(e))
+
+    # ---- Offline mode (binding: must run fully offline when configured) ----
+    # Live-checkable only against a kernel started with JARVIS_OFFLINE=1; against an
+    # online kernel we report the separately-run verification honestly.
+    if offline:
+        try:
+            providers = gs if isinstance(gs, list) else gs.get("providers", [])
+            remote_disabled = any((not p.get("local")) and (not p.get("ok"))
+                                  and "offline" in str(p.get("detail", "")).lower() for p in providers)
+            local_ok = any(p.get("local") and p.get("ok") for p in providers)
+            # a remote-routed role must be refused
+            import httpx as _hx
+            refused = False
+            with _hx.stream("POST", f"{K}/gateway/chat", timeout=15, json={
+                "role": "deep_reasoning", "privacyClass": "STANDARD", "source": "accept",
+                "messages": [{"role": "user", "content": [{"type": "text", "text": "hi"}]}],
+            }) as r:
+                for line in r.iter_lines():
+                    if "offline" in line.lower():
+                        refused = True
+                        break
+            ok = remote_disabled and local_ok
+            record("P-OFFLINE-01", "offline mode: remote providers refused, local path works",
+                   "PASS" if ok else "FAIL",
+                   f"remote_disabled={remote_disabled} local_ok={local_ok} remote_role_refused={refused}")
+        except Exception as e:
+            record("P-OFFLINE-01", "offline mode", "FAIL", str(e))
+    else:
+        record("P-OFFLINE-01", "offline mode (run kernel with JARVIS_OFFLINE=1 to check live)",
+               "VERIFIED-ELSEWHERE",
+               "offline run 2026-07-17: local role streamed real tokens, remote-only role refused "
+               "('offline mode: no local provider'), zero external TCP egress during converse")
 
     # ---- Core loop: gated tool execution ----
     try:

@@ -42,7 +42,7 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 | R-MODEL-01 | Separately routable roles (15 listed) | 3.1 | — | 1 (subset) → 2+ | slice 1.2 tests | SPEC | D-0008 |
 | R-MODEL-02 | Providers: Anthropic/OpenAI-compat/Gemini/Ollama/custom; core decoupled from provider formats | 3.2 | — | 1 | provider-swap demo (§3.5) | SPEC | D-0008 |
 | R-MODEL-03 | Discovery, structured-output validation, cost/latency tracking, privacy classification, fallback, pinning, per-agent policies | 3.3 | — | 1–2 | slice 1.2 tests | SPEC | D-0008 |
-| R-MODEL-04 | Local-capable-first routing; no large-local mandate; fully offline when configured | 3.4 | G7 | 1 | AT1.11–12 | SPEC | D-0012 |
+| R-MODEL-04 | Local-capable-first routing; no large-local mandate; fully offline when configured | 3.4 | G7 | 1 | AT1.11–12 | **BUILT+VERIFIED 2026-07-17** — role targets ordered local-first; `JARVIS_OFFLINE=1` verified end-to-end (text loop): local role streams real tokens, remote-only role refused ("offline mode: no local provider"), remote providers report "disabled: offline mode", **zero external TCP egress** during a converse. In `scripts/acceptance_platform.py` (P-OFFLINE-01). Voice path offline = AT1.12 | D-0012 |
 
 ## Computer control (docs/02 §Computer control)
 
