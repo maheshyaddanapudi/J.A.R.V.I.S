@@ -25,6 +25,8 @@ import { terminalTools } from "../terminal/tools.js";
 import type { TerminalRunner } from "../terminal/contract.js";
 import { WebResearcher } from "../research/gather.js";
 import { researchTools } from "../research/tools.js";
+import { EntityMemory } from "../memory/entities.js";
+import { entityMemoryTools } from "../memory/entityTools.js";
 import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
@@ -51,6 +53,8 @@ export interface Core {
   activity: ActivityBus;
   tools: ToolRegistry;
   memory: MemoryService;
+  /** semantic knowledge store (entities/facts/relations), encrypted at rest */
+  entityMemory: EntityMemory;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
@@ -133,6 +137,8 @@ export async function buildCore(opts: {
   const approvals = new ApprovalBroker(audit);
   const activity = new ActivityBus();
   const memory = new MemoryService(opts.pool, audit, opts.vault);
+  // Semantic knowledge store (entities/facts/relations) — encrypted at rest.
+  const entityMemory = new EntityMemory(opts.pool, audit, opts.vault);
 
   const control = opts.control ?? new SimulatedDesktop();
   const devices = opts.devices ?? new StarkResidence();
@@ -168,6 +174,7 @@ export async function buildCore(opts: {
   // Research-with-provenance composes the (gated) web browser into one sourced-
   // evidence action; per-URL policy applies inside gather.
   for (const t of researchTools(new WebResearcher(web))) tools.register(t);
+  for (const t of entityMemoryTools(entityMemory)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -231,6 +238,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, mcp, connectMcp, context, agent, skills, files, web, terminal,
+    entityMemory,
     ...(secrets ? { secrets } : {}),
     loop,
   };

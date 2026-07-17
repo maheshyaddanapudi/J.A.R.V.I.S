@@ -271,6 +271,23 @@ def main() -> int:
     except Exception as e:
         record("P-RESEARCH-01", "research with provenance", "FAIL", str(e))
 
+    # ---- Semantic memory (entities/facts/relations, encrypted) ----
+    try:
+        em = uuid.uuid4().hex[:8]
+        ename = f"Entity_{em}"
+        post("/core/run-tool", {"tool": "memory.rememberEntity", "args": {"kind": "project", "name": ename, "attributes": "top secret arc reactor work"}, "source": "accept", "delegatedAutomation": True})
+        post("/core/run-tool", {"tool": "memory.rememberFact", "args": {"entity": ename, "statement": f"FACTMARK-{em} runs at 8 megawatts"}, "source": "accept", "delegatedAutomation": True})
+        post("/core/run-tool", {"tool": "memory.relate", "args": {"from": ename, "to": "Stark Tower", "relation": "located_in"}, "source": "accept", "delegatedAutomation": True})
+        rc = post("/core/run-tool", {"tool": "memory.recall", "args": {"name": ename}, "source": "accept"})
+        sec = post("/core/run-tool", {"tool": "memory.rememberFact", "args": {"entity": ename, "statement": "token sk-ABCDEFGH12345678secret"}, "source": "accept", "delegatedAutomation": True})
+        ok = (rc.get("ok") and f"FACTMARK-{em}" in (rc.get("detail") or "")
+              and "located_in" in (rc.get("detail") or "") and not sec.get("ok"))
+        record("P-ENTMEM-01", "semantic memory: entities/facts/relations + recall + secret refusal",
+               "PASS" if ok else "FAIL",
+               f"recall_fact={f'FACTMARK-{em}' in (rc.get('detail') or '')} relation={'located_in' in (rc.get('detail') or '')} secret_refused={not sec.get('ok')}")
+    except Exception as e:
+        record("P-ENTMEM-01", "semantic memory", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

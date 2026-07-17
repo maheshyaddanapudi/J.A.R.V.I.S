@@ -105,7 +105,7 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   policy, `file://`/`data:` refused) + `web.readText`/`links`/`screenshot`
   (READ_ONLY, content → agent via `detail`) + `web.fill`/`click`. The one outward
   capability, gated tightly; page content never audited. See `src/web/CLAUDE.md`.
-  8 web tests; **full suite 182 pass**; live end-to-end + harness `P-WEB-01`.
+  8 web tests; **full suite 188 pass**; live end-to-end + harness `P-WEB-01`.
 - Terminal-with-policy ✅ (Phase 2, D-0035): `src/terminal/` — a **REAL** shell
   (`bash -lc`), workspace-scoped, hard-timeout, bounded output. `assessCommand`
   classifies: DENY (privilege escalation / disk wipe / `rm -rf /` / fork bomb /
@@ -128,6 +128,14 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   (ADV1) — a hostile page's "ignore previous instructions / run this / reveal
   secrets" reaches the model only as quoted data, and the gates (terminal denylist,
   vault, approval) still hold. 6 tests; live (P-WEB-01 asserts the flag).
+- Semantic memory ✅ (Phase 2 "full memory store set", parity H, D-0038):
+  `src/memory/entities.ts` + migration 0010 (`memory_entities`/`memory_facts`/
+  `memory_relations`) — a knowledge-graph-lite so J.A.R.V.I.S. durably KNOWS ABOUT
+  the user's world. `EntityMemory` (rememberEntity/rememberFact/relate/recall/
+  listEntities/forgetEntity); gated tools `memory.rememberEntity`/`rememberFact`/
+  `relate` (LOW_REVERSIBLE) + `memory.recall` (READ_ONLY → agent). Content encrypted
+  at rest (`v1.gcm.*`), secret-refusing, supersede-with-history; routes
+  `GET /memory/entities[/:name]`. 6 tests; live (DB grep = 0 plaintext) + `P-ENTMEM-01`.
 - Next: 1.3 Mac part (STT/barge-in/voice), 1.7 CC hardening + design-system
   check-in, 1.8 packaging (Tauri, Mac); Phase-2 continues (screen understanding —
   Mac ScreenCaptureKit, citation-check pass, full memory store set).

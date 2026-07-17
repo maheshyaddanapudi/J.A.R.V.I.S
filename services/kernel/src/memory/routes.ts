@@ -1,9 +1,27 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { MemoryService, EpistemicStatus, Sensitivity } from "./memory.js";
+import type { EntityMemory } from "./entities.js";
 
 /** Memory HTTP surface (localhost only) — the user-control panel for AT1.9/1.10. */
-export function registerMemoryRoutes(app: FastifyInstance, memory: MemoryService): void {
+export function registerMemoryRoutes(app: FastifyInstance, memory: MemoryService, entities?: EntityMemory): void {
+  // Semantic knowledge store (read + user control). Recall decrypts on read.
+  if (entities) {
+    app.get("/memory/entities", async (req) => {
+      const kind = (req.query as { kind?: string }).kind;
+      return { entities: await entities.listEntities(kind) };
+    });
+    app.get("/memory/entities/:name", async (req, reply) => {
+      const name = decodeURIComponent((req.params as { name?: string }).name ?? "");
+      const r = await entities.recall(name);
+      if (!r) return reply.code(404).send({ error: `no memory of '${name}'` });
+      return r;
+    });
+    app.post("/memory/entities/:name/forget", async (req) => {
+      const name = decodeURIComponent((req.params as { name?: string }).name ?? "");
+      return { forgotten: await entities.forgetEntity(name) };
+    });
+  }
   app.get("/memory/preferences", async (req) => {
     const q = (req.query as { q?: string }).q;
     return { preferences: q ? await memory.search(q) : await memory.list() };
