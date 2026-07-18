@@ -218,6 +218,16 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `resolveGatewayConfig(cfg, env)` is pure/testable. Targets setting neither
   field send byte-identical pre-D-0049 bodies. New provider (OpenRouter/Grok)
   = config entry only, zero code. 12 tests; live env-resolution verified.
+- Conversational edit path ✅ (D-0055, 2026-07-18): `gateway/tools.ts` — the
+  runtime overrides as GATED TOOLS: `gateway.route` (CONSEQUENTIAL, per-request
+  approval + disclosure + rollback plan), `gateway.clearRoute`,
+  `reasoning.teachTopic`/`forgetTopic`/`setThreshold` (LOW_REVERSIBLE;
+  threshold writes user-sourced per D-0052). Instructing J.A.R.V.I.S. edits the
+  same ledgered, smart-persisted overlay (deltas, never a config replica; prior
+  override captured for rollback); a denied re-route changes nothing. Agent
+  picks them up automatically → works from chat/voice/agent/skills. 4 tests
+  through the real loop + live /core/run-tool verification. A2UI noted for the
+  UI/XR phase (D-0056).
 - Runtime gateway role editor ✅ (D-0054, 2026-07-18; first D-0053 migration):
   `PUT/DELETE /gateway/roles/:role` re-routes a role among ALREADY-CONFIGURED
   providers live (canonical pin syntax; `gateway/overrides.ts` persists to the

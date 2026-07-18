@@ -52,6 +52,7 @@ import { PromptRegistry } from "../prompts/registry.js";
 import { ReasoningTuner } from "./reasoning.js";
 import { DecisionLog, SleepCycle } from "./consolidation.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
+import { gatewayTools, reasoningTools } from "../gateway/tools.js";
 
 export interface Core {
   audit: AuditLog;
@@ -190,6 +191,11 @@ export async function buildCore(opts: {
   // policy's job (assessCommand) enforced by the gated tools.
   const terminal = opts.terminal ?? new LocalTerminal(opts.workspaceRoot);
 
+  // Deep-reasoning learning (D-0050): learned topics live as ordinary
+  // preferences (history-preserving, visible/deletable in the memory panel).
+  // Created before the tool registry so its conversational tools can register.
+  const reasoningTuner = new ReasoningTuner(memory);
+
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
@@ -204,6 +210,11 @@ export async function buildCore(opts: {
   for (const t of researchTools(new WebResearcher(web))) tools.register(t);
   for (const t of entityMemoryTools(entityMemory)) tools.register(t);
   for (const t of episodeMemoryTools(episodicMemory)) tools.register(t);
+  // Conversational edit path (D-0055): the same runtime overrides the UI/API
+  // offer, as gated tools — "route deep reasoning to X" / "undo that" spoken
+  // to J.A.R.V.I.S. goes through policy → approval → audit like everything.
+  for (const t of gatewayTools(opts.gateway, memory)) tools.register(t);
+  for (const t of reasoningTools(reasoningTuner)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -236,9 +247,6 @@ export async function buildCore(opts: {
     }
   } catch { /* overrides are an overlay — the config base always works */ }
 
-  // Deep-reasoning learning (D-0050): learned topics live as ordinary
-  // preferences (history-preserving, visible/deletable in the memory panel).
-  const reasoningTuner = new ReasoningTuner(memory);
   // Decision journal + sleep-cycle consolidation (D-0051): J.A.R.V.I.S. learns
   // from its own routing record; bounded knobs only, user override wins.
   const decisions = new DecisionLog(opts.pool);
