@@ -73,6 +73,7 @@ export function createServer(opts: {
       prompts: opts.core.prompts,
       reasoningTuner: opts.core.reasoningTuner,
       sleepCycle: opts.core.sleepCycle,
+      settings: opts.core.settings,
     });
     registerMemoryRoutes(app, opts.core.memory, opts.core.entityMemory, opts.core.episodicMemory);
   }

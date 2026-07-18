@@ -45,8 +45,34 @@ export function registerCoreRoutes(
     prompts?: import("../prompts/registry.js").PromptRegistry;
     reasoningTuner?: import("./reasoning.js").ReasoningTuner;
     sleepCycle?: import("./consolidation.js").SleepCycle;
+    settings?: import("../settings/registry.js").SettingsRegistry;
   },
 ): void {
+  // Runtime settings (D-0058): edit any catalogued knob live. Effective value =
+  // persisted override ?? current default. GET the catalog, PUT to set (user),
+  // DELETE to reset to default. The catalog is the allowlist — Z1 core excluded.
+  if (deps.settings) {
+    const settings = deps.settings;
+    app.get("/settings", async () => ({ settings: await settings.effective() }));
+    app.put("/settings/:key", async (req, reply) => {
+      const key = decodeURIComponent((req.params as { key: string }).key);
+      const body = req.body as { value?: unknown; reason?: string } | undefined;
+      if (body?.value === undefined) return reply.code(400).send({ error: "value required" });
+      try {
+        return await settings.set(key, body.value, "user", body.reason ?? "set via Command Center");
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+    app.delete("/settings/:key", async (req, reply) => {
+      const key = decodeURIComponent((req.params as { key: string }).key);
+      try {
+        return await settings.reset(key);
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+  }
   // Sleep-cycle consolidation (D-0051): run on demand; read the last report.
   // Unattended nightly runs arrive with the D-0024 background gate.
   if (deps.sleepCycle) {

@@ -260,6 +260,9 @@ export default function SystemPage() {
             <a href="/reasoning" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               reasoning →
             </a>{" "}
+            <a href="/settings" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              settings →
+            </a>{" "}
             <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               voice orb →
             </a>

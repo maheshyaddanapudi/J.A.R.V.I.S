@@ -51,6 +51,9 @@ import { SkillRegistry } from "../skills/registry.js";
 import { PromptRegistry } from "../prompts/registry.js";
 import { ReasoningTuner } from "./reasoning.js";
 import { DecisionLog, SleepCycle } from "./consolidation.js";
+import { SettingsRegistry } from "../settings/registry.js";
+import { SETTINGS_CATALOG } from "../settings/catalog.js";
+import { settingsTools } from "../settings/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
 import { gatewayTools, reasoningTools } from "../gateway/tools.js";
 
@@ -68,6 +71,7 @@ export interface Core {
   episodicMemory: EpisodicMemory;
   reasoningTuner: ReasoningTuner;
   sleepCycle: SleepCycle;
+  settings: SettingsRegistry;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
@@ -195,6 +199,9 @@ export async function buildCore(opts: {
   // preferences (history-preserving, visible/deletable in the memory panel).
   // Created before the tool registry so its conversational tools can register.
   const reasoningTuner = new ReasoningTuner(memory);
+  // General runtime settings registry (D-0058): any catalogued knob is editable
+  // at runtime (UI + J.A.R.V.I.S.), effective = override ?? current default.
+  const settings = new SettingsRegistry(opts.pool, audit, SETTINGS_CATALOG);
 
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
@@ -215,6 +222,7 @@ export async function buildCore(opts: {
   // to J.A.R.V.I.S. goes through policy → approval → audit like everything.
   for (const t of gatewayTools(opts.gateway, memory)) tools.register(t);
   for (const t of reasoningTools(reasoningTuner)) tools.register(t);
+  for (const t of settingsTools(settings)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -286,7 +294,7 @@ export async function buildCore(opts: {
   // User-defined proactivity rules (R-CAP-01 "rules" kind) — add candidates that
   // still pass the gate stack; the engine surfaces suggestions only, never acts.
   const proactiveRules = new ProactiveRules(opts.pool, audit);
-  const proactive = new ProactivityEngine(opts.pool, audit, activity, undefined, proactiveRules);
+  const proactive = new ProactivityEngine(opts.pool, audit, activity, undefined, proactiveRules, settings);
 
   // Managed integration-credential store (R-MEM-06). Only available when a vault
   // is present — secrets are never stored in the clear. Adapters (gateway, HA,
@@ -308,7 +316,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory, reasoningTuner, sleepCycle,
+    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings,
     ...(secrets ? { secrets } : {}),
     loop,
   };

@@ -8,6 +8,7 @@ import {
   commitmentCandidates,
 } from "./generators.js";
 import type { Candidate, GateConfig, ProactiveItem, Suppression } from "./types.js";
+import { DEFAULT_GATES } from "./types.js";
 import type { ProactiveRules } from "./rules.js";
 
 /**
@@ -32,8 +33,32 @@ export class ProactivityEngine {
     gateConfig?: GateConfig,
     /** optional user-defined rules — add candidates, still gated (R-CAP-01) */
     private readonly rules?: ProactiveRules,
+    /** optional settings registry — gate config is read live so UI/J.A.R.V.I.S.
+     *  edits take effect on the very next cycle, no restart (D-0058) */
+    private readonly settings?: import("../settings/registry.js").SettingsRegistry,
   ) {
     this.gates = new GateStack(pool, gateConfig);
+  }
+
+  /** Assemble the effective gate config from the runtime settings registry. */
+  private async effectiveGates(): Promise<GateConfig> {
+    const s = this.settings;
+    if (!s) return DEFAULT_GATES;
+    const quietOn = await s.bool("proactive.quietHours.enabled", DEFAULT_GATES.quietHours !== null);
+    return {
+      quietHours: quietOn
+        ? {
+            start: await s.num("proactive.quietHours.start", DEFAULT_GATES.quietHours?.start ?? 22),
+            end: await s.num("proactive.quietHours.end", DEFAULT_GATES.quietHours?.end ?? 7),
+          }
+        : null,
+      confidenceThreshold: await s.num("proactive.confidenceThreshold", DEFAULT_GATES.confidenceThreshold),
+      rateLimit: {
+        max: await s.num("proactive.rateLimit.max", DEFAULT_GATES.rateLimit.max),
+        windowMinutes: await s.num("proactive.rateLimit.windowMinutes", DEFAULT_GATES.rateLimit.windowMinutes),
+      },
+      minPriority: (await s.str("proactive.minPriority", DEFAULT_GATES.minPriority)) as GateConfig["minPriority"],
+    };
   }
 
   /**
@@ -42,6 +67,9 @@ export class ProactivityEngine {
    * timeline. Deterministic in `now`.
    */
   async run(now: Date): Promise<{ surfaced: ProactiveItem[]; suppressed: Suppression[] }> {
+    // Rebuild the gate stack from the live settings each cycle so runtime edits
+    // (UI or J.A.R.V.I.S.) apply immediately (D-0058). Cheap: just holds config.
+    if (this.settings) this.gates = new GateStack(this.pool, await this.effectiveGates());
     const candidates: Candidate[] = [
       ...(await commitmentCandidates(this.pool, now)),
       ...(await calendarConflictCandidates(this.pool, now)),
