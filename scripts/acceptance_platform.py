@@ -481,6 +481,7 @@ def main() -> int:
     # ---- Sleep-cycle consolidation (D-0051): learns from its own record ----
     try:
         prior = get("/core/reasoning/autotune")
+        topics_before = set(get("/core/reasoning/topics").get("topics", []))
         # generate override signal: user forces deep on plainly-routine turns
         for i in range(4):
             httpx.post(f"{K}/core/converse",
@@ -501,12 +502,15 @@ def main() -> int:
             and any("stand" in n or "respected" in n for n in r2.get("notes", []))
         on_timeline = any("consolidation" in e.get("summary", "").lower()
                           for e in get("/memory/episodes?tag=sleep-cycle&limit=5").get("episodes", []))
-        # clean up: restore whatever was set before this test
+        # clean up: restore the autotune AND forget any topics this test's
+        # repeated correction phrases got promoted (never pollute real learning)
         httpx.delete(f"{K}/core/reasoning/autotune", timeout=10.0)
         if prior.get("source") == "user":
             httpx.post(f"{K}/core/reasoning/autotune",
                        json={"signalThreshold": prior.get("signalThreshold", 2),
                              "reason": prior.get("reason", "restored")}, timeout=10.0)
+        for t in set(get("/core/reasoning/topics").get("topics", [])) - topics_before:
+            httpx.delete(f"{K}/core/reasoning/topics/{t}", timeout=10.0)
         ok = journaled and evidence and respected and on_timeline
         record("P-SLEEP-01", "sleep-cycle: learns from own record, bounded adjust, user override wins",
                "PASS" if ok else "FAIL",

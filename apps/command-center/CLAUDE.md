@@ -205,6 +205,14 @@ never decoration (R-UI-03, R-CORE-02).
   the input (auto = J.A.R.V.I.S. decides per turn). **Verified live via headless
   Chromium (6/6)** — routine→fast badge, "think deeply"→deep badge, forced-fast→
   "explicitly requested"; screenshot `docs/screenshots/chat-reasoning.png`.
+- **Reasoning panel** at `/reasoning` (`app/reasoning/page.tsx`, 2026-07-18,
+  D-0052): the learning contract, visible — learned deep topics (teach/forget
+  over `/core/reasoning/topics`), escalation sensitivity (threshold + WHO set
+  it + their quoted reason; set-with-reason → source `user`; reset), and the
+  sleep-cycle consolidation (run now → findings / bounded adjustments /
+  proposals-never-auto-applied / notes over the real decision journal).
+  **Verified live via headless Chromium (10/10)**; screenshot
+  `docs/screenshots/reasoning.png`.
 - **Models panel** at `/models` (`app/models/page.tsx`, 2026-07-18, D-0047): SEE
   the model-gateway routing brain — live provider reachability (`/gateway/status`,
   real pings, LOCAL vs REMOTE), the role routing table (`/gateway/roles`, order =
