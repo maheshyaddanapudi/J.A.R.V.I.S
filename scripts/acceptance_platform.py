@@ -478,6 +478,42 @@ def main() -> int:
     except Exception as e:
         record("P-REASON-01", "deep-reasoning escalation", "FAIL", str(e))
 
+    # ---- Sleep-cycle consolidation (D-0051): learns from its own record ----
+    try:
+        prior = get("/core/reasoning/autotune")
+        # generate override signal: user forces deep on plainly-routine turns
+        for i in range(4):
+            httpx.post(f"{K}/core/converse",
+                       json={"text": f"tiny routine question {i}", "source": "accept", "reasoning": "deep"},
+                       timeout=60.0)
+        r1 = httpx.post(f"{K}/core/reasoning/consolidate", json={}, timeout=60.0).json()
+        journaled = sum(d["n"] for d in r1.get("decisions", [])) >= 4
+        evidence = all(isinstance(f, str) and f for f in r1.get("findings", []))
+        # user override with a reason must stand on the next cycle — and be noted
+        httpx.post(f"{K}/core/reasoning/autotune",
+                   json={"signalThreshold": 2, "reason": "acceptance: stay conservative"}, timeout=10.0)
+        for i in range(4):
+            httpx.post(f"{K}/core/converse",
+                       json={"text": f"tiny routine question again {i}", "source": "accept", "reasoning": "deep"},
+                       timeout=60.0)
+        r2 = httpx.post(f"{K}/core/reasoning/consolidate", json={}, timeout=60.0).json()
+        respected = r2.get("autotune", {}).get("source") == "user" and r2.get("adjustments") == [] \
+            and any("stand" in n or "respected" in n for n in r2.get("notes", []))
+        on_timeline = any("consolidation" in e.get("summary", "").lower()
+                          for e in get("/memory/episodes?tag=sleep-cycle&limit=5").get("episodes", []))
+        # clean up: restore whatever was set before this test
+        httpx.delete(f"{K}/core/reasoning/autotune", timeout=10.0)
+        if prior.get("source") == "user":
+            httpx.post(f"{K}/core/reasoning/autotune",
+                       json={"signalThreshold": prior.get("signalThreshold", 2),
+                             "reason": prior.get("reason", "restored")}, timeout=10.0)
+        ok = journaled and evidence and respected and on_timeline
+        record("P-SLEEP-01", "sleep-cycle: learns from own record, bounded adjust, user override wins",
+               "PASS" if ok else "FAIL",
+               f"journaled:{journaled} evidence:{evidence} user-override-respected:{respected} on-timeline:{on_timeline}")
+    except Exception as e:
+        record("P-SLEEP-01", "sleep-cycle consolidation", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

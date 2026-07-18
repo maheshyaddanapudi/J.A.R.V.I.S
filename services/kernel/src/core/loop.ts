@@ -47,6 +47,8 @@ export class CoreLoop {
       episodes?: EpisodicMemory;
       /** deep-reasoning learning (D-0050): learned topics + corrections */
       reasoningTuner?: ReasoningTuner;
+      /** decision journal (D-0051): categorical record for the sleep cycle */
+      decisions?: import("./consolidation.js").DecisionLog;
     },
   ) {}
 
@@ -252,28 +254,32 @@ export class CoreLoop {
     // Decide which brain answers (D-0048). Provider-agnostic: the roles map to
     // whatever the gateway config routes them to (local or remote).
     const requested = input.reasoning ?? "auto";
-    // Learned deep topics (D-0050) sharpen the auto assessment; best-effort.
+    // Learned deep topics + bounded autotune (D-0050/51) sharpen the auto
+    // assessment; both best-effort.
     let learnedTopics: string[] = [];
+    let threshold = 2;
     if (this.deps.reasoningTuner) {
       try {
         learnedTopics = await this.deps.reasoningTuner.topics();
+        threshold = (await this.deps.reasoningTuner.autotune()).signalThreshold;
       } catch { /* learning must never block a conversation */ }
     }
     let decision: DepthAssessment =
       requested === "auto"
-        ? assessDepth(input.text, learnedTopics)
-        : { mode: requested, why: "explicitly requested" };
+        ? assessDepth(input.text, learnedTopics, threshold)
+        : { mode: requested, why: "explicitly requested", reason: "override" };
     // Learning-by-correction (D-0050): the user explicitly forced deep on a
     // turn the auto assessment would have kept fast — remember what it was
     // about; repeated corrections promote the topic to always-deep.
     if (requested === "deep" && this.deps.reasoningTuner) {
       try {
-        if (assessDepth(input.text, learnedTopics).mode === "fast") {
+        if (assessDepth(input.text, learnedTopics, threshold).mode === "fast") {
           const promoted = await this.deps.reasoningTuner.recordCorrection(input.text);
           if (promoted.length) {
             decision = {
               mode: "deep",
               why: `explicitly requested — noted, I'll think deeply about '${promoted.join("', '")}' from now on`,
+              reason: "correction_promoted",
             };
           }
         }
@@ -288,15 +294,23 @@ export class CoreLoop {
       // and answer with the fast role rather than erroring the conversation.
       try {
         if (this.deps.gateway.eligibleTargets("deep_reasoning", privacy).length === 0) {
-          decision = { mode: "fast", why: `${decision.why} — but no eligible deep_reasoning provider (privacy/offline), answering fast` };
+          decision = { mode: "fast", why: `${decision.why} — but no eligible deep_reasoning provider (privacy/offline), answering fast`, reason: "downgrade_ineligible" };
           role = "fast_conversation";
         }
       } catch {
-        decision = { mode: "fast", why: `${decision.why} — but deep_reasoning is unconfigured, answering fast` };
+        decision = { mode: "fast", why: `${decision.why} — but deep_reasoning is unconfigured, answering fast`, reason: "downgrade_ineligible" };
         role = "fast_conversation";
       }
     }
     input.onDecision?.({ mode: decision.mode, why: decision.why, role });
+    // Journal the decision (D-0051, categorical only) so the sleep cycle can
+    // learn from J.A.R.V.I.S.'s own routing record; never blocks the turn.
+    await this.deps.decisions?.record({
+      requested,
+      mode: decision.mode,
+      reason: decision.reason,
+      role,
+    });
     if (decision.mode === "deep" || requested !== "auto") {
       this.deps.activity.emit({
         kind: "decision",

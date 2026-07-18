@@ -44,8 +44,18 @@ export function registerCoreRoutes(
     files: import("../knowledge/contract.js").WorkspaceFiles;
     prompts?: import("../prompts/registry.js").PromptRegistry;
     reasoningTuner?: import("./reasoning.js").ReasoningTuner;
+    sleepCycle?: import("./consolidation.js").SleepCycle;
   },
 ): void {
+  // Sleep-cycle consolidation (D-0051): run on demand; read the last report.
+  // Unattended nightly runs arrive with the D-0024 background gate.
+  if (deps.sleepCycle) {
+    const sleep = deps.sleepCycle;
+    app.post("/core/reasoning/consolidate", async (req) => {
+      const hours = Number((req.body as { windowHours?: number } | undefined)?.windowHours) || 24;
+      return await sleep.run(Math.min(Math.max(hours, 1), 24 * 30));
+    });
+  }
   // Deep-reasoning learned topics (D-0050): what the user has taught (by
   // instruction or repeated correction). Read/teach/forget — always inspectable.
   if (deps.reasoningTuner) {
@@ -59,6 +69,20 @@ export function registerCoreRoutes(
     app.delete("/core/reasoning/topics/:topic", async (req) => {
       const topic = decodeURIComponent((req.params as { topic: string }).topic);
       return { topics: await tuner.forget(topic) };
+    });
+    // Bounded autotune knobs (D-0051): GET current; POST = MANUAL override
+    // (source "user") — the sleep cycle will respect it and say so.
+    app.get("/core/reasoning/autotune", async () => await tuner.autotune());
+    app.post("/core/reasoning/autotune", async (req, reply) => {
+      const body = req.body as { signalThreshold?: number; reason?: string } | undefined;
+      const v = body?.signalThreshold;
+      if (v !== 1 && v !== 2) {
+        return reply.code(400).send({ error: "signalThreshold must be 1 or 2" });
+      }
+      return await tuner.setThreshold(v, "user", body?.reason ?? "manual setting");
+    });
+    app.delete("/core/reasoning/autotune", async () => {
+      return await tuner.reset();
     });
   }
   app.get("/core/tools", async () => ({

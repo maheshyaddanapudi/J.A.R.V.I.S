@@ -15,10 +15,24 @@
 
 export type ReasoningMode = "fast" | "deep";
 
+/** Closed categorical reasons — journaled (0015) for the sleep cycle; never
+ *  free text, so the journal carries no conversation content. */
+export type DepthReason =
+  | "explicit_ask"
+  | "learned_topic"
+  | "signals"
+  | "single_signal"
+  | "routine"
+  | "override"
+  | "correction_promoted"
+  | "downgrade_ineligible";
+
 export interface DepthAssessment {
   mode: ReasoningMode;
   /** human-readable explanation, surfaced to the user with the answer */
   why: string;
+  /** categorical reason for the decision journal */
+  reason: DepthReason;
 }
 
 /** The user asked for deeper thought in so many words — always honored. */
@@ -32,17 +46,29 @@ const ANALYTICAL =
 /** Multi-part structure: fenced code, or a numbered list of 2+ items. */
 const STRUCTURED = /```|(^|\n)\s*\d+[.)]\s.+(\n+\s*\d+[.)]\s.+)+/;
 
-export function assessDepth(text: string, learnedTopics: string[] = []): DepthAssessment {
+export function assessDepth(
+  text: string,
+  learnedTopics: string[] = [],
+  /** how many independent signals auto-escalate (default 2; the sleep cycle
+   *  may adjust it to 1 within bounds — D-0051 autotune, user override wins) */
+  signalThreshold = 2,
+): DepthAssessment {
   const t = text.trim();
-  if (EXPLICIT_DEEP.test(t)) return { mode: "deep", why: "you asked for deeper thought" };
+  if (EXPLICIT_DEEP.test(t))
+    return { mode: "deep", why: "you asked for deeper thought", reason: "explicit_ask" };
 
   // Learned topics escalate ALONE: the user taught them (by instruction or by
-  // repeated correction), so they outrank the generic two-signal rule.
+  // repeated correction), so they outrank the generic signal rule.
   const lower = t.toLowerCase();
   const taught = learnedTopics.find((topic) =>
     new RegExp(`\\b${topic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lower),
   );
-  if (taught) return { mode: "deep", why: `you've taught me to think deeply about '${taught}'` };
+  if (taught)
+    return {
+      mode: "deep",
+      why: `you've taught me to think deeply about '${taught}'`,
+      reason: "learned_topic",
+    };
 
   const signals: string[] = [];
   if (ANALYTICAL.test(t)) signals.push("analytical task");
@@ -51,13 +77,20 @@ export function assessDepth(text: string, learnedTopics: string[] = []): DepthAs
   if (t.length > 700) signals.push("long, detailed brief");
   if (STRUCTURED.test(t)) signals.push("multi-part or code content");
 
-  // Deep is slower and (remotely) costlier — require two independent signals
-  // unless the user asked explicitly. One signal alone stays fast, but the
-  // signal is still reported so the user sees what was weighed.
-  if (signals.length >= 2) return { mode: "deep", why: signals.join(" + ") };
+  // Deep is slower and (remotely) costlier — require signalThreshold
+  // independent signals unless the user asked explicitly. A sub-threshold
+  // signal stays fast but is still reported so the user sees what was weighed.
+  const threshold = signalThreshold <= 1 ? 1 : 2;
+  if (signals.length >= threshold)
+    return {
+      mode: "deep",
+      why: signals.join(" + "),
+      reason: signals.length >= 2 ? "signals" : "single_signal",
+    };
   return {
     mode: "fast",
     why: signals[0] ? `routine turn (noted: ${signals[0]})` : "routine conversational turn",
+    reason: "routine",
   };
 }
 
@@ -74,8 +107,24 @@ export function assessDepth(text: string, learnedTopics: string[] = []): DepthAs
 
 export const DEEP_TOPICS_KEY = "reasoning_deep_topics";
 export const DEEP_CANDIDATES_KEY = "reasoning_deep_candidates";
+export const AUTOTUNE_KEY = "reasoning_autotune";
 const PROMOTE_AT = 2;
 const MAX_TOPICS = 50;
+
+/**
+ * Bounded self-adjustable knobs (D-0051). The contract the user set:
+ * start from a default → J.A.R.V.I.S. may adjust it from its own operational
+ * record (sleep cycle) → a USER-set value always wins and is never overridden
+ * by J.A.R.V.I.S. (a manual override is itself a signal it takes note of).
+ * `source` records who set the current value; `reason` says why.
+ */
+export interface Autotune {
+  /** signals needed for auto-escalation: 1 (eager) or 2 (conservative default) */
+  signalThreshold: 1 | 2;
+  source: "default" | "jarvis" | "user";
+  reason?: string;
+}
+export const DEFAULT_AUTOTUNE: Autotune = { signalThreshold: 2, source: "default" };
 
 const STOPWORDS = new Set([
   "about", "above", "after", "again", "ahead", "along", "always", "analyze", "around",
@@ -117,6 +166,46 @@ export class ReasoningTuner {
   /** Learned + instructed topics. Best-effort: never throws, [] on failure. */
   async topics(): Promise<string[]> {
     return this.readJson<string[]>(DEEP_TOPICS_KEY, []);
+  }
+
+  /** Current bounded knobs. Best-effort: default on any failure. */
+  async autotune(): Promise<Autotune> {
+    const raw = await this.readJson<Autotune>(AUTOTUNE_KEY, DEFAULT_AUTOTUNE);
+    return raw.signalThreshold === 1 || raw.signalThreshold === 2 ? raw : DEFAULT_AUTOTUNE;
+  }
+
+  /**
+   * Set the escalation threshold. A "jarvis" write REFUSES to override a
+   * "user" write (manual override wins — the caller gets the standing value
+   * back and should take note); a "user" write always applies.
+   */
+  async setThreshold(
+    value: 1 | 2,
+    source: "jarvis" | "user",
+    reason: string,
+  ): Promise<{ applied: boolean; autotune: Autotune }> {
+    const current = await this.autotune();
+    if (source === "jarvis" && current.source === "user") {
+      return { applied: false, autotune: current };
+    }
+    const next: Autotune = { signalThreshold: value, source, reason };
+    await this.store.remember({
+      key: AUTOTUNE_KEY,
+      value: JSON.stringify(next),
+      provenance: source === "user" ? "user-override" : "sleep-cycle",
+    });
+    return { applied: true, autotune: next };
+  }
+
+  /** Clear any override (user or jarvis) back to the default — J.A.R.V.I.S.
+   *  may adjust again afterwards. */
+  async reset(): Promise<Autotune> {
+    await this.store.remember({
+      key: AUTOTUNE_KEY,
+      value: JSON.stringify(DEFAULT_AUTOTUNE),
+      provenance: "user-instruction",
+    });
+    return DEFAULT_AUTOTUNE;
   }
 
   /** Learning-by-instruction: "always think deeply about <topic>". */

@@ -23,7 +23,7 @@ The **container-buildable platform is complete and continuously verifiable.** Th
 whole-stack acceptance harness (`scripts/acceptance_platform.py`) reports:
 
 ```
-28 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL
+29 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL
 ```
 
 The four **NEEDS-MAC** rows are the capabilities whose only remaining piece is the
@@ -105,7 +105,7 @@ services/kernel/     jarvisd — the trust core + platform (TypeScript, Node 22)
   src/knowledge/ web/ terminal/ research/   real, gated compute capabilities
   src/control/ devices/                     macOS + device HALs (SIMULATION + real adapters)
   src/mcp/ selfext/ skills/ prompts/ crypto/ agent/   registries, self-extension, vault, agent
-  src/db/migrations/ immutable SQL migrations (0001–0014)
+  src/db/migrations/ immutable SQL migrations (0001–0015)
 services/ears/       jarvis-ears — speech daemon (Python)
 apps/command-center/ Next.js Command Center + Ambient Voice Orb
 apps/companion/      Tauri 2 shell + Rust kernel-client core (+ Swift bridge, Mac-built)

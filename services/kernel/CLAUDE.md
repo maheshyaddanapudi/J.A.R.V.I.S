@@ -218,6 +218,20 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `resolveGatewayConfig(cfg, env)` is pure/testable. Targets setting neither
   field send byte-identical pre-D-0049 bodies. New provider (OpenRouter/Grok)
   = config entry only, zero code. 12 tests; live env-resolution verified.
+- Sleep-cycle consolidation ✅ (D-0051, 2026-07-18): `core/consolidation.ts` +
+  migration 0015 `reasoning_decisions` — J.A.R.V.I.S. learns from ITS OWN
+  operational record. Every routing decision journaled (categorical only, no
+  content); `SleepCycle.run()` reads journal + `model_calls` → evidence-backed
+  findings (under/over-escalation vs user overrides, provider failure rates,
+  fallbacks, deep latency, ineligible downgrades), **bounded auto-adjustments**
+  (escalation threshold 1↔2 only — announced, reversible), **proposals** for
+  anything consequential (never silently applied), notes. **User override wins
+  structurally:** a jarvis write refuses to overwrite a user-set autotune value
+  and quotes the user's reason back. Routes `POST /core/reasoning/consolidate`,
+  `GET/POST/DELETE /core/reasoning/autotune`. Consolidations land on the
+  episodic timeline (tag `sleep-cycle`). On-demand today; nightly unattended
+  runs arrive with the D-0024 gate. 7 tests; live full-contract verified;
+  `P-SLEEP-01`.
 - Deep-reasoning learning ✅ (D-0050, 2026-07-18): `ReasoningTuner`
   (`core/reasoning.ts`) — escalation now ADAPTS to the user, transparently (no
   opaque ML): (1) instruction — `POST/GET/DELETE /core/reasoning/topics`;
