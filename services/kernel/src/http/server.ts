@@ -29,7 +29,7 @@ export function createServer(opts: {
     const origin = req.headers.origin;
     if (origin && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
       reply.header("access-control-allow-origin", origin);
-      reply.header("access-control-allow-methods", "GET, POST, DELETE, OPTIONS");
+      reply.header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS");
       reply.header("access-control-allow-headers", "content-type");
       reply.header("access-control-max-age", "600");
     }
@@ -47,7 +47,8 @@ export function createServer(opts: {
   );
 
   if (opts.gateway) {
-    registerGatewayRoutes(app, opts.gateway, opts.pool);
+    // memory (when present) persists runtime role overrides (D-0054)
+    registerGatewayRoutes(app, opts.gateway, opts.pool, opts.core?.memory);
   }
 
   if (opts.core) {

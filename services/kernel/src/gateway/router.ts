@@ -8,8 +8,16 @@ import type {
   ChatResult,
   GatewayConfig,
   ModelRole,
+  RoleTarget,
   ToolCall,
 } from "./schema.js";
+
+/** Canonical pin string for a target: provider/model[@effort][+thinking|+nothink]. */
+export function pinOf(t: RoleTarget): string {
+  return `${t.provider}/${t.model}${t.effort ? `@${t.effort}` : ""}${
+    t.thinking === "off" ? "+nothink" : t.thinking ? "+thinking" : ""
+  }`;
+}
 import { createOllamaAdapter } from "./providers/ollama.js";
 import { createAnthropicAdapter } from "./providers/anthropic.js";
 import { createOpenAiCompatAdapter } from "./providers/openaiCompat.js";
@@ -22,8 +30,18 @@ const ajv = new (Ajv as unknown as typeof Ajv.default)({ allErrors: true, strict
  * leaves the machine — R-LOC-02), offline mode (remote refused entirely),
  * fallback chains, structured-output validation, and the model_calls audit.
  */
+/** Runtime role override with its ledger (D-0053/D-0054): who set it, why,
+ *  when. Only "user"-sourced today — the sleep cycle PROPOSES pins; applying
+ *  one is a user action (consequential changes need approval, R-AUTO). */
+export interface RoleOverride {
+  targets: RoleTarget[];
+  reason: string;
+  at: string;
+}
+
 export class GatewayRouter {
   private adapters = new Map<string, ProviderAdapter>();
+  private roleOverrides = new Map<ModelRole, RoleOverride>();
 
   constructor(
     private readonly config: GatewayConfig,
@@ -54,9 +72,57 @@ export class GatewayRouter {
     return this.offline;
   }
 
+  /** Configured-or-overridden targets for a role (no gating applied). */
+  private resolveTargets(role: ModelRole): RoleTarget[] | undefined {
+    return this.roleOverrides.get(role)?.targets ?? this.config.roles[role];
+  }
+
+  /**
+   * Runtime role override (D-0054): re-route a role among the ALREADY
+   * CONFIGURED providers without a restart. Structurally cannot widen the
+   * egress surface (unknown providers refused — adding a provider endpoint
+   * stays a config-file + restart concern) and cannot bypass privacy/offline
+   * gating (applied downstream in eligibleTargets, override or not).
+   */
+  overrideRole(
+    role: ModelRole,
+    targets: RoleTarget[],
+    ledger: { reason: string; at?: string },
+  ): RoleOverride {
+    if (!targets.length) throw new Error(`override for '${role}' needs at least one target`);
+    for (const t of targets) {
+      if (!this.adapters.has(t.provider)) {
+        throw new Error(
+          `unknown provider '${t.provider}' (configured: ${[...this.adapters.keys()].join(", ")})`,
+        );
+      }
+    }
+    const entry: RoleOverride = {
+      targets,
+      reason: ledger.reason,
+      at: ledger.at ?? new Date().toISOString(),
+    };
+    this.roleOverrides.set(role, entry);
+    return entry;
+  }
+
+  clearRoleOverride(role: ModelRole): boolean {
+    return this.roleOverrides.delete(role);
+  }
+
+  /** Current overrides with their ledgers, pins in the canonical syntax. */
+  overrides(): Record<string, { pins: string[]; reason: string; at: string }> {
+    return Object.fromEntries(
+      [...this.roleOverrides.entries()].map(([role, o]) => [
+        role,
+        { pins: o.targets.map(pinOf), reason: o.reason, at: o.at },
+      ]),
+    );
+  }
+
   /** Targets for a role after privacy/offline gating. Order = preference (local-first by config). */
   eligibleTargets(role: ModelRole, privacyClass: ChatRequest["privacyClass"]) {
-    const targets = this.config.roles[role] ?? this.config.roles.local_fallback;
+    const targets = this.resolveTargets(role) ?? this.resolveTargets("local_fallback");
     if (!targets?.length) {
       throw new Error(`no targets configured for role '${role}' (and no local_fallback)`);
     }
@@ -225,16 +291,15 @@ export class GatewayRouter {
   }
 
   roleTable() {
+    const roles = new Set<string>([...Object.keys(this.config.roles), ...this.roleOverrides.keys()]);
     return Object.fromEntries(
-      Object.entries(this.config.roles).map(([role, targets]) => [
-        role,
-        targets.map(
-          (t) =>
-            `${t.provider}/${t.model}${t.effort ? `@${t.effort}` : ""}${
-              t.thinking === "off" ? "+nothink" : t.thinking ? "+thinking" : ""
-            }`,
-        ),
-      ]),
+      [...roles].map((role) => {
+        const active =
+          this.roleOverrides.get(role as ModelRole)?.targets ??
+          this.config.roles[role as ModelRole] ??
+          [];
+        return [role, active.map(pinOf)];
+      }),
     );
   }
 

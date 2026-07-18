@@ -51,6 +51,7 @@ import { SkillRegistry } from "../skills/registry.js";
 import { PromptRegistry } from "../prompts/registry.js";
 import { ReasoningTuner } from "./reasoning.js";
 import { DecisionLog, SleepCycle } from "./consolidation.js";
+import { loadRoleOverrides } from "../gateway/overrides.js";
 
 export interface Core {
   audit: AuditLog;
@@ -225,6 +226,15 @@ export async function buildCore(opts: {
     knowledge: entityMemory, // J.A.R.V.I.S. draws on what it knows (non-sensitive) in conversation
     episodes: episodicMemory, // …and on what recently happened (non-sensitive)
   });
+
+  // Restore persisted runtime role overrides onto the gateway (D-0054) —
+  // best-effort: a stale pin is skipped and reported, never a boot failure.
+  try {
+    const { applied, skipped } = await loadRoleOverrides(opts.gateway, memory);
+    if (applied || skipped.length) {
+      console.log(`gateway role overrides restored: ${applied} applied${skipped.length ? `, skipped: ${skipped.join("; ")}` : ""}`);
+    }
+  } catch { /* overrides are an overlay — the config base always works */ }
 
   // Deep-reasoning learning (D-0050): learned topics live as ordinary
   // preferences (history-preserving, visible/deletable in the memory panel).

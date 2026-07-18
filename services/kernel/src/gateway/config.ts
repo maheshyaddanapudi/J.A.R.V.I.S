@@ -75,7 +75,10 @@ const ENV_DEFAULT_KINDS = new Set(["anthropic", "openai_compat"]);
  *  and must not decorate the role table (they'd mislead in /models). */
 const NON_GENERATIVE_ROLES = new Set(["embeddings", "reranking", "stt", "tts"]);
 
-function parseRolePin(role: string, raw: string): RoleTarget {
+/** Parse the compact pin syntax `provider/model[@effort][+thinking|+nothink]` —
+ *  the ONE format used by env pins (JARVIS_ROLE_*), runtime role overrides
+ *  (D-0054), and sleep-cycle proposals. */
+export function parseRolePin(role: string, raw: string): RoleTarget {
   let rest = raw.trim();
   let thinking: RoleTarget["thinking"];
   if (rest.endsWith("+thinking")) { thinking = "on"; rest = rest.slice(0, -"+thinking".length); }

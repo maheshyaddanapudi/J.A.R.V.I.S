@@ -213,6 +213,14 @@ never decoration (R-UI-03, R-CORE-02).
   proposals-never-auto-applied / notes over the real decision journal).
   **Verified live via headless Chromium (10/10)**; screenshot
   `docs/screenshots/reasoning.png`.
+- **Models panel live role editor** (D-0054, 2026-07-18): the ROLE ROUTING
+  section now edits live — role picker + canonical pin input
+  (`provider/model[@effort][+thinking]`) + reason (ledger) → apply
+  (PUT /gateway/roles/:role), per-role "✎ override" chip showing the reason
+  with a clear button (DELETE). Refusals (unknown provider) surface inline.
+  **7/7 headless checks** (apply → pin + ledger visible → clear → config base
+  returns, no console errors). NOTE: the kernel CORS preflight needed PUT
+  added — any new HTTP verb must be in the kernel's allow-methods list.
 - **Models panel** at `/models` (`app/models/page.tsx`, 2026-07-18, D-0047): SEE
   the model-gateway routing brain — live provider reachability (`/gateway/status`,
   real pings, LOCAL vs REMOTE), the role routing table (`/gateway/roles`, order =

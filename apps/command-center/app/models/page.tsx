@@ -19,13 +19,36 @@ interface CallRow {
  * annotated `@effort+thinking` when configured, D-0046), and the model_calls
  * audit tail (R-MODEL-03: routing outcomes only, never message content).
  */
+interface Override { pins: string[]; reason: string; at: string }
+
 export default function ModelsPage() {
   const [offline, setOffline] = useState<boolean | null>(null);
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [roles, setRoles] = useState<Record<string, string[]>>({});
+  const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [calls, setCalls] = useState<CallRow[]>([]);
   const [callsAvailable, setCallsAvailable] = useState(true);
   const [estop, setEstop] = useState(false);
+  const [editRole, setEditRole] = useState("deep_reasoning");
+  const [editPins, setEditPins] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [editNote, setEditNote] = useState("");
+
+  async function applyOverride() {
+    if (!editPins.trim() || !editReason.trim()) { setEditNote("pins + reason required"); return; }
+    const res = await fetch(`${KERNEL_URL}/gateway/roles/${editRole}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pins: editPins.split(",").map((p) => p.trim()).filter(Boolean), reason: editReason.trim() }),
+    });
+    const body = await res.json();
+    setEditNote(res.ok ? `applied — ${editRole} re-routed live` : `refused: ${body.error}`);
+    if (res.ok) { setEditPins(""); setEditReason(""); }
+  }
+  async function clearOverride(role: string) {
+    await fetch(`${KERNEL_URL}/gateway/roles/${role}`, { method: "DELETE" });
+    setEditNote(`override cleared — ${role} back to config`);
+  }
 
   useEffect(() => {
     async function refresh() {
@@ -37,6 +60,7 @@ export default function ModelsPage() {
       try {
         const r = await fetch(`${KERNEL_URL}/gateway/roles`, { cache: "no-store" }).then((r) => r.json());
         setRoles(r.roles ?? {});
+        setOverrides(r.overrides ?? {});
       } catch { /* */ }
       try {
         const c = await fetch(`${KERNEL_URL}/gateway/calls?limit=25`, { cache: "no-store" });
@@ -103,9 +127,25 @@ export default function ModelsPage() {
                   {i > 0 && <span style={{ color: "var(--dim)" }}>↓ </span>}{t}
                 </span>
               ))}
+              {overrides[role] && (
+                <span title={`since ${overrides[role]!.at}`} style={{ color: "var(--operational)", fontSize: "0.72rem" }}>
+                  ✎ override — “{overrides[role]!.reason}”{" "}
+                  <button onClick={() => void clearOverride(role)} style={{ background: "transparent", border: "1px solid var(--line)", color: "var(--dim)", cursor: "pointer", fontFamily: "var(--mono)", fontSize: "0.7rem" }}>clear</button>
+                </span>
+              )}
             </div>
           ))
         )}
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.6rem", borderTop: "1px solid var(--line)", paddingTop: "0.6rem" }}>
+          <span style={{ color: "var(--dim)", fontSize: "0.75rem" }}>re-route live (D-0054):</span>
+          <select value={editRole} onChange={(e) => setEditRole(e.target.value)} style={inp}>
+            {Object.keys(roles).map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <input value={editPins} onChange={(e) => setEditPins(e.target.value)} placeholder="provider/model[@effort][+thinking], …" style={{ ...inp, minWidth: 260 }} />
+          <input value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="why (goes in the ledger)" style={{ ...inp, minWidth: 180 }} />
+          <button onClick={() => void applyOverride()} style={{ background: "transparent", border: "1px solid var(--operational)", color: "var(--operational)", padding: "0.25rem 0.7rem", fontFamily: "var(--mono)", fontSize: "0.73rem", cursor: "pointer" }}>apply</button>
+          {editNote && <span style={{ color: editNote.startsWith("refused") ? "var(--critical)" : "var(--operational)", fontSize: "0.72rem" }}>{editNote}</span>}
+        </div>
       </section>
 
       <section style={sec("--advisory")}>
@@ -151,3 +191,4 @@ function h2(accent: string): React.CSSProperties {
   return { margin: "0 0 0.5rem", fontSize: "0.78rem", letterSpacing: "0.12em", color: `var(${accent})` };
 }
 const td: React.CSSProperties = { padding: "0.25rem 0.5rem", borderBottom: "1px solid var(--line)", color: "var(--dim)", whiteSpace: "nowrap" };
+const inp: React.CSSProperties = { background: "var(--bg)", border: "1px solid var(--line)", color: "var(--focal)", fontFamily: "var(--mono)", fontSize: "0.73rem", padding: "0.25rem 0.45rem" };

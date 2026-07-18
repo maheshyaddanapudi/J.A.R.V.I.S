@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
 import { z } from "zod";
+import { parseRolePin } from "./config.js";
+import { persistRoleOverrides } from "./overrides.js";
 import type { GatewayRouter } from "./router.js";
-import { ModelRoles, type ChatRequest, type NeutralMessage } from "./schema.js";
+import { ModelRoles, type ChatRequest, type ModelRole, type NeutralMessage } from "./schema.js";
 
 const ChatBodySchema = z.object({
   role: z.enum(ModelRoles).default("fast_conversation"),
@@ -25,6 +27,11 @@ export function registerGatewayRoutes(
   app: FastifyInstance,
   router: GatewayRouter,
   pool?: pg.Pool,
+  /** preference store for persisting runtime role overrides (D-0054) */
+  overridesStore?: {
+    get(key: string): Promise<{ value: string } | null>;
+    remember(input: { key: string; value: string; provenance: string }): Promise<unknown>;
+  },
 ): void {
   app.get("/gateway/status", async () => ({
     offline: router.isOffline,
@@ -34,7 +41,46 @@ export function registerGatewayRoutes(
   app.get("/gateway/roles", async () => ({
     offline: router.isOffline,
     roles: router.roleTable(),
+    overrides: router.overrides(),
   }));
+
+  // Runtime role overrides (D-0054): re-route a role among configured
+  // providers without a restart. Pins use the one canonical syntax
+  // (provider/model[@effort][+thinking|+nothink]); every override carries its
+  // ledger (reason + when) and persists across restarts.
+  if (overridesStore) {
+    const RolePinSchema = z.object({
+      pins: z.array(z.string().min(3)).min(1).max(4),
+      reason: z.string().min(1).max(300),
+    });
+    app.put("/gateway/roles/:role", async (req, reply) => {
+      const role = (req.params as { role: string }).role;
+      if (!(ModelRoles as readonly string[]).includes(role)) {
+        return reply.code(400).send({ error: `unknown role '${role}'` });
+      }
+      const parsed = RolePinSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+      try {
+        const targets = parsed.data.pins.map((p) => parseRolePin(role, p));
+        const entry = router.overrideRole(role as ModelRole, targets, {
+          reason: parsed.data.reason,
+        });
+        await persistRoleOverrides(router, overridesStore);
+        return { role, override: { pins: parsed.data.pins, reason: entry.reason, at: entry.at }, roles: router.roleTable() };
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+    app.delete("/gateway/roles/:role", async (req, reply) => {
+      const role = (req.params as { role: string }).role;
+      if (!(ModelRoles as readonly string[]).includes(role)) {
+        return reply.code(400).send({ error: `unknown role '${role}'` });
+      }
+      const removed = router.clearRoleOverride(role as ModelRole);
+      await persistRoleOverrides(router, overridesStore);
+      return { role, removed, roles: router.roleTable() };
+    });
+  }
 
   if (pool) {
     app.get("/gateway/calls", async (req) => {

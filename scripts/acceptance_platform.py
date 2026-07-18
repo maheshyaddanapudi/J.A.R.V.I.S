@@ -518,6 +518,28 @@ def main() -> int:
     except Exception as e:
         record("P-SLEEP-01", "sleep-cycle consolidation", "FAIL", str(e))
 
+    # ---- Runtime role overrides (D-0054): live re-route, ledger, persistence ----
+    try:
+        roles_before = get("/gateway/roles")["roles"]
+        known_provider = next(iter(get("/gateway/status")["providers"]), {}).get("provider")
+        pin = f"{known_provider}/accept-override@high+thinking"
+        r = httpx.put(f"{K}/gateway/roles/deep_reasoning",
+                      json={"pins": [pin], "reason": "acceptance: runtime editor"}, timeout=10.0)
+        applied = r.status_code == 200 and r.json()["roles"]["deep_reasoning"] == [pin]
+        ledger = get("/gateway/roles")["overrides"].get("deep_reasoning", {})
+        ledger_ok = ledger.get("reason") == "acceptance: runtime editor" and bool(ledger.get("at"))
+        refused = httpx.put(f"{K}/gateway/roles/deep_reasoning",
+                            json={"pins": ["not-a-provider/x"], "reason": "r"}, timeout=10.0).status_code == 400
+        httpx.delete(f"{K}/gateway/roles/deep_reasoning", timeout=10.0)
+        restored = get("/gateway/roles")["roles"]["deep_reasoning"] == roles_before["deep_reasoning"]
+        ok = applied and ledger_ok and refused and restored
+        record("P-CONFIG-01", "runtime role overrides: live re-route + ledger + refuse unknown + restore",
+               "PASS" if ok else "FAIL",
+               f"applied:{applied} ledger:{ledger_ok} unknown-provider-refused:{refused} cleared-to-config:{restored} "
+               f"(persistence across restart verified in gateway_overrides tests + live)")
+    except Exception as e:
+        record("P-CONFIG-01", "runtime role overrides", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

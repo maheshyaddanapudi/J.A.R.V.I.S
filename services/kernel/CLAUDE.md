@@ -218,6 +218,15 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `resolveGatewayConfig(cfg, env)` is pure/testable. Targets setting neither
   field send byte-identical pre-D-0049 bodies. New provider (OpenRouter/Grok)
   = config entry only, zero code. 12 tests; live env-resolution verified.
+- Runtime gateway role editor ✅ (D-0054, 2026-07-18; first D-0053 migration):
+  `PUT/DELETE /gateway/roles/:role` re-routes a role among ALREADY-CONFIGURED
+  providers live (canonical pin syntax; `gateway/overrides.ts` persists to the
+  `gateway_role_overrides` preference, restored on boot, stale pins skipped).
+  Ledgered (reason + when; user-sourced — sleep cycle proposes, user applies).
+  Structural safety: unknown providers refused (egress can't widen at runtime);
+  privacy/offline gating applies downstream of overrides. `/models` panel has
+  the live editor (7/7 UI checks). Also fixed: CORS preflight lacked PUT.
+  5 tests; live re-route + restart-survival verified; `P-CONFIG-01`.
 - Sleep-cycle consolidation ✅ (D-0051, 2026-07-18): `core/consolidation.ts` +
   migration 0015 `reasoning_decisions` — J.A.R.V.I.S. learns from ITS OWN
   operational record. Every routing decision journaled (categorical only, no
