@@ -165,6 +165,10 @@ def voice_turn(req: VoiceTurnRequest) -> dict:
     if req.sessionId:
         body["sessionId"] = req.sessionId
     answer = ""
+    # D-0048: the first SSE event is the reasoning decision (mode/why/role) —
+    # not spoken (only token text is), but surfaced so voice UIs can show
+    # which brain answered, same as the chat badge.
+    reasoning = None
     t0 = time.time()
     with httpx.stream("POST", f"{KERNEL_URL}/core/converse", json=body, timeout=120) as r:
         for line in r.iter_lines():
@@ -173,6 +177,8 @@ def voice_turn(req: VoiceTurnRequest) -> dict:
                     evt = __import__("json").loads(line[5:].strip())
                     if evt.get("type") == "token":
                         answer += evt["text"]
+                    elif evt.get("type") == "reasoning":
+                        reasoning = {k: evt.get(k) for k in ("mode", "why", "role")}
                 except Exception:  # noqa: BLE001
                     pass
     reason_ms = round((time.time() - t0) * 1000)
@@ -181,6 +187,7 @@ def voice_turn(req: VoiceTurnRequest) -> dict:
     tts = engines.get(f"tts_{req.ttsEngine}")
     if tts is None:
         return {"stage": "tts", "heard": heard["text"], "answer": answer,
+                "reasoning": reasoning,
                 "error": f"tts engine '{req.ttsEngine}' unavailable"}
     t1 = time.time()
     chunks = list(tts.synthesize(answer, req.voice))  # type: ignore[attr-defined]
@@ -189,6 +196,7 @@ def voice_turn(req: VoiceTurnRequest) -> dict:
     return {
         "heard": heard["text"],
         "answer": answer,
+        "reasoning": reasoning,
         "sttMs": heard["sttMs"],
         "reasonMs": reason_ms,
         "ttsMs": round((time.time() - t1) * 1000),
