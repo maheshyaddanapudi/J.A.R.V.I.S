@@ -120,13 +120,16 @@ export default function ReasoningPage() {
       </section>
 
       <section style={sec("--focal")}>
-        <h2 style={h2("--focal")}>ESCALATION SENSITIVITY (bounded autotune — a manual setting is never overridden)</h2>
+        <h2 style={h2("--focal")}>ESCALATION SENSITIVITY (bounded autotune — your setting holds unless the trail outweighs it; J.A.R.V.I.S. says so either way)</h2>
         {tune && (
           <div style={{ fontSize: "0.8rem", color: "var(--focal)", marginBottom: "0.5rem" }}>
             threshold <b>{tune.signalThreshold}</b> ({tune.signalThreshold === 1 ? "eager: one strong signal escalates" : "conservative: two signals needed"})
             {" · set by "}
             <b style={{ color: tune.source === "user" ? "var(--operational)" : tune.source === "jarvis" ? "var(--advisory)" : "var(--dim)" }}>{tune.source}</b>
             {tune.reason && <span style={{ color: "var(--dim)" }}> — “{tune.reason}”</span>}
+            {(tune as { repins?: number }).repins ? (
+              <span style={{ color: "var(--advisory)" }}> · re-pinned ×{(tune as { repins?: number }).repins} (evidence bar raised)</span>
+            ) : null}
           </div>
         )}
         <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>

@@ -16,8 +16,9 @@ import {
  * and adjusts for tomorrow. Three honesty rules bind it:
  *   1. Everything it concludes carries evidence (counts from real records).
  *   2. It may AUTO-APPLY only bounded, local, reversible knobs (today: the
- *      escalation signal threshold, 1↔2) — and NEVER over a user-set value:
- *      a manual override wins and is explicitly noted, per the user's contract.
+ *      escalation signal threshold, 1↔2). A USER-set value is respected by
+ *      default and revisited only when contradicting evidence SINCE the pin
+ *      clears a higher, re-pin-scaled bar (D-0052) — either way it says so.
  *   3. Anything consequential (role targets, effort levels, provider order)
  *      is a PROPOSAL for the user, never applied silently.
  * Scheduling: run on demand (`POST /core/reasoning/consolidate`) or from a
@@ -132,7 +133,47 @@ export class SleepCycle {
     );
     const tune = await tuner.autotune();
 
-    if (overrodeToDeep >= 3 && overrodeToDeep > autoDeep) {
+    if (tune.source === "user") {
+      // D-0052: a user pin is respected by default, but it is not permanent
+      // law — count contradicting evidence accumulated SINCE the pin; the bar
+      // is higher than for my own values and rises with every user re-pin.
+      // Whatever I decide, I say so.
+      const needed = 6 * ((tune.repins ?? 0) + 1);
+      const sincePin = async (mode: "deep" | "fast"): Promise<number> => {
+        const { rows } = await pool.query<{ n: string }>(
+          `SELECT count(*) n FROM reasoning_decisions
+            WHERE at > COALESCE($1::timestamptz, now() - ($2 || ' hours')::interval)
+              AND ((reason = 'override' AND mode = $3) OR ($3 = 'deep' AND reason = 'correction_promoted'))`,
+          [tune.at ?? null, windowHours, mode],
+        );
+        return Number(rows[0]!.n);
+      };
+      const wantDeep = tune.signalThreshold === 2 ? await sincePin("deep") : 0;
+      const wantFast = tune.signalThreshold === 1 ? await sincePin("fast") : 0;
+      const contradictions = Math.max(wantDeep, wantFast);
+      const target: 1 | 2 = tune.signalThreshold === 2 ? 1 : 2;
+      if (contradictions >= needed) {
+        findings.push(
+          `your manual threshold (${tune.signalThreshold}${tune.reason ? `, "${tune.reason}"` : ""}) has been contradicted ${contradictions}× since you set it (bar: ${needed})`,
+        );
+        const res = await tuner.setThreshold(target, "jarvis",
+          `sleep-cycle: ${contradictions} contradictions since your setting of ${tune.at ?? "unknown"} cleared the bar of ${needed}`,
+          { overrideUser: true });
+        if (res.applied) {
+          adjustments.push(
+            `changed your manual setting ${tune.signalThreshold}→${target} — the trail outweighed the pin (${contradictions} ≥ ${needed}); re-set it and I'll hold it twice as long`,
+          );
+        }
+      } else if (contradictions > 0) {
+        notes.push(
+          `your manual threshold (${tune.signalThreshold}${tune.reason ? `, "${tune.reason}"` : ""}) stands — ${contradictions} contradiction(s) since you set it; I'd revisit at ${needed}`,
+        );
+      } else {
+        notes.push(
+          `threshold ${tune.signalThreshold} is your manual setting${tune.reason ? ` ("${tune.reason}")` : ""} — respected, no contradicting evidence since`,
+        );
+      }
+    } else if (overrodeToDeep >= 3 && overrodeToDeep > autoDeep) {
       findings.push(
         `under-escalation: you forced deep ${overrodeToDeep}× while I chose it ${autoDeep}× on my own`,
       );
@@ -141,10 +182,6 @@ export class SleepCycle {
           `sleep-cycle: user forced deep ${overrodeToDeep}× vs ${autoDeep} auto escalations in ${windowHours}h`);
         if (res.applied) {
           adjustments.push("lowered auto-escalation threshold 2→1 (one strong signal now escalates)");
-        } else {
-          notes.push(
-            `your manual threshold setting (${res.autotune.signalThreshold}, "${res.autotune.reason ?? "no reason given"}") stands — I won't override it, but the record suggests eager escalation`,
-          );
         }
       }
     } else if (overrodeToFast >= 3 && overrodeToFast > autoDeep) {
@@ -153,13 +190,7 @@ export class SleepCycle {
         const res = await tuner.setThreshold(2, "jarvis",
           `sleep-cycle: user forced fast ${overrodeToFast}× in ${windowHours}h`);
         if (res.applied) adjustments.push("raised auto-escalation threshold 1→2 (conservative again)");
-        else notes.push("your manual threshold setting stands — noted the over-escalation signal");
       }
-    }
-    if (tune.source === "user" && adjustments.length === 0 && notes.length === 0) {
-      notes.push(
-        `threshold ${tune.signalThreshold} is your manual setting${tune.reason ? ` ("${tune.reason}")` : ""} — respected`,
-      );
     }
 
     const downgrades = count((d) => d.reason === "downgrade_ineligible");

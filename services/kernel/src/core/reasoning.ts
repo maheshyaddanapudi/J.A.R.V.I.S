@@ -112,17 +112,28 @@ const PROMOTE_AT = 2;
 const MAX_TOPICS = 50;
 
 /**
- * Bounded self-adjustable knobs (D-0051). The contract the user set:
- * start from a default → J.A.R.V.I.S. may adjust it from its own operational
- * record (sleep cycle) → a USER-set value always wins and is never overridden
- * by J.A.R.V.I.S. (a manual override is itself a signal it takes note of).
- * `source` records who set the current value; `reason` says why.
+ * Bounded self-adjustable knobs (D-0051, contract revised D-0052). The user's
+ * contract: start from a default → J.A.R.V.I.S. may adjust from its own
+ * operational record (sleep cycle) → a USER-set value is respected by default,
+ * but is not permanent law: J.A.R.V.I.S. examines the trail SINCE the override
+ * and may choose to keep it or change it once contradicting evidence clears a
+ * HIGHER bar than for its own values — announcing either way. Each user
+ * re-pin (re-setting after J.A.R.V.I.S. changed their setting) raises the bar
+ * further, so insistence is itself learned. `source` records who set the
+ * current value; `reason` says why; `at` anchors evidence counting.
  */
 export interface Autotune {
   /** signals needed for auto-escalation: 1 (eager) or 2 (conservative default) */
   signalThreshold: 1 | 2;
   source: "default" | "jarvis" | "user";
   reason?: string;
+  /** ISO time the current value was set — evidence is counted AFTER this */
+  at?: string;
+  /** user re-pins after a J.A.R.V.I.S. change of their setting; each raises
+   *  the evidence bar for changing it again */
+  repins?: number;
+  /** set on a jarvis record that replaced a user setting (drives re-pin count) */
+  changedUserSetting?: boolean;
 }
 export const DEFAULT_AUTOTUNE: Autotune = { signalThreshold: 2, source: "default" };
 
@@ -175,20 +186,34 @@ export class ReasoningTuner {
   }
 
   /**
-   * Set the escalation threshold. A "jarvis" write REFUSES to override a
-   * "user" write (manual override wins — the caller gets the standing value
-   * back and should take note); a "user" write always applies.
+   * Set the escalation threshold. A plain "jarvis" write still refuses to
+   * replace a "user" value — only the sleep cycle, having verified that the
+   * evidence since the pin clears the (re-pin-scaled) bar, passes
+   * `overrideUser: true` (D-0052). A "user" write always applies; re-pinning
+   * after a J.A.R.V.I.S. change increments `repins`, raising the future bar.
    */
   async setThreshold(
     value: 1 | 2,
     source: "jarvis" | "user",
     reason: string,
+    opts?: { overrideUser?: boolean },
   ): Promise<{ applied: boolean; autotune: Autotune }> {
     const current = await this.autotune();
-    if (source === "jarvis" && current.source === "user") {
+    if (source === "jarvis" && current.source === "user" && !opts?.overrideUser) {
       return { applied: false, autotune: current };
     }
-    const next: Autotune = { signalThreshold: value, source, reason };
+    const repins =
+      source === "user" && current.source === "jarvis" && current.changedUserSetting
+        ? (current.repins ?? 0) + 1
+        : current.repins ?? 0;
+    const next: Autotune = {
+      signalThreshold: value,
+      source,
+      reason,
+      at: new Date().toISOString(),
+      ...(repins ? { repins } : {}),
+      ...(source === "jarvis" && current.source === "user" ? { changedUserSetting: true } : {}),
+    };
     await this.store.remember({
       key: AUTOTUNE_KEY,
       value: JSON.stringify(next),

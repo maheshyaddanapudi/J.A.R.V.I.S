@@ -27,6 +27,7 @@ This repo builds **J.A.R.V.I.S.** — a real, working, local-first personal AI O
 6. **Check in** at every gate listed in `docs/06` — before design-system finalization, voice/agent/memory/security stack selection, enabling computer control/proactivity/device control, capability installs, hardware purchases, XR architecture, any non-OSS dependency, architecture changes, or any deferral.
 7. **Five-state matrix discipline:** every capability is REAL / HARDWARE-DEPENDENT / SIMULATED / DEFERRED / PROHIBITED; changes are logged; nothing disappears silently.
 8. **OSS constraints:** core must be open source; proprietary OS/hardware APIs only behind replaceable, registered adapters; flag GPL/AGPL/NC dependencies at a check-in before adopting.
+8a. **Dual-editability principle (D-0053, binding):** every configurable value must become editable by the user (UI + instructing J.A.R.V.I.S.) AND adjustable by J.A.R.V.I.S., with an override ledger (who/why/when) and the D-0052 evidence contract: a user-set value is respected by default and changed only when the trail since the pin clears a higher, re-pin-scaled bar — announced either way. Z1 protected paths (policy/approval/audit/e-stop/credentials/sandbox) are permanently excluded (R-CAP-08). New knobs land compliant; old ones migrate as touched.
 9. **Verification:** never declare a feature complete because UI renders — run the real system; each phase ends with a real end-to-end acceptance run recorded under `docs/verification/`.
 
 ## Approved architecture

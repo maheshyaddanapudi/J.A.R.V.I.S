@@ -225,13 +225,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   findings (under/over-escalation vs user overrides, provider failure rates,
   fallbacks, deep latency, ineligible downgrades), **bounded auto-adjustments**
   (escalation threshold 1↔2 only — announced, reversible), **proposals** for
-  anything consequential (never silently applied), notes. **User override wins
-  structurally:** a jarvis write refuses to overwrite a user-set autotune value
-  and quotes the user's reason back. Routes `POST /core/reasoning/consolidate`,
+  anything consequential (never silently applied), notes. **Override contract
+  (D-0052):** a user pin is respected by default; contradicting evidence is
+  counted strictly SINCE the pin and must clear a HIGHER bar than for
+  J.A.R.V.I.S.'s own values (6 vs 3), scaled by user re-pins (×2, ×3…) — when
+  cleared, J.A.R.V.I.S. may CHOOSE to change the setting via the only path
+  allowed to (`overrideUser: true`; plain jarvis writes still refuse),
+  announcing evidence + how to make the pin stick; below the bar it reports the
+  tally. Routes `POST /core/reasoning/consolidate`,
   `GET/POST/DELETE /core/reasoning/autotune`. Consolidations land on the
   episodic timeline (tag `sleep-cycle`). On-demand today; nightly unattended
-  runs arrive with the D-0024 gate. 7 tests; live full-contract verified;
-  `P-SLEEP-01`.
+  runs arrive with the D-0024 gate. 8 tests; live full-contract verified incl.
+  the stale-reason pin being outweighed; `P-SLEEP-01`.
 - Deep-reasoning learning ✅ (D-0050, 2026-07-18): `ReasoningTuner`
   (`core/reasoning.ts`) — escalation now ADAPTS to the user, transparently (no
   opaque ML): (1) instruction — `POST/GET/DELETE /core/reasoning/topics`;

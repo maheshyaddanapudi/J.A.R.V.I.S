@@ -87,7 +87,8 @@ describe.skipIf(!pool)("SleepCycle consolidation (D-0051)", () => {
     expect((await tuner.autotune()).source).toBe("jarvis");
   });
 
-  it("NEVER overrides a user-set threshold — it takes note instead", async () => {
+  it("respects a user pin when evidence predates it or falls short of the bar", async () => {
+    // contradictions BEFORE the pin don't count against it
     await seedDecisions(pool!, [
       { requested: "deep", mode: "deep", reason: "override", role: "deep_reasoning", n: 5 },
     ]);
@@ -98,7 +99,41 @@ describe.skipIf(!pool)("SleepCycle consolidation (D-0051)", () => {
     expect((await tuner.autotune()).signalThreshold).toBe(2);
     expect((await tuner.autotune()).source).toBe("user");
     expect(report.adjustments).toEqual([]);
-    expect(report.notes.some((n) => n.includes("I won't override it"))).toBe(true);
+    expect(report.notes.some((n) => /stands|respected/.test(n))).toBe(true);
+  });
+
+  it("D-0052: the trail can outweigh a user pin — and each re-pin raises the bar", async () => {
+    const store = prefStore();
+    const tuner = new ReasoningTuner(store);
+    await tuner.setThreshold(2, "user", "stay conservative");
+    // 6 contradictions SINCE the pin clear the base bar of 6 → Jarvis changes it, openly
+    await seedDecisions(pool!, [
+      { requested: "deep", mode: "deep", reason: "override", role: "deep_reasoning", n: 6 },
+    ]);
+    const r1 = await new SleepCycle({ pool: pool!, tuner, store }).run();
+    expect(r1.adjustments.some((a) => a.includes("changed your manual setting 2→1"))).toBe(true);
+    let tune = await tuner.autotune();
+    expect(tune).toMatchObject({ signalThreshold: 1, source: "jarvis", changedUserSetting: true });
+
+    // the user re-pins → bar doubles; the same 6 contradictions no longer suffice
+    await tuner.setThreshold(2, "user", "I really mean it");
+    tune = await tuner.autotune();
+    expect(tune.repins).toBe(1);
+    await seedDecisions(pool!, [
+      { requested: "deep", mode: "deep", reason: "override", role: "deep_reasoning", n: 6 },
+    ]);
+    const r2 = await new SleepCycle({ pool: pool!, tuner, store }).run();
+    expect(r2.adjustments).toEqual([]);
+    expect(r2.notes.some((n) => n.includes("revisit at 12"))).toBe(true);
+    expect((await tuner.autotune()).source).toBe("user");
+
+    // …but 12 since the re-pin clears the raised bar
+    await seedDecisions(pool!, [
+      { requested: "deep", mode: "deep", reason: "override", role: "deep_reasoning", n: 6 },
+    ]);
+    const r3 = await new SleepCycle({ pool: pool!, tuner, store }).run();
+    expect(r3.adjustments.some((a) => a.includes("changed your manual setting"))).toBe(true);
+    expect((await tuner.autotune()).signalThreshold).toBe(1);
   });
 
   it("raises the threshold back (1→2) when the user repeatedly forces fast", async () => {
@@ -144,7 +179,7 @@ describe.skipIf(!pool)("SleepCycle consolidation (D-0051)", () => {
 });
 
 describe("ReasoningTuner autotune bounds", () => {
-  it("user set → jarvis refused; user re-set → applied; corrupt store → default", async () => {
+  it("plain jarvis write refused over user; overrideUser applies; re-pin increments; corrupt store → default", async () => {
     const store = prefStore();
     const tuner = new ReasoningTuner(store);
     expect((await tuner.autotune()).signalThreshold).toBe(2);
@@ -152,8 +187,13 @@ describe("ReasoningTuner autotune bounds", () => {
     const refused = await tuner.setThreshold(2, "jarvis", "sleep-cycle");
     expect(refused.applied).toBe(false);
     expect((await tuner.autotune()).signalThreshold).toBe(1);
-    const applied = await tuner.setThreshold(2, "user", "changed my mind");
-    expect(applied.applied).toBe(true);
+    // only the evidence-cleared path may override — and it marks the record
+    const forced = await tuner.setThreshold(2, "jarvis", "evidence cleared bar", { overrideUser: true });
+    expect(forced.applied).toBe(true);
+    expect((await tuner.autotune()).changedUserSetting).toBe(true);
+    // user re-pin after a jarvis change increments repins (insistence learned)
+    await tuner.setThreshold(1, "user", "I insist");
+    expect((await tuner.autotune()).repins).toBe(1);
     store.data.set(AUTOTUNE_KEY, '{"signalThreshold":99,"source":"jarvis"}');
     expect((await tuner.autotune()).signalThreshold).toBe(2);
     const noop = vi.fn();
