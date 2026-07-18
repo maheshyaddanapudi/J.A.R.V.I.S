@@ -93,6 +93,44 @@ make dev               # infra + migrate + kernel (4150) + Command Center (4160)
 - Ambient Voice Orb: <http://127.0.0.1:4160/orb> (drives off the live activity SSE
   + e-stop; try `?preview=speaking` to see states)
 
+## 4a. Model routing, reasoning & the settings ledger (D-0046–D-0055)
+Everything below is live the moment the kernel runs — no check-in needed.
+
+**One neutral settings vocabulary** — you never write provider terminology.
+Per role-target: `effort: low|medium|high|xhigh|max` and `thinking: on|off`;
+each adapter translates (Anthropic `output_config.effort`/adaptive thinking ·
+OpenAI-compatible `reasoning_effort` incl. OpenRouter/Grok via `baseUrl` ·
+Ollama `think` levels). Global env controls:
+```bash
+JARVIS_EFFORT=xhigh JARVIS_THINKING=on          # defaults for remote generative targets
+JARVIS_ROLE_DEEP_REASONING=ollama/gpt-oss:120b@high+thinking   # pin any role
+```
+
+**Runtime re-routing (no restart)** — three equivalent, ledgered paths:
+the `/models` panel editor · `PUT /gateway/roles/<role> {"pins":[...],"reason":"…"}` ·
+or just instruct J.A.R.V.I.S. (gated tools `gateway.route`/`gateway.clearRoute`,
+CONSEQUENTIAL → per-request approval). Overrides persist as deltas + reason/when,
+survive restarts, and can never widen egress (unknown providers refused) or
+bypass LOCAL_ONLY/offline gating.
+
+**Deep-reasoning escalation** — J.A.R.V.I.S. routes hard turns to the
+`deep_reasoning` role by itself; every answer carries its why (chat badge,
+`/voice-turn` response field, activity stream). It **learns**: teach topics
+(`/reasoning` panel, `POST /core/reasoning/topics`, or tell it) and repeated
+corrections promote topics automatically (D-0050).
+
+**Sleep cycle** — `POST /core/reasoning/consolidate` reviews its own decision
+journal + model-calls audit: findings with evidence, bounded auto-adjustments
+(escalation threshold), proposals for anything consequential. A **user-set value
+is respected until the trail since your pin clears a re-pin-scaled bar — then
+J.A.R.V.I.S. may change it and says so** (D-0052). Nightly unattended runs
+activate with the D-0024 check-in (step 8c).
+
+**Remote-brain test keys (optional):** vault the key (step 3:
+`anthropic_api_key` / `openai_api_key`), then one re-route pin
+(`anthropic/claude-sonnet-5@xhigh+thinking`) puts the real brain behind the
+same gated loop. Delete the secret + clear the override to revert fully.
+
 ## 5. Voice service (`jarvis-ears`) — real local speech
 ```bash
 cd services/ears
@@ -158,9 +196,13 @@ the secrets vault, context, proactivity, computer-control (SIMULATION),
 device-control interlock (SIMULATION), self-extension hard limit, the MCP host, and
 the REAL Phase-2 capabilities — **workspace files** (`P-KNOW-01`), **web research**
 (`P-WEB-01`), **terminal-with-policy** (`P-TERM-01`), **research-with-provenance**
-(`P-RESEARCH-01`), **semantic memory** (`P-ENTMEM-01`), and **episodic memory**
-(`P-EPISODE-01`) — printing honest
-PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / SKIP / FAIL (`22 PASS · 3
+(`P-RESEARCH-01`), **semantic memory** (`P-ENTMEM-01`), **episodic memory**
+(`P-EPISODE-01`), **vector recall** (`P-SEMANTIC-01`), **persona registry**
+(`P-PROMPT-01`), **proactivity rules** (`P-RULE-01`), **graph-brain**
+(`P-GRAPH-01`), **gateway observability** (`P-MODELS-01`), **deep-reasoning
+escalation + learning** (`P-REASON-01`), **sleep-cycle consolidation**
+(`P-SLEEP-01`), and **runtime role overrides** (`P-CONFIG-01`) — printing honest
+PASS / VERIFIED-ELSEWHERE / **NEEDS-MAC** / SKIP / FAIL (`30 PASS · 3
 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL` in-container). Only four rows are
 NEEDS-MAC (real macOS control, real HA, live voice, packaged app); those turn into
 real checks here on the Mac as their adapters are enabled at steps 6/8. Exits
@@ -192,8 +234,10 @@ its check-in. Nothing consequential runs before its gate. Recommended order:
   per-app/per-action approval defaults. `buildCore({control})` then injects it in
   place of the SIMULATION desktop.
 - **8c. Proactive delivery — D-0024.** Approve background cadence, briefing
-  schedule, notification channels, quiet-hours, per-domain defaults. Until then the
-  engine only computes on demand (`POST /proactive/run`).
+  schedule, notification channels, quiet-hours, per-domain defaults — **and the
+  nightly sleep-cycle consolidation schedule** (D-0051; until then consolidation
+  runs on demand via `POST /core/reasoning/consolidate`). Until this gate the
+  proactivity engine only computes on demand (`POST /proactive/run`).
 - **8d. Physical devices — D-0025.** Approve the HA base URL + per-device-type risk
   defaults + the hardware interlock mechanism; the token is already in the vault
   (step 3). `buildCore({devices})` then injects `homeAssistantFromVault(...)` in
