@@ -92,13 +92,19 @@ export class SkillRegistry {
    * gated; a consequential step still requires approval (autoApprove is a
    * scripted/testing convenience only).
    */
-  async run(id: string, opts?: { autoApprove?: AgentRunOpts["autoApprove"] }): Promise<AgentResult | null> {
+  async run(
+    id: string,
+    opts?: { autoApprove?: AgentRunOpts["autoApprove"]; privacyClass?: AgentRunOpts["privacyClass"] },
+  ): Promise<AgentResult | null> {
     const skill = await this.get(id);
     if (!skill || !skill.enabled) return null;
     await this.audit.append({ actor: "user", event: "skill_run", payload: { id, name: skill.name } });
     const result = await this.agent.run(skill.objective, {
       maxSteps: skill.maxSteps,
       source: `skill:${skill.name}`,
+      // LOCAL_ONLY by default (private-first); a skill may opt into STANDARD to
+      // use a remote reasoning provider when the user wants it.
+      ...(opts?.privacyClass ? { privacyClass: opts.privacyClass } : {}),
       ...(opts?.autoApprove ? { autoApprove: opts.autoApprove } : {}),
     });
     await this.pool.query("UPDATE skills SET last_run_at = now() WHERE id = $1", [id]);

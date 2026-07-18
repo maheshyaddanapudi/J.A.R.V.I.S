@@ -395,8 +395,11 @@ export function registerCoreRoutes(
   });
   app.post("/skills/:id/run", async (req, reply) => {
     const id = (req.params as { id?: string }).id ?? "";
-    const b = (req.body ?? {}) as { autoApprove?: ApprovalResolution };
-    const result = await deps.skills.run(id, b.autoApprove ? { autoApprove: b.autoApprove } : undefined);
+    const b = (req.body ?? {}) as { autoApprove?: ApprovalResolution; privacyClass?: "LOCAL_ONLY" | "STANDARD" };
+    const result = await deps.skills.run(id, {
+      ...(b.autoApprove ? { autoApprove: b.autoApprove } : {}),
+      ...(b.privacyClass ? { privacyClass: b.privacyClass } : {}),
+    });
     if (!result) return reply.code(404).send({ error: "skill not found or disabled" });
     return result;
   });
