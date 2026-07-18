@@ -43,7 +43,37 @@ function thinkingField(
   return undefined;
 }
 
-function toAnthropicPayload(messages: NeutralMessage[]) {
+/**
+ * Anthropic tool names must match ^[a-zA-Z0-9_-]{1,128}$ (verified against the
+ * live API 2026-07-18: dotted names like `system.info` and colon MCP names like
+ * `mcp:server:tool` are rejected with HTTP 400). J.A.R.V.I.S. tool names use
+ * both. We map each real name to a wire-safe name for the request and restore
+ * the real name when Claude calls the tool back — collisions disambiguated so
+ * the round-trip is exact. `.`/`:`/anything-else → `_`.
+ */
+function buildToolNameMap(tools: { name: string }[]): {
+  toWire: Map<string, string>;
+  toReal: Map<string, string>;
+} {
+  const toWire = new Map<string, string>();
+  const toReal = new Map<string, string>();
+  const used = new Set<string>();
+  for (const t of tools) {
+    let wire = t.name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 128) || "tool";
+    if (used.has(wire)) {
+      let i = 1;
+      while (used.has(`${wire.slice(0, 124)}_${i}`)) i++;
+      wire = `${wire.slice(0, 124)}_${i}`;
+    }
+    used.add(wire);
+    toWire.set(t.name, wire);
+    toReal.set(wire, t.name);
+  }
+  return { toWire, toReal };
+}
+
+function toAnthropicPayload(messages: NeutralMessage[], toWire?: Map<string, string>) {
+  const wire = (name: string) => toWire?.get(name) ?? name;
   const system = messages
     .filter((m) => m.role === "system")
     .map((m) => m.content)
@@ -73,7 +103,7 @@ function toAnthropicPayload(messages: NeutralMessage[]) {
               ...(m.toolCalls ?? []).map((c) => ({
                 type: "tool_use" as const,
                 id: c.id,
-                name: c.name,
+                name: wire(c.name),
                 input: c.arguments,
               })),
             ],
@@ -136,7 +166,8 @@ export function createAnthropicAdapter(opts: {
       signal?: AbortSignal,
       target?: TargetOptions,
     ): AsyncGenerator<ChatEvent> {
-      const { system, messages } = toAnthropicPayload(req.messages);
+      const { toWire, toReal } = buildToolNameMap(req.tools ?? []);
+      const { system, messages } = toAnthropicPayload(req.messages, toWire);
       const adaptiveGen = ADAPTIVE_GEN.test(model);
       const thinking = thinkingField(model, Boolean(req.tools?.length), target?.thinking);
       const body = {
@@ -154,7 +185,7 @@ export function createAnthropicAdapter(opts: {
         ...(req.tools?.length
           ? {
               tools: req.tools.map((t) => ({
-                name: t.name,
+                name: toWire.get(t.name) ?? t.name,
                 description: t.description,
                 input_schema: t.inputSchema,
               })),
@@ -217,9 +248,12 @@ export function createAnthropicAdapter(opts: {
           } else if (type === "content_block_start") {
             const block = payload.content_block as { type: string; id?: string; name?: string };
             if (block.type === "tool_use") {
+              const wireName = block.name ?? "";
               pendingTools.set(payload.index as number, {
                 id: block.id ?? "",
-                name: block.name ?? "",
+                // restore J.A.R.V.I.S.'s real tool name (dots/colons) from the
+                // wire-safe name Claude echoes back
+                name: toReal.get(wireName) ?? wireName,
                 jsonText: "",
               });
             }

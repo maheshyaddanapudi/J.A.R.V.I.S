@@ -111,6 +111,38 @@ describe("anthropic adapter wire format", () => {
     expect(body.max_tokens).toBe(4096);
   });
 
+  it("sanitizes dotted/colon tool names for the wire and restores them on tool_use (live-API 400 fix)", async () => {
+    // Claude echoes the WIRE-safe name back; the adapter must return the REAL name.
+    const toolSSE =
+      [
+        'data: {"type":"message_start","message":{"usage":{"input_tokens":9}}}',
+        'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tu_1","name":"system_info"}}',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{}"}}',
+        'data: {"type":"content_block_stop","index":0}',
+        'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":4}}',
+      ].join("\n\n") + "\n\n";
+    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_u: string | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(toolSSE, { status: 200 });
+      },
+    );
+    const events = await drain(
+      adapter().chatStream(
+        req({ tools: [{ name: "system.info", description: "d", inputSchema: { type: "object" } },
+                       { name: "mcp:home:toggle", description: "d", inputSchema: { type: "object" } }] }),
+        "claude-sonnet-5",
+      ),
+    );
+    // outbound: every wire tool name matches Anthropic's pattern
+    const sent = (bodies[0]!.tools as { name: string }[]).map((t) => t.name);
+    expect(sent).toEqual(["system_info", "mcp_home_toggle"]);
+    for (const n of sent) expect(n).toMatch(/^[a-zA-Z0-9_-]{1,128}$/);
+    // inbound: the real dotted name is restored
+    const call = events.find((e): e is Extract<ChatEvent, { type: "tool_call" }> => e.type === "tool_call")!;
+    expect(call.call.name).toBe("system.info");
+  });
+
   it("streams text through thinking blocks without corruption", async () => {
     const events = await drain(adapter().chatStream(req(), "claude-sonnet-5"));
     const text = events
