@@ -21,7 +21,8 @@ const ADAPTIVE_GEN = /^claude-(sonnet-5|opus-4-[78]|fable-5|mythos-5)/;
 const ALWAYS_THINKS = /^claude-(fable-5|mythos-5)/;
 
 /**
- * Thinking policy. Anthropic requires tool-use turns to be replayed with their
+ * Neutral→Anthropic thinking translation (D-0049): "on" → adaptive, "off" →
+ * disabled. Anthropic requires tool-use turns to be replayed with their
  * thinking blocks INTACT, and our neutral schema does not carry provider
  * thinking blocks — so with tools in play we must explicitly disable thinking
  * on models where it would otherwise default on (else the replayed turn 400s).
@@ -32,14 +33,14 @@ function thinkingField(
   hasTools: boolean,
   wanted: TargetOptions["thinking"],
 ): { type: "adaptive" } | { type: "disabled" } | undefined {
-  if (hasTools) {
-    return ADAPTIVE_GEN.test(model) && !ALWAYS_THINKS.test(model)
-      ? { type: "disabled" }
-      : undefined;
-  }
+  const modern = ADAPTIVE_GEN.test(model);
+  const canDisable = modern && !ALWAYS_THINKS.test(model);
+  if (hasTools) return canDisable ? { type: "disabled" } : undefined;
   // Pre-adaptive models (e.g. haiku-4-5) only speak the deprecated budget shape;
-  // we deliberately don't emit it — the hint is ignored there.
-  return wanted === "adaptive" && ADAPTIVE_GEN.test(model) ? { type: "adaptive" } : undefined;
+  // we deliberately don't emit it — the hint is ignored there (off by default).
+  if (wanted === "on" && modern) return { type: "adaptive" };
+  if (wanted === "off" && canDisable) return { type: "disabled" };
+  return undefined;
 }
 
 function toAnthropicPayload(messages: NeutralMessage[]) {

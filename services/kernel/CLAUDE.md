@@ -201,6 +201,23 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   the `model_calls` audit tail (R-MODEL-03; routing outcomes only, never message
   content) — feeds the Command Center `/models` panel (provider reachability,
   role routing, honest failure rows). Harness `P-MODELS-01`.
+- Provider-agnostic generation settings ✅ (D-0049, 2026-07-18): ONE neutral
+  vocabulary on `RoleTarget` — `effort: low…max` + `thinking: on|off`
+  ("adaptive" = normalized legacy alias) — translated per provider INSIDE the
+  adapters (dialects verified 2026-07-18): anthropic → `output_config.effort` +
+  `thinking {adaptive|disabled}`; openai_compat (OpenAI/OpenRouter/Grok/vLLM/
+  llama.cpp via baseUrl) → `reasoning_effort` verbatim (modern OpenAI uses the
+  same tokens), on→"medium" default, off suppresses, sampling params dropped
+  when reasoning; ollama → `think` (levels low/medium, "high" ceiling — gpt-oss
+  accepts only low/medium/high; boolean w/o effort; per-target opt-in only,
+  hard-errors on non-thinking models; `message.thinking` trace never surfaced).
+  Env controls resolved at config load (INSPECTABLE in /gateway/roles):
+  `JARVIS_EFFORT` + `JARVIS_THINKING` (defaults for generative anthropic/
+  openai_compat targets only — never ollama, never embeddings/stt/tts/rerank),
+  `JARVIS_ROLE_<ROLE>=provider/model[@effort][+thinking|+nothink]` (role pin).
+  `resolveGatewayConfig(cfg, env)` is pure/testable. Targets setting neither
+  field send byte-identical pre-D-0049 bodies. New provider (OpenRouter/Grok)
+  = config entry only, zero code. 12 tests; live env-resolution verified.
 - Deep-reasoning escalation ✅ (D-0048, 2026-07-18): `src/core/reasoning.ts` (Z1)
   — `assessDepth(text)` decides when a turn warrants the `deep_reasoning` role:
   transparent deterministic signals, NOT a model call (explicit asks always

@@ -97,9 +97,12 @@ export class GatewayRouter {
       let streamedAnything = false;
 
       try {
+        // legacy "adaptive" alias normalizes to neutral "on" (config load also
+        // normalizes; this is defense in depth for programmatic configs)
+        const thinking = target.thinking === "adaptive" ? "on" : target.thinking;
         const targetOpts = {
           ...(target.effort ? { effort: target.effort } : {}),
-          ...(target.thinking ? { thinking: target.thinking } : {}),
+          ...(thinking ? { thinking } : {}),
         };
         for await (const event of adapter.chatStream(req, target.model, signal, targetOpts)) {
           if (event.type === "text_delta") {
@@ -227,7 +230,9 @@ export class GatewayRouter {
         role,
         targets.map(
           (t) =>
-            `${t.provider}/${t.model}${t.effort ? `@${t.effort}` : ""}${t.thinking ? "+thinking" : ""}`,
+            `${t.provider}/${t.model}${t.effort ? `@${t.effort}` : ""}${
+              t.thinking === "off" ? "+nothink" : t.thinking ? "+thinking" : ""
+            }`,
         ),
       ]),
     );

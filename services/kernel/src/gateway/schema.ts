@@ -96,22 +96,36 @@ export interface ChatResult {
   fallbackFrom?: string[];
 }
 
+/**
+ * NEUTRAL generation settings (D-0049) — J.A.R.V.I.S.'s OWN vocabulary, never a
+ * provider's. Each adapter translates to its wire dialect (verified 2026-07-18):
+ *   effort   → Anthropic `output_config.effort` (same ladder) · OpenAI-compat
+ *              `reasoning_effort` (modern OpenAI uses the same tokens) · Ollama
+ *              `think` level (low/medium, high-ceiling above that)
+ *   thinking → Anthropic `thinking {adaptive|disabled}` · OpenAI-compat implied
+ *              by `reasoning_effort` · Ollama `think true|false|level`
+ * The user configures ONE vocabulary; provider terminology stays in adapters.
+ */
+export const EffortLevels = ["low", "medium", "high", "xhigh", "max"] as const;
+export type EffortLevel = (typeof EffortLevels)[number];
+
 /** Runtime validation for role config files. */
 export const RoleTargetSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
-  /** Reasoning-effort dial (Anthropic `output_config.effort`; providers/models
-   *  without the knob ignore it). */
-  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
-  /** Extended thinking. Only the adaptive shape exists on current Anthropic
-   *  models — the old `budget_tokens` shape is HTTP-400 there (verified
-   *  2026-07-18), so it is deliberately not expressible here. */
-  thinking: z.literal("adaptive").optional(),
+  /** neutral reasoning-effort dial; adapters translate (see above) */
+  effort: z.enum(EffortLevels).optional(),
+  /** neutral extended-thinking switch; "adaptive" is a legacy alias of "on" */
+  thinking: z.enum(["on", "off", "adaptive"]).optional(),
 });
 export type RoleTarget = z.infer<typeof RoleTargetSchema>;
 
-/** Per-target generation hints the router forwards to the chosen adapter. */
-export type TargetOptions = Pick<RoleTarget, "effort" | "thinking">;
+/** Per-target generation hints the router forwards to the chosen adapter
+ *  (normalized: the legacy "adaptive" alias never reaches an adapter). */
+export interface TargetOptions {
+  effort?: EffortLevel;
+  thinking?: "on" | "off";
+}
 
 export const GatewayConfigSchema = z.object({
   providers: z.record(

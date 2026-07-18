@@ -1,13 +1,28 @@
 import type { ProviderAdapter } from "../provider.js";
 import { ProviderError } from "../provider.js";
-import type { ChatEvent, ChatRequest, NeutralMessage } from "../schema.js";
+import type { ChatEvent, ChatRequest, NeutralMessage, TargetOptions } from "../schema.js";
 
 /**
  * OpenAI-compatible chat-completions adapter (R-MODEL-02). Covers OpenAI itself
  * plus the many local runtimes speaking this dialect (llama.cpp server, vLLM,
- * LM-Studio-style endpoints). `local` comes from config: a llama.cpp server on
- * 127.0.0.1 is local; api.openai.com is not.
+ * LM-Studio-style endpoints) and hosted aggregators (OpenRouter, xAI/Grok) via
+ * `baseUrl`. `local` comes from config: a llama.cpp server on 127.0.0.1 is
+ * local; api.openai.com is not.
+ *
+ * Neutral→OpenAI reasoning translation (D-0049, verified 2026-07-18): our
+ * effort ladder passes through verbatim as `reasoning_effort` — the modern
+ * OpenAI ladder uses the same tokens (low/medium/high/xhigh/max; older models
+ * accept a subset and reject the rest VISIBLY, which is a per-target config
+ * fix). `thinking: "on"` without an effort applies OpenAI's classic default
+ * ("medium"); `thinking: "off"` suppresses the reasoning knob entirely. When
+ * reasoning is requested, sampling params are dropped (reasoning models reject
+ * them). Targets that set neither field get the exact pre-D-0049 body.
  */
+function reasoningEffort(target: TargetOptions | undefined): string | undefined {
+  if (!target) return undefined;
+  if (target.thinking === "off") return undefined;
+  return target.effort ?? (target.thinking === "on" ? "medium" : undefined);
+}
 
 function toOpenAiMessages(messages: NeutralMessage[]) {
   return messages.map((m) => {
@@ -73,14 +88,21 @@ export function createOpenAiCompatAdapter(opts: {
     kind: "openai_compat",
     local: opts.local,
 
-    async *chatStream(req: ChatRequest, model: string, signal?: AbortSignal): AsyncGenerator<ChatEvent> {
+    async *chatStream(
+      req: ChatRequest,
+      model: string,
+      signal?: AbortSignal,
+      target?: TargetOptions,
+    ): AsyncGenerator<ChatEvent> {
+      const effort = reasoningEffort(target);
       const body = {
         model,
         messages: toOpenAiMessages(req.messages),
         stream: true,
         stream_options: { include_usage: true },
+        ...(effort ? { reasoning_effort: effort } : {}),
         ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
-        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+        ...(req.temperature !== undefined && !effort ? { temperature: req.temperature } : {}),
         ...(req.tools?.length
           ? {
               tools: req.tools.map((t) => ({

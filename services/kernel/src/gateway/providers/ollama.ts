@@ -1,6 +1,23 @@
 import type { ProviderAdapter } from "../provider.js";
 import { ProviderError } from "../provider.js";
-import type { ChatEvent, ChatRequest, NeutralMessage, ToolCall } from "../schema.js";
+import type { ChatEvent, ChatRequest, NeutralMessage, TargetOptions, ToolCall } from "../schema.js";
+
+/**
+ * Neutral→Ollama thinking translation (D-0049, verified 2026-07-18): Ollama's
+ * `think` takes booleans or levels (low/medium/high/max); gpt-oss — the default
+ * local deep_reasoning model — accepts ONLY low/medium/high and ignores
+ * booleans, so effort maps with a "high" ceiling. Only sent when the target
+ * explicitly opts in: Ollama hard-errors on models without thinking support,
+ * so there is deliberately no global default here. The reasoning trace streams
+ * as `message.thinking`, which we deliberately do not surface (never shown as
+ * answer text); `message.content` remains the sole answer channel.
+ */
+function thinkField(target: TargetOptions | undefined): boolean | string | undefined {
+  if (target?.thinking === "off") return false;
+  if (target?.thinking !== "on") return undefined;
+  if (!target.effort) return true;
+  return target.effort === "low" ? "low" : target.effort === "medium" ? "medium" : "high";
+}
 
 interface OllamaMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -49,11 +66,18 @@ export function createOllamaAdapter(opts: {
     kind: "ollama",
     local: opts.local,
 
-    async *chatStream(req: ChatRequest, model: string, signal?: AbortSignal): AsyncGenerator<ChatEvent> {
+    async *chatStream(
+      req: ChatRequest,
+      model: string,
+      signal?: AbortSignal,
+      target?: TargetOptions,
+    ): AsyncGenerator<ChatEvent> {
+      const think = thinkField(target);
       const body = {
         model,
         messages: toOllamaMessages(req.messages),
         stream: true,
+        ...(think !== undefined ? { think } : {}),
         ...(req.tools?.length
           ? {
               tools: req.tools.map((t) => ({
@@ -111,6 +135,8 @@ export function createOllamaAdapter(opts: {
           const chunk = JSON.parse(line) as {
             message?: {
               content?: string;
+              /** reasoning trace when think is on — deliberately NOT surfaced */
+              thinking?: string;
               tool_calls?: { function: { name: string; arguments: unknown } }[];
             };
             done?: boolean;

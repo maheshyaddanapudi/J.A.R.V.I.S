@@ -188,7 +188,8 @@ describe("GatewayRouter policy", () => {
       },
     });
     await router.chat(req({ role: "deep_reasoning", privacyClass: "STANDARD" }));
-    expect(seen).toEqual({ effort: "xhigh", thinking: "adaptive" });
+    // the legacy "adaptive" alias in raw config normalizes to neutral "on"
+    expect(seen).toEqual({ effort: "xhigh", thinking: "on" });
     expect(router.roleTable().deep_reasoning).toEqual(["remoteB/remote-model@xhigh+thinking"]);
   });
 

@@ -71,7 +71,7 @@ describe("anthropic adapter wire format", () => {
     await drain(
       adapter().chatStream(req({ temperature: 0.7 }), "claude-sonnet-5", undefined, {
         effort: "xhigh",
-        thinking: "adaptive",
+        thinking: "on",
       }),
     );
     const body = bodies[0]!;
@@ -86,7 +86,7 @@ describe("anthropic adapter wire format", () => {
   it("explicitly disables thinking when tools are present (sonnet-5)", async () => {
     await drain(
       adapter().chatStream(req({ tools: [TOOL] }), "claude-sonnet-5", undefined, {
-        thinking: "adaptive",
+        thinking: "on",
       }),
     );
     expect(bodies[0]!.thinking).toEqual({ type: "disabled" });
@@ -101,7 +101,7 @@ describe("anthropic adapter wire format", () => {
     await drain(
       adapter().chatStream(req({ temperature: 0.4 }), "claude-haiku-4-5-20251001", undefined, {
         effort: "xhigh",
-        thinking: "adaptive",
+        thinking: "on",
       }),
     );
     const body = bodies[0]!;

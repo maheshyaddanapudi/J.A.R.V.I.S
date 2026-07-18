@@ -137,6 +137,16 @@ make dev                # Postgres + migrations + kernel (:4150) + Command Cente
 - Kernel health: <http://127.0.0.1:4150/health> (real measured DB + migration state)
 - Command Center: <http://127.0.0.1:4160>
 
+**Model settings are provider-agnostic.** Roles route to `(provider, model)`
+targets in the gateway config; each target may set a neutral `effort`
+(`low…max`) and `thinking` (`on|off`) that the adapters translate into each
+provider's dialect (Anthropic, OpenAI-compatible incl. OpenRouter/Grok, Ollama)
+— you never write provider terminology. Global env controls:
+`JARVIS_EFFORT`, `JARVIS_THINKING`, and
+`JARVIS_ROLE_<ROLE>=provider/model[@effort][+thinking]` (e.g.
+`JARVIS_ROLE_DEEP_REASONING=ollama/gpt-oss:120b@high+thinking`). The resolved
+routing is always inspectable at `/gateway/roles` and in the `/models` panel.
+
 **On the Mac**, follow [`docs/MAC_BRINGUP.md`](docs/MAC_BRINGUP.md) for the speech
 service, the live-audio Swift companion, the packaged app, and the check-in sequence
 that activates the Mac-gated capabilities in order.
