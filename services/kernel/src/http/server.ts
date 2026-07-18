@@ -74,6 +74,8 @@ export function createServer(opts: {
       reasoningTuner: opts.core.reasoningTuner,
       sleepCycle: opts.core.sleepCycle,
       settings: opts.core.settings,
+      durableGrants: opts.core.durableGrants,
+      autonomy: opts.core.autonomy,
     });
     registerMemoryRoutes(app, opts.core.memory, opts.core.entityMemory, opts.core.episodicMemory);
   }

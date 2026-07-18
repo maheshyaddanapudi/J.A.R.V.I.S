@@ -54,6 +54,8 @@ import { DecisionLog, SleepCycle } from "./consolidation.js";
 import { SettingsRegistry } from "../settings/registry.js";
 import { SETTINGS_CATALOG } from "../settings/catalog.js";
 import { settingsTools } from "../settings/tools.js";
+import { DurableGrants } from "./grants.js";
+import { BackgroundScheduler } from "../autonomy/scheduler.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
 import { gatewayTools, reasoningTools } from "../gateway/tools.js";
 
@@ -72,6 +74,8 @@ export interface Core {
   reasoningTuner: ReasoningTuner;
   sleepCycle: SleepCycle;
   settings: SettingsRegistry;
+  durableGrants: DurableGrants;
+  autonomy: BackgroundScheduler;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
@@ -255,6 +259,8 @@ export async function buildCore(opts: {
     }
   } catch { /* overrides are an overlay — the config base always works */ }
 
+  // Durable consent (D-0059): "always-allow-in-scope" grants persist + reload.
+  const durableGrants = new DurableGrants(opts.pool, audit);
   // Decision journal + sleep-cycle consolidation (D-0051): J.A.R.V.I.S. learns
   // from its own routing record; bounded knobs only, user override wins.
   const decisions = new DecisionLog(opts.pool);
@@ -278,8 +284,14 @@ export async function buildCore(opts: {
     episodes: episodicMemory,
     reasoningTuner,
     decisions,
+    durableGrants,
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
+  // Hydrate standing consent so durable grants survive restart (D-0059).
+  try {
+    const n = await loop.loadDurableGrants();
+    if (n) console.log(`durable grants restored: ${n}`);
+  } catch { /* best-effort — the config base always works */ }
 
   // Agent runtime (jarvis-mind) — multi-step plan-and-act over the gated loop.
   const agent = new LocalAgentRuntime({ gateway: opts.gateway, loop, tools, audit, activity, estop });
@@ -295,6 +307,13 @@ export async function buildCore(opts: {
   // still pass the gate stack; the engine surfaces suggestions only, never acts.
   const proactiveRules = new ProactiveRules(opts.pool, audit);
   const proactive = new ProactivityEngine(opts.pool, audit, activity, undefined, proactiveRules, settings);
+
+  // Background autonomy (D-0024, approved): bounded scheduler for the two safe
+  // cycles (proactivity + sleep-cycle). Config is persisted D-0058 settings,
+  // default OFF; the scheduler reconciles its timer whenever they change.
+  const autonomy = new BackgroundScheduler({ settings, proactive, sleepCycle, estop, audit, activity });
+  settings.onChange((key) => { if (key.startsWith("autonomy.")) void autonomy.reconcile(); });
+  void autonomy.reconcile();
 
   // Managed integration-credential store (R-MEM-06). Only available when a vault
   // is present — secrets are never stored in the clear. Adapters (gateway, HA,
@@ -316,7 +335,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings,
+    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy,
     ...(secrets ? { secrets } : {}),
     loop,
   };

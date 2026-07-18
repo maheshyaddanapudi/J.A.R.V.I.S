@@ -49,8 +49,19 @@ export class CoreLoop {
       reasoningTuner?: ReasoningTuner;
       /** decision journal (D-0051): categorical record for the sleep cycle */
       decisions?: import("./consolidation.js").DecisionLog;
+      /** durable consent store (D-0059): "always-allow-in-scope" persists */
+      durableGrants?: import("./grants.js").DurableGrants;
     },
   ) {}
+
+  /** Hydrate standing consent at startup so durable grants survive restart. */
+  async loadDurableGrants(): Promise<number> {
+    if (!this.deps.durableGrants) return 0;
+    const grants = await this.deps.durableGrants.load();
+    // keep any in-memory session grants; prepend the durable ones
+    this.sessionGrants = [...grants, ...this.sessionGrants];
+    return grants.length;
+  }
 
   /**
    * Run a tool request end to end. Returns the outcome; streams activity events
@@ -387,6 +398,13 @@ export class CoreLoop {
         riskCeiling: "CONSEQUENTIAL",
         kind: resolution,
       });
+      // "always-allow-in-scope" is DURABLE consent — persist it so it survives a
+      // restart (D-0059). "allow-for-session" stays in-memory (a session ends).
+      if (resolution === "always-allow-in-scope" && this.deps.durableGrants) {
+        void this.deps.durableGrants
+          .remember(tool.name, scope, "CONSEQUENTIAL")
+          .catch(() => {/* persistence is best-effort; the in-memory grant still holds this session */});
+      }
     }
   }
 

@@ -83,4 +83,41 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     default: () => DEFAULT_GATES.minPriority,
     description: "Proactive items below this priority are suppressed.",
   },
+
+  // ---- Background autonomy (D-0024, approved; default OFF — one toggle on) ----
+  {
+    key: "autonomy.enabled",
+    label: "Background autonomy",
+    category: "Autonomy",
+    type: "boolean",
+    default: () => false,
+    description: "Let J.A.R.V.I.S. run its safe cycles on a schedule (proactivity + sleep-cycle). Still never acts consequentially without approval; e-stop halts it.",
+  },
+  {
+    key: "autonomy.intervalMinutes",
+    label: "Autonomy interval (minutes)",
+    category: "Autonomy",
+    type: "number",
+    min: 1,
+    max: 1440,
+    step: 5,
+    default: () => 30,
+    description: "How often the background cycles run.",
+  },
+  {
+    key: "autonomy.runProactive",
+    label: "Autonomy: run proactivity",
+    category: "Autonomy",
+    type: "boolean",
+    default: () => true,
+    description: "Compute + surface proactive suggestions on each tick (suggestion-only).",
+  },
+  {
+    key: "autonomy.runSleepCycle",
+    label: "Autonomy: run sleep-cycle",
+    category: "Autonomy",
+    type: "boolean",
+    default: () => true,
+    description: "Run bounded self-calibration + proposals on each tick.",
+  },
 ];

@@ -83,12 +83,24 @@ function validate(spec: SettingSpec, raw: unknown): SettingValue {
 export class SettingsRegistry {
   private readonly specs = new Map<string, SettingSpec>();
 
+  /** notified after any set/reset so live consumers (e.g. the autonomy
+   *  scheduler) can reconcile — set via onChange() */
+  private changeListener?: (key: string) => void;
+
   constructor(
     private readonly pool: pg.Pool,
     private readonly audit: AuditLog,
     catalog: SettingSpec[],
   ) {
     for (const s of catalog) this.specs.set(s.key, s);
+  }
+
+  /** Register a listener called (best-effort) after a setting changes. */
+  onChange(fn: (key: string) => void): void {
+    this.changeListener = fn;
+  }
+  private notify(key: string): void {
+    try { this.changeListener?.(key); } catch { /* listener is best-effort */ }
   }
 
   has(key: string): boolean {
@@ -177,6 +189,7 @@ export class SettingsRegistry {
       event: "setting_set",
       payload: { key, source, reason },
     });
+    this.notify(key);
     return (await this.effective()).find((e) => e.key === key)!;
   }
 
@@ -185,6 +198,7 @@ export class SettingsRegistry {
     if (!this.specs.has(key)) throw new Error(`unknown setting '${key}'`);
     await this.pool.query(`DELETE FROM runtime_settings WHERE key = $1`, [key]);
     await this.audit.append({ actor: "user", event: "setting_reset", payload: { key } });
+    this.notify(key);
     return (await this.effective()).find((e) => e.key === key)!;
   }
 }

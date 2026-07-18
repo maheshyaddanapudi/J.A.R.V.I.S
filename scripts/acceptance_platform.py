@@ -518,6 +518,28 @@ def main() -> int:
     except Exception as e:
         record("P-SLEEP-01", "sleep-cycle consolidation", "FAIL", str(e))
 
+    # ---- Background autonomy (D-0024) safety envelope + durable consent (D-0059) ----
+    try:
+        st0 = get("/autonomy/status")
+        default_off = st0.get("enabled") is False
+        disabled_tick = httpx.post(f"{K}/autonomy/tick", timeout=30.0).json().get("skipped") == "disabled"
+        httpx.put(f"{K}/settings/autonomy.enabled", json={"value": True, "reason": "accept"}, timeout=10.0)
+        enabled_status = get("/autonomy/status")
+        timer_on = enabled_status.get("running") is True
+        ran = "skipped" not in httpx.post(f"{K}/autonomy/tick", timeout=60.0).json()
+        # e-stop halts a tick
+        httpx.post(f"{K}/core/estop/engage", json={"via": "accept"}, timeout=10.0)
+        halted = httpx.post(f"{K}/autonomy/tick", timeout=30.0).json().get("skipped") == "emergency-stop"
+        httpx.post(f"{K}/core/estop/resume", json={"via": "accept"}, timeout=10.0)
+        httpx.delete(f"{K}/settings/autonomy.enabled", timeout=10.0)
+        off_again = get("/autonomy/status").get("running") is False
+        ok = default_off and disabled_tick and timer_on and ran and halted and off_again
+        record("P-AUTONOMY-01", "background autonomy: default-off, enable→runs, e-stop halts, disable→stops",
+               "PASS" if ok else "FAIL",
+               f"default-off:{default_off} disabled-noop:{disabled_tick} timer-on:{timer_on} ran:{ran} estop-halts:{halted} off:{off_again}")
+    except Exception as e:
+        record("P-AUTONOMY-01", "background autonomy", "FAIL", str(e))
+
     # ---- Runtime role overrides (D-0054): live re-route, ledger, persistence ----
     try:
         roles_before = get("/gateway/roles")["roles"]

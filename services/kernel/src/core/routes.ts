@@ -46,8 +46,27 @@ export function registerCoreRoutes(
     reasoningTuner?: import("./reasoning.js").ReasoningTuner;
     sleepCycle?: import("./consolidation.js").SleepCycle;
     settings?: import("../settings/registry.js").SettingsRegistry;
+    durableGrants?: import("./grants.js").DurableGrants;
+    autonomy?: import("../autonomy/scheduler.js").BackgroundScheduler;
   },
 ): void {
+  // Background autonomy (D-0024): observe status + trigger a tick on demand.
+  // Enabling/interval is via /settings (autonomy.*); this only reports + runs.
+  if (deps.autonomy) {
+    const autonomy = deps.autonomy;
+    app.get("/autonomy/status", async () => await autonomy.status());
+    app.post("/autonomy/tick", async () => await autonomy.tick());
+  }
+  // Standing consent (D-0059): "always-allow-in-scope" grants are durable and
+  // therefore always visible + revocable (a persisted consent must be auditable).
+  if (deps.durableGrants) {
+    const grants = deps.durableGrants;
+    app.get("/core/grants", async () => ({ grants: await grants.list() }));
+    app.delete("/core/grants/:id", async (req) => {
+      const id = (req.params as { id: string }).id;
+      return { revoked: await grants.revoke(id) };
+    });
+  }
   // Runtime settings (D-0058): edit any catalogued knob live. Effective value =
   // persisted override ?? current default. GET the catalog, PUT to set (user),
   // DELETE to reset to default. The catalog is the allowlist — Z1 core excluded.
