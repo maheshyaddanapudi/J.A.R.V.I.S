@@ -280,6 +280,14 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `deep_reasoning` is pure gateway config. Only the model ROLE changes — never
   privacy class, policy gates, or approvals. 8 tests; live role-switch visible
   in `/gateway/calls` served by a LOCAL model; chat badge UI 6/6; `P-REASON-01`.
+- Brain-graph vector index ✅ (D-0057, 2026-07-18): migration
+  `0016_embeddings_hnsw.sql` adds the pgvector **HNSW** ANN index over
+  `memory_embeddings` (`vector_cosine_ops`, matches the `<=>` search operator).
+  Found during scale profiling: `SemanticMemory.search` was a Seq Scan (linear;
+  ~14.6 ms at 2.6 k vectors), now an Index Scan (~1.6 ms, ~logarithmic, 100%
+  recall@8 on realistic dense vectors). Traversal (recursive CTE) was already
+  index-backed (`from_idx`/`to_idx`, 1.2 ms at depth 3, bounded 100 nodes) — no
+  change. `hnsw.ef_search` (default 40) tunes recall/speed for very large brains.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
