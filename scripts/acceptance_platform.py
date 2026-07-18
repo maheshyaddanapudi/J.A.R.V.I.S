@@ -437,6 +437,38 @@ def main() -> int:
     except Exception as e:
         record("P-MODELS-01", "gateway observability", "FAIL", str(e))
 
+    # ---- Deep-reasoning escalation (D-0048): role switch, explained, overridable ----
+    def converse_decision(text: str, reasoning: str = "auto") -> dict:
+        # /core/converse streams SSE; the FIRST data event is the routing decision
+        raw = httpx.post(f"{K}/core/converse",
+                         json={"text": text, "source": "accept", "reasoning": reasoning},
+                         timeout=60.0).text
+        for line in raw.splitlines():
+            if line.startswith("data:"):
+                evt = json.loads(line[5:].strip())
+                if evt.get("type") == "reasoning":
+                    return evt
+        return {}
+    try:
+        deep_eligible = bool(get("/gateway/roles").get("roles", {}).get("deep_reasoning"))
+        routine = converse_decision("Good evening, anything on the schedule?")
+        deep = converse_decision("Think deeply: analyze the tradeoffs between the two designs.")
+        forced = converse_decision("Think deeply and analyze everything", reasoning="fast")
+        routine_ok = routine.get("mode") == "fast"
+        # with an eligible deep_reasoning provider the deep turn must escalate;
+        # without one it must DOWNGRADE HONESTLY (fast + an explanation), never error
+        deep_ok = (deep.get("mode") == "deep" and deep.get("role") == "deep_reasoning") \
+            if deep_eligible else (deep.get("mode") == "fast" and "no eligible" in deep.get("why", ""))
+        forced_ok = forced.get("mode") == "fast" and forced.get("why") == "explicitly requested"
+        explained = all(e.get("why") for e in (routine, deep, forced))
+        ok = routine_ok and deep_ok and forced_ok and explained
+        record("P-REASON-01", "deep-reasoning escalation: auto role switch + why + user override",
+               "PASS" if ok else "FAIL",
+               f"routine=fast:{routine_ok} deep={'escalated' if deep_eligible else 'honest-downgrade'}:{deep_ok} "
+               f"override:{forced_ok} explained:{explained} (provider-agnostic: role routing is config)")
+    except Exception as e:
+        record("P-REASON-01", "deep-reasoning escalation", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:

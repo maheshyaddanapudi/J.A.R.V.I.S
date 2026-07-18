@@ -198,6 +198,13 @@ never decoration (R-UI-03, R-CORE-02).
   the 2-hop node, node-click re-walked, meaning-query showed its mode + bundle,
   no console errors. NOTE: scope SVG assertions to
   `getByRole('img',{name:'knowledge graph'})` — Next dev tools injects its own svg.
+- **Chat reasoning controls** (`app/chat/page.tsx`, 2026-07-18, D-0048): the
+  converse SSE now starts with a `{type:"reasoning", mode, why, role}` event —
+  each J.A.R.V.I.S. answer carries a badge (`◆ deep reasoning · <why>` amber /
+  `fast · <why>` dim) and a `reasoning: auto|deep|fast` selector rides next to
+  the input (auto = J.A.R.V.I.S. decides per turn). **Verified live via headless
+  Chromium (6/6)** — routine→fast badge, "think deeply"→deep badge, forced-fast→
+  "explicitly requested"; screenshot `docs/screenshots/chat-reasoning.png`.
 - **Models panel** at `/models` (`app/models/page.tsx`, 2026-07-18, D-0047): SEE
   the model-gateway routing brain — live provider reachability (`/gateway/status`,
   real pings, LOCAL vs REMOTE), the role routing table (`/gateway/roles`, order =

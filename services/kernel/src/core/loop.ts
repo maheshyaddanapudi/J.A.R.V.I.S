@@ -6,6 +6,7 @@ import type { AuditLog } from "./audit.js";
 import type { EmergencyStop } from "./estop.js";
 import type { Grant, PolicyEngine, RiskClass } from "./policy.js";
 import type { ToolContext, ToolRegistry } from "./tools.js";
+import { assessDepth, type DepthAssessment, type ReasoningMode } from "./reasoning.js";
 import type { MemoryService } from "../memory/memory.js";
 import type { EpisodicMemory } from "../memory/episodes.js";
 import type { ContextService } from "../context/service.js";
@@ -232,9 +233,47 @@ export class CoreLoop {
     privacyClass?: "LOCAL_ONLY" | "STANDARD";
     /** optional preface (persona/system); persisted separately, not to memory */
     system?: string;
+    /** deep-reasoning escalation (D-0048): "auto" assesses the turn; explicit
+     *  "deep"/"fast" always wins. Only the model ROLE changes — never gates. */
+    reasoning?: "auto" | "deep" | "fast";
+    /** called once with the routing decision before any token streams */
+    onDecision?: (d: { mode: ReasoningMode; why: string; role: string }) => void;
   }): AsyncGenerator<string> {
     this.deps.estop.assertClear();
     const now = () => new Date().toISOString();
+
+    // Decide which brain answers (D-0048). Provider-agnostic: the roles map to
+    // whatever the gateway config routes them to (local or remote).
+    const requested = input.reasoning ?? "auto";
+    let decision: DepthAssessment =
+      requested === "auto"
+        ? assessDepth(input.text)
+        : { mode: requested, why: "explicitly requested" };
+    const privacy = input.privacyClass ?? "LOCAL_ONLY";
+    let role: "fast_conversation" | "deep_reasoning" =
+      decision.mode === "deep" ? "deep_reasoning" : "fast_conversation";
+    if (role === "deep_reasoning") {
+      // Honest downgrade, never a hard failure: if no provider is eligible for
+      // deep_reasoning under the current privacy/offline constraints, say so
+      // and answer with the fast role rather than erroring the conversation.
+      try {
+        if (this.deps.gateway.eligibleTargets("deep_reasoning", privacy).length === 0) {
+          decision = { mode: "fast", why: `${decision.why} — but no eligible deep_reasoning provider (privacy/offline), answering fast` };
+          role = "fast_conversation";
+        }
+      } catch {
+        decision = { mode: "fast", why: `${decision.why} — but deep_reasoning is unconfigured, answering fast` };
+        role = "fast_conversation";
+      }
+    }
+    input.onDecision?.({ mode: decision.mode, why: decision.why, role });
+    if (decision.mode === "deep" || requested !== "auto") {
+      this.deps.activity.emit({
+        kind: "decision",
+        summary: `reasoning: ${decision.mode} (${decision.why})`,
+        at: now(),
+      });
+    }
 
     const messages: NeutralMessage[] = [];
     if (input.system) messages.push({ role: "system", content: input.system });
@@ -261,9 +300,9 @@ export class CoreLoop {
     if (input.sessionId) await this.deps.memory.addTurn(input.sessionId, "user", input.text);
 
     const gen = this.deps.gateway.chatStream({
-      role: "fast_conversation",
+      role,
       messages,
-      privacyClass: input.privacyClass ?? "LOCAL_ONLY",
+      privacyClass: privacy,
       source: input.source,
     });
     let answer = "";
@@ -279,7 +318,7 @@ export class CoreLoop {
       if (step.done) {
         this.deps.activity.emit({
           kind: "model",
-          role: "fast_conversation",
+          role,
           provider: step.value.provider,
           model: step.value.model,
           at: now(),

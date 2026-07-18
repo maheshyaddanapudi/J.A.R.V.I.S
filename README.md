@@ -23,7 +23,7 @@ The **container-buildable platform is complete and continuously verifiable.** Th
 whole-stack acceptance harness (`scripts/acceptance_platform.py`) reports:
 
 ```
-27 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL
+28 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL
 ```
 
 The four **NEEDS-MAC** rows are the capabilities whose only remaining piece is the

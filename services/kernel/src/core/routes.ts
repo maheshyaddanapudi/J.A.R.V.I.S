@@ -413,6 +413,8 @@ export function registerCoreRoutes(
     source: z.string().default("api"),
     sessionId: z.string().uuid().optional(),
     privacyClass: z.enum(["LOCAL_ONLY", "STANDARD"]).default("LOCAL_ONLY"),
+    /** deep-reasoning escalation (D-0048): auto = J.A.R.V.I.S. assesses the turn */
+    reasoning: z.enum(["auto", "deep", "fast"]).default("auto"),
   });
   // Restrained British-butler persona (D-0004) — the DEFAULT/fallback. The active
   // persona is now user-editable via the prompts registry (R-CAP-01, D-0043); the
@@ -482,6 +484,11 @@ export function registerCoreRoutes(
         source: body.source,
         system: persona,
         privacyClass: body.privacyClass,
+        reasoning: body.reasoning,
+        // the routing decision streams FIRST so the UI can show which brain
+        // is answering (and why) before tokens arrive
+        onDecision: (d) =>
+          reply.raw.write(`data: ${JSON.stringify({ type: "reasoning", ...d })}\n\n`),
         ...(body.sessionId ? { sessionId: body.sessionId } : {}),
       })) {
         reply.raw.write(`data: ${JSON.stringify({ type: "token", text: token })}\n\n`);

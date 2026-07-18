@@ -9,6 +9,8 @@ interface Turn {
   text: string;
   interrupted?: boolean;
   error?: boolean;
+  /** deep-reasoning escalation decision for this answer (D-0048) */
+  reasoning?: { mode: "deep" | "fast"; why: string; role: string };
 }
 
 /**
@@ -23,6 +25,7 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string>("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
+  const [reasoning, setReasoning] = useState<"auto" | "deep" | "fast">("auto");
   const [busy, setBusy] = useState(false);
   const [estop, setEstop] = useState(false);
   const [contextText, setContextText] = useState<string>("");
@@ -74,7 +77,7 @@ export default function ChatPage() {
       const res = await fetch(`${KERNEL_URL}/core/converse`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, source: "command-center", sessionId }),
+        body: JSON.stringify({ text, source: "command-center", sessionId, reasoning }),
         signal: ctrl.signal,
       });
       if (!res.ok || !res.body) throw new Error(`kernel HTTP ${res.status}`);
@@ -166,6 +169,14 @@ export default function ChatPage() {
           <div key={i} style={{ marginBottom: "0.7rem" }}>
             <div style={{ color: t.role === "user" ? "var(--focal)" : "var(--operational)", fontSize: "0.72rem", letterSpacing: "0.1em" }}>
               {t.role === "user" ? "YOU" : "J.A.R.V.I.S."}
+              {t.reasoning && (
+                <span
+                  title={t.reasoning.why}
+                  style={{ marginLeft: "0.6rem", border: `1px solid ${t.reasoning.mode === "deep" ? "var(--advisory)" : "var(--line)"}`, color: t.reasoning.mode === "deep" ? "var(--advisory)" : "var(--dim)", padding: "0 0.4rem", letterSpacing: 0 }}
+                >
+                  {t.reasoning.mode === "deep" ? "◆ deep reasoning" : "fast"} · {t.reasoning.why}
+                </span>
+              )}
             </div>
             <div style={{ color: t.error ? "var(--critical)" : "var(--focal)", whiteSpace: "pre-wrap" }}>
               {t.text || (busy && t.role === "assistant" ? "…" : "")}
@@ -175,6 +186,16 @@ export default function ChatPage() {
       </div>
 
       <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
+        <select
+          value={reasoning}
+          onChange={(e) => setReasoning(e.target.value as "auto" | "deep" | "fast")}
+          title="deep-reasoning escalation: auto lets J.A.R.V.I.S. decide per turn"
+          style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--focal)", fontFamily: "var(--mono)", fontSize: "0.75rem", padding: "0 0.4rem" }}
+        >
+          <option value="auto">reasoning: auto</option>
+          <option value="deep">reasoning: deep</option>
+          <option value="fast">reasoning: fast</option>
+        </select>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -223,9 +244,21 @@ function applyFrame(frame: string, setTurns: React.Dispatch<React.SetStateAction
   }
   if (!dataLine) return;
   try {
-    const payload = JSON.parse(dataLine) as { type?: string; text?: string };
+    const payload = JSON.parse(dataLine) as {
+      type?: string;
+      text?: string;
+      mode?: "deep" | "fast";
+      why?: string;
+      role?: string;
+    };
     if (payload.type === "token" && payload.text) {
       setTurns((t) => appendToLastAssistant(t, payload.text!));
+    } else if (payload.type === "reasoning" && payload.mode) {
+      setTurns((t) =>
+        appendToLastAssistant(t, "", {
+          reasoning: { mode: payload.mode!, why: payload.why ?? "", role: payload.role ?? "" },
+        }),
+      );
     }
   } catch {
     /* ignore non-JSON keepalives */

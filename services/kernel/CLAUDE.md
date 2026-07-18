@@ -201,6 +201,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   the `model_calls` audit tail (R-MODEL-03; routing outcomes only, never message
   content) — feeds the Command Center `/models` panel (provider reachability,
   role routing, honest failure rows). Harness `P-MODELS-01`.
+- Deep-reasoning escalation ✅ (D-0048, 2026-07-18): `src/core/reasoning.ts` (Z1)
+  — `assessDepth(text)` decides when a turn warrants the `deep_reasoning` role:
+  transparent deterministic signals, NOT a model call (explicit asks always
+  escalate; otherwise two of: analytical task / ≥3 questions / >700-char brief /
+  multi-part-or-code). `runConversation` gains `reasoning: auto|deep|fast`
+  (explicit wins) + `onDecision` (streamed as the FIRST `/core/converse` SSE
+  event `{type:"reasoning", mode, why, role}`); `decision` activity event;
+  honest downgrade to fast (with reason) when no deep provider is eligible
+  under privacy/offline — never an error. Provider-agnostic: what serves
+  `deep_reasoning` is pure gateway config. Only the model ROLE changes — never
+  privacy class, policy gates, or approvals. 8 tests; live role-switch visible
+  in `/gateway/calls` served by a LOCAL model; chat badge UI 6/6; `P-REASON-01`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
