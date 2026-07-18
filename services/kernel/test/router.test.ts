@@ -57,7 +57,7 @@ function req(overrides: Partial<ChatRequest> = {}): ChatRequest {
 // Access the private adapters map to install stubs (test-only).
 function stubAdapters(
   router: GatewayRouter,
-  impls: Record<string, (r: ChatRequest, model: string) => AsyncGenerator<never> | AsyncGenerator<unknown>>,
+  impls: Record<string, (...args: never[]) => AsyncGenerator<never> | AsyncGenerator<unknown>>,
 ) {
   const map = (router as unknown as { adapters: Map<string, unknown> }).adapters;
   for (const [id, chatStream] of Object.entries(impls)) {
@@ -167,6 +167,29 @@ describe("GatewayRouter policy", () => {
     await expect(
       router.chat(req({ responseSchema: { type: "object" } })),
     ).rejects.toThrow(/structured output/);
+  });
+
+  it("forwards per-target effort/thinking to the adapter and shows them in the role table", async () => {
+    const config: GatewayConfig = {
+      ...baseConfig,
+      roles: {
+        ...baseConfig.roles,
+        deep_reasoning: [
+          { provider: "remoteB", model: "remote-model", effort: "xhigh", thinking: "adaptive" },
+        ],
+      },
+    };
+    const router = new GatewayRouter(config, fakePool, false);
+    let seen: unknown;
+    stubAdapters(router, {
+      remoteB: async function* (_r: unknown, _m: unknown, _s: unknown, opts: unknown) {
+        seen = opts;
+        yield { type: "done", finishReason: "stop", usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+    });
+    await router.chat(req({ role: "deep_reasoning", privacyClass: "STANDARD" }));
+    expect(seen).toEqual({ effort: "xhigh", thinking: "adaptive" });
+    expect(router.roleTable().deep_reasoning).toEqual(["remoteB/remote-model@xhigh+thinking"]);
   });
 
   it("audits successful calls with role/provider/tokens/privacy class", async () => {

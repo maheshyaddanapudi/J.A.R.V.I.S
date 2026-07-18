@@ -100,8 +100,18 @@ export interface ChatResult {
 export const RoleTargetSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
+  /** Reasoning-effort dial (Anthropic `output_config.effort`; providers/models
+   *  without the knob ignore it). */
+  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
+  /** Extended thinking. Only the adaptive shape exists on current Anthropic
+   *  models — the old `budget_tokens` shape is HTTP-400 there (verified
+   *  2026-07-18), so it is deliberately not expressible here. */
+  thinking: z.literal("adaptive").optional(),
 });
 export type RoleTarget = z.infer<typeof RoleTargetSchema>;
+
+/** Per-target generation hints the router forwards to the chosen adapter. */
+export type TargetOptions = Pick<RoleTarget, "effort" | "thinking">;
 
 export const GatewayConfigSchema = z.object({
   providers: z.record(

@@ -1,4 +1,4 @@
-import type { ChatEvent, ChatRequest } from "./schema.js";
+import type { ChatEvent, ChatRequest, TargetOptions } from "./schema.js";
 
 /**
  * Provider adapter contract. Adapters translate the neutral schema to one wire
@@ -11,7 +11,12 @@ export interface ProviderAdapter {
   /** true = serving from this machine; false = remote egress (gated) */
   readonly local: boolean;
 
-  chatStream(req: ChatRequest, model: string, signal?: AbortSignal): AsyncGenerator<ChatEvent>;
+  chatStream(
+    req: ChatRequest,
+    model: string,
+    signal?: AbortSignal,
+    opts?: TargetOptions,
+  ): AsyncGenerator<ChatEvent>;
 
   /** optional capability — throws NotSupported when absent */
   embed?(texts: string[], model: string, signal?: AbortSignal): Promise<number[][]>;

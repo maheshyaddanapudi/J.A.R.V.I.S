@@ -1,6 +1,6 @@
 import type { ProviderAdapter } from "../provider.js";
 import { ProviderError } from "../provider.js";
-import type { ChatEvent, ChatRequest, NeutralMessage } from "../schema.js";
+import type { ChatEvent, ChatRequest, NeutralMessage, TargetOptions } from "../schema.js";
 
 /**
  * Anthropic Messages API adapter (the "one cloud adapter" of slice 1.2).
@@ -8,6 +8,39 @@ import type { ChatEvent, ChatRequest, NeutralMessage } from "../schema.js";
  * and in offline mode. API key comes from the environment at call time; it is
  * never logged, stored, or echoed (R-MEM-06).
  */
+
+/**
+ * Claude generations where (a) extended thinking is ADAPTIVE BY DEFAULT when the
+ * `thinking` field is omitted, (b) the old `thinking: {type:"enabled",
+ * budget_tokens}` shape and sampling params (temperature/top_p/top_k) are
+ * rejected with HTTP 400, and (c) `output_config.effort` is available.
+ * Verified against Anthropic docs 2026-07-18.
+ */
+const ADAPTIVE_GEN = /^claude-(sonnet-5|opus-4-[78]|fable-5|mythos-5)/;
+/** Models where thinking is always on — `{type:"disabled"}` is itself rejected. */
+const ALWAYS_THINKS = /^claude-(fable-5|mythos-5)/;
+
+/**
+ * Thinking policy. Anthropic requires tool-use turns to be replayed with their
+ * thinking blocks INTACT, and our neutral schema does not carry provider
+ * thinking blocks — so with tools in play we must explicitly disable thinking
+ * on models where it would otherwise default on (else the replayed turn 400s).
+ * Thinking is honored only for tool-free requests (converse path).
+ */
+function thinkingField(
+  model: string,
+  hasTools: boolean,
+  wanted: TargetOptions["thinking"],
+): { type: "adaptive" } | { type: "disabled" } | undefined {
+  if (hasTools) {
+    return ADAPTIVE_GEN.test(model) && !ALWAYS_THINKS.test(model)
+      ? { type: "disabled" }
+      : undefined;
+  }
+  // Pre-adaptive models (e.g. haiku-4-5) only speak the deprecated budget shape;
+  // we deliberately don't emit it — the hint is ignored there.
+  return wanted === "adaptive" && ADAPTIVE_GEN.test(model) ? { type: "adaptive" } : undefined;
+}
 
 function toAnthropicPayload(messages: NeutralMessage[]) {
   const system = messages
@@ -96,12 +129,24 @@ export function createAnthropicAdapter(opts: {
     kind: "anthropic",
     local: false,
 
-    async *chatStream(req: ChatRequest, model: string, signal?: AbortSignal): AsyncGenerator<ChatEvent> {
+    async *chatStream(
+      req: ChatRequest,
+      model: string,
+      signal?: AbortSignal,
+      target?: TargetOptions,
+    ): AsyncGenerator<ChatEvent> {
       const { system, messages } = toAnthropicPayload(req.messages);
+      const adaptiveGen = ADAPTIVE_GEN.test(model);
+      const thinking = thinkingField(model, Boolean(req.tools?.length), target?.thinking);
       const body = {
         model,
-        max_tokens: req.maxTokens ?? 4096,
-        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+        // Adaptive-generation models spend thinking tokens inside max_tokens.
+        max_tokens: req.maxTokens ?? (adaptiveGen ? 16000 : 4096),
+        // Sampling params are HTTP-400 on adaptive-generation models; the hint
+        // is dropped there rather than failing the whole call.
+        ...(req.temperature !== undefined && !adaptiveGen ? { temperature: req.temperature } : {}),
+        ...(thinking ? { thinking } : {}),
+        ...(target?.effort && adaptiveGen ? { output_config: { effort: target.effort } } : {}),
         ...(system ? { system } : {}),
         messages,
         stream: true,

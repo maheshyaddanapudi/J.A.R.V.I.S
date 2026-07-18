@@ -27,7 +27,9 @@ export const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
     ],
     deep_reasoning: [
       { provider: "ollama", model: "gpt-oss:120b" },
-      { provider: "anthropic", model: "claude-sonnet-5" },
+      // Adaptive thinking + high effort when the remote fallback is in play
+      // (tool-free requests only — see the anthropic adapter's thinking policy).
+      { provider: "anthropic", model: "claude-sonnet-5", effort: "xhigh", thinking: "adaptive" },
     ],
     embeddings: [{ provider: "ollama", model: "nomic-embed-text" }],
     local_fallback: [{ provider: "ollama", model: "qwen3.6:35b-a3b" }],

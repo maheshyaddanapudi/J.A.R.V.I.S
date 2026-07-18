@@ -183,6 +183,20 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   single-user scale; Neo4j Community is GPLv3 (rule-8 flag) + an extra daemon; a
   graph DB would slot in behind the same contract after a license check-in if scale
   ever demands. 6 tests + live 8/8 (real gateway embed path) + `P-GRAPH-01`.
+- Gateway: current Anthropic API ✅ (D-0046, 2026-07-18): `RoleTarget` config now
+  carries optional `effort` (`low…max` → `output_config.effort`) and
+  `thinking: "adaptive"` (→ `thinking: {type:"adaptive"}`); the router forwards
+  them per-target and `/gateway/roles` annotates (`…@xhigh+thinking`). The
+  Anthropic adapter is pinned to the CURRENT wire format (verified 2026-07-18):
+  **never `budget_tokens`** (HTTP-400 on Sonnet 5/Opus 4.7+), temperature
+  **dropped** on that generation (also 400), `max_tokens` defaults to 16000
+  there, and thinking is **explicitly `{type:"disabled"}` on tool-bearing
+  requests** (thinking defaults ON when omitted, and Anthropic requires tool-use
+  turns replayed with thinking blocks intact — which the neutral schema doesn't
+  carry; Fable/Mythos omit the field instead since they reject "disabled").
+  Thinking/effort therefore apply on the tool-free converse path. 5 adapter
+  wire-format tests (stubbed fetch) + router pass-through test; live role-table
+  verified. Live-API confirmation happens with the user's key test.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

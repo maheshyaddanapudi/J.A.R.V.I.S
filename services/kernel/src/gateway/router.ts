@@ -97,7 +97,11 @@ export class GatewayRouter {
       let streamedAnything = false;
 
       try {
-        for await (const event of adapter.chatStream(req, target.model, signal)) {
+        const targetOpts = {
+          ...(target.effort ? { effort: target.effort } : {}),
+          ...(target.thinking ? { thinking: target.thinking } : {}),
+        };
+        for await (const event of adapter.chatStream(req, target.model, signal, targetOpts)) {
           if (event.type === "text_delta") {
             streamedAnything = true;
             text += event.text;
@@ -221,7 +225,10 @@ export class GatewayRouter {
     return Object.fromEntries(
       Object.entries(this.config.roles).map(([role, targets]) => [
         role,
-        targets.map((t) => `${t.provider}/${t.model}`),
+        targets.map(
+          (t) =>
+            `${t.provider}/${t.model}${t.effort ? `@${t.effort}` : ""}${t.thinking ? "+thinking" : ""}`,
+        ),
       ]),
     );
   }
