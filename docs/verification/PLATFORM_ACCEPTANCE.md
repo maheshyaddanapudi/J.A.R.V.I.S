@@ -1,9 +1,9 @@
 # PLATFORM — ACCEPTANCE RESULTS (R-VER-05)
 
-**Recorded:** 2026-07-17 · **Environment:** Linux dev container (NOT the target Mac).
+**Recorded:** 2026-07-17 · **last full re-run 2026-07-18** · **Environment:** Linux dev container (NOT the target Mac).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
-**Result:** **26 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
+**Result:** **27 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**
 (against an online kernel; P-OFFLINE-01 is a live PASS when the kernel runs with
 `JARVIS_OFFLINE=1` **and a local model is up** — its offline *gating*, i.e. remote
 providers refused, is confirmed live regardless). Re-confirmed 2026-07-17 with the
@@ -38,6 +38,7 @@ adapter is enabled at its check-in (docs/06). The Phase-1 voice/UX criteria are 
 | P-SEMANTIC-01 semantic (vector) recall over memory + graceful fallback | PASS | `?semantic=1` recalls episodes by MEANING via pgvector + the gateway embeddings role (D-0042); with an embedder the reactor episode ranks first for a reactor query, without one it falls back to REAL lexical recall (never errors). **Live (6/6):** real 768-dim vectors stored via the actual `router.embed`→HTTP path; meaning-ranking correct for two lexically-distinct queries |
 | P-PROMPT-01 prompts registry: seeded persona + set/activate + one-active + restore | PASS | J.A.R.V.I.S.'s persona is user-editable data (R-CAP-01 prompts kind, D-0043): the loop reads the ACTIVE persona from `/prompts`; set/activate keeps exactly one active + supersede history; seeded butler default present; restores prior persona (safe on the Mac). **Live (6/6):** the active persona — seeded AND a registry-set custom one — really reaches the model through `/core/converse` |
 | P-GRAPH-01 graph-brain: multi-hop traversal + hybrid graph recall + episode auto-link | PASS | the knowledge graph acts as a BRAIN (D-0045): `memory.related` walks 2 hops (depth-1 correctly excludes), `memory.recallGraph` finds entry points by meaning (lexical fallback without an embedder) and expands to CONNECTED entities, an episode mentioning a known entity auto-links to it. **Live (8/8):** real gateway embed path stored entity/fact/episode vectors; semantic entry + expansion verified |
+| P-MODELS-01 gateway observability: measured provider status + role table + call audit | PASS | `/gateway/status` returns live-measured provider reachability, `/gateway/roles` the routing table (with `@effort+thinking` annotations from config, D-0046), `/gateway/calls` the R-MODEL-03 audit tail — routing outcomes only, never message content. **Live (12/12):** the `/models` Command Center panel rendered all three over real state incl. an honest no-key failure row (D-0047) |
 | P-RULE-01 proactivity rules: safe closed-set condition + set/list/delete | PASS | WHAT J.A.R.V.I.S. is proactive about is user-configurable (R-CAP-01 rules kind, D-0044): a code-execution-style condition is refused (closed typed set — `part_of_day`/`commitment_due_within`/`commitment_overdue`); rule CRUD works; rule candidates pass the SAME gate stack, suggestion-only. **Live (6/6):** a `commitment_overdue` rule surfaced a `user_rule` item with its filled template + "why"; disabling it stopped surfacing |
 | P-MEM-01 remember + retrieve preference | PASS | stored + read back |
 | P-MEM-02 memory refuses secrets (R-MEM-06) | PASS | secret-shaped value refused |

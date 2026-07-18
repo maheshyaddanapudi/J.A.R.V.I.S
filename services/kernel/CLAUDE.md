@@ -197,6 +197,10 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   Thinking/effort therefore apply on the tool-free converse path. 5 adapter
   wire-format tests (stubbed fetch) + router pass-through test; live role-table
   verified. Live-API confirmation happens with the user's key test.
+- Gateway observability ✅ (D-0047, 2026-07-18): `GET /gateway/calls?limit=` —
+  the `model_calls` audit tail (R-MODEL-03; routing outcomes only, never message
+  content) — feeds the Command Center `/models` panel (provider reachability,
+  role routing, honest failure rows). Harness `P-MODELS-01`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

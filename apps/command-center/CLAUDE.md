@@ -198,6 +198,15 @@ never decoration (R-UI-03, R-CORE-02).
   the 2-hop node, node-click re-walked, meaning-query showed its mode + bundle,
   no console errors. NOTE: scope SVG assertions to
   `getByRole('img',{name:'knowledge graph'})` — Next dev tools injects its own svg.
+- **Models panel** at `/models` (`app/models/page.tsx`, 2026-07-18, D-0047): SEE
+  the model-gateway routing brain — live provider reachability (`/gateway/status`,
+  real pings, LOCAL vs REMOTE), the role routing table (`/gateway/roles`, order =
+  preference with `@effort+thinking` chips from D-0046 config), offline-mode
+  banner, and the recent model-calls audit (`/gateway/calls`, R-MODEL-03 —
+  outcomes only, never message content; failures shown honestly with their real
+  error). 5s auto-refresh, resilient partial loading, e-stop. **Verified live via
+  headless Chromium (12/12)** over three REAL audit rows (local chat ok · remote
+  no-key fail · embeddings ok); screenshot `docs/screenshots/models.png`.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for

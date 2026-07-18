@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type pg from "pg";
 import { z } from "zod";
 import type { GatewayRouter } from "./router.js";
 import { ModelRoles, type ChatRequest, type NeutralMessage } from "./schema.js";
@@ -17,8 +18,14 @@ const ChatBodySchema = z.object({
  *  POST /gateway/chat    — SSE stream of neutral ChatEvents
  *  GET  /gateway/status  — live provider reachability (measured, never cached)
  *  GET  /gateway/roles   — current role routing table + offline flag
+ *  GET  /gateway/calls   — recent model_calls audit rows (R-MODEL-03; the table
+ *                          holds routing outcomes only — never message content)
  */
-export function registerGatewayRoutes(app: FastifyInstance, router: GatewayRouter): void {
+export function registerGatewayRoutes(
+  app: FastifyInstance,
+  router: GatewayRouter,
+  pool?: pg.Pool,
+): void {
   app.get("/gateway/status", async () => ({
     offline: router.isOffline,
     providers: await router.status(),
@@ -28,6 +35,20 @@ export function registerGatewayRoutes(app: FastifyInstance, router: GatewayRoute
     offline: router.isOffline,
     roles: router.roleTable(),
   }));
+
+  if (pool) {
+    app.get("/gateway/calls", async (req) => {
+      const q = req.query as { limit?: string };
+      const limit = Math.min(Math.max(Number(q.limit) || 30, 1), 200);
+      const { rows } = await pool.query(
+        `SELECT at, role, provider, model, privacy_class, source, ok, error,
+                input_tokens, output_tokens, latency_ms, fallback_from, offline_mode
+           FROM model_calls ORDER BY at DESC LIMIT $1`,
+        [limit],
+      );
+      return { calls: rows };
+    });
+  }
 
   app.post("/gateway/chat", async (req, reply) => {
     const parsed = ChatBodySchema.safeParse(req.body);

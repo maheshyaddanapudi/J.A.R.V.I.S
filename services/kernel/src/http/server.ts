@@ -47,7 +47,7 @@ export function createServer(opts: {
   );
 
   if (opts.gateway) {
-    registerGatewayRoutes(app, opts.gateway);
+    registerGatewayRoutes(app, opts.gateway, opts.pool);
   }
 
   if (opts.core) {

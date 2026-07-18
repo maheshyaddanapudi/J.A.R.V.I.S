@@ -417,6 +417,26 @@ def main() -> int:
     except Exception as e:
         record("P-GRAPH-01", "graph-brain memory", "FAIL", str(e))
 
+    # ---- Model gateway observability: status / roles / call audit (D-0046/47) ----
+    try:
+        st = get("/gateway/status")
+        providers_ok = isinstance(st.get("providers"), list) and len(st["providers"]) > 0 \
+            and all({"provider", "kind", "local", "ok", "detail"} <= set(p) for p in st["providers"])
+        roles = get("/gateway/roles").get("roles", {})
+        roles_ok = isinstance(roles, dict) and len(roles) > 0 \
+            and all(isinstance(t, list) and t for t in roles.values())
+        calls = get("/gateway/calls?limit=5").get("calls")
+        # rows are routing outcomes only — never message content (R-MODEL-03)
+        calls_ok = isinstance(calls, list) and all(
+            {"role", "ok", "latency_ms"} <= set(c) and "content" not in c and "messages" not in c
+            for c in calls)
+        ok = providers_ok and roles_ok and calls_ok
+        record("P-MODELS-01", "gateway observability: measured provider status + role table + call audit",
+               "PASS" if ok else "FAIL",
+               f"providers={providers_ok} roles={roles_ok} call_audit={calls_ok} ({len(calls or [])} recent rows)")
+    except Exception as e:
+        record("P-MODELS-01", "gateway observability", "FAIL", str(e))
+
     # ---- Memory (+ secret refusal) ----
     key = f"accept_{uuid.uuid4().hex[:6]}"
     try:
