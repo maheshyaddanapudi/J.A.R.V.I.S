@@ -205,7 +205,10 @@ export async function buildCore(opts: {
   const reasoningTuner = new ReasoningTuner(memory);
   // General runtime settings registry (D-0058): any catalogued knob is editable
   // at runtime (UI + J.A.R.V.I.S.), effective = override ?? current default.
+  // init() loads dynamically-registered settings (D-0060) so knobs J.A.R.V.I.S.
+  // discovered on a prior run are present again.
   const settings = new SettingsRegistry(opts.pool, audit, SETTINGS_CATALOG);
+  await settings.init();
 
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);

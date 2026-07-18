@@ -39,6 +39,14 @@ catalog contains no Z1-shaped keys.
 `DELETE /settings/:key` (reset). Command Center panel: `/settings` (generic —
 renders whatever is registered, so new knobs appear automatically).
 
+## Dynamic settings (D-0060)
+Two origins: SYSTEM (static catalog — the mandatory floor; delete = reset to
+default) and DYNAMIC (`setting_specs` migration 0019 — registered at runtime by
+J.A.R.V.I.S./user, persisted, fully removable). `init()` reloads dynamic specs
+at boot; `register()` refuses Z1 keys + system collisions; `remove()` resets a
+system key but deletes a dynamic one. `POST /settings` (register), gated
+`settings.register` tool. Panel tags them "◆ discovered".
+
 ## Verified (2026-07-18)
 5 settings tests (default fallback, persist+reset, type/bounds validation,
 unknown-key reject, Z1-exclusion, gated tool round-trip incl. deny-changes-

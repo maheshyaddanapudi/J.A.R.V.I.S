@@ -12,6 +12,8 @@ interface Setting {
   value: number | boolean | string;
   default: number | boolean | string;
   source: "default" | "user" | "jarvis";
+  origin: "system" | "dynamic";
+  removable: boolean;
   reason: string;
   updatedAt: string | null;
   description: string;
@@ -93,6 +95,9 @@ export default function SettingsPage() {
             <div key={s.key} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "0.4rem 0.8rem", alignItems: "center", padding: "0.45rem 0", borderTop: "1px solid var(--line)" }}>
               <div>
                 <div style={{ color: "var(--focal)", fontSize: "0.85rem" }}>{s.label}
+                  {s.origin === "dynamic" && (
+                    <span style={{ color: "var(--advisory)", fontSize: "0.68rem", marginLeft: "0.5rem", border: "1px solid var(--advisory)", padding: "0 0.35rem" }}>◆ discovered</span>
+                  )}
                   <span style={{ color: sourceColor(s.source), fontSize: "0.68rem", marginLeft: "0.5rem", border: `1px solid ${sourceColor(s.source)}`, padding: "0 0.35rem" }}>
                     {s.source === "default" ? "default" : `set by ${s.source}`}
                   </span>
@@ -113,8 +118,10 @@ export default function SettingsPage() {
                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                     style={{ ...input, width: 78 }} />
                 )}
-                <button onClick={() => reset(s)} disabled={s.source === "default"} aria-label={`reset ${s.key}`}
-                  style={{ ...ctl(false), opacity: s.source === "default" ? 0.35 : 1 }}>reset</button>
+                <button onClick={() => reset(s)} disabled={!s.removable && s.source === "default"} aria-label={`${s.removable ? "delete" : "reset"} ${s.key}`}
+                  title={s.removable ? "remove this dynamic setting entirely" : "reset to default (system setting — cannot be removed)"}
+                  style={{ ...ctl(false), color: s.removable ? "var(--critical)" : "var(--focal)", opacity: !s.removable && s.source === "default" ? 0.35 : 1 }}>
+                  {s.removable ? "delete" : "reset"}</button>
               </div>
             </div>
           ))}

@@ -83,10 +83,24 @@ export function registerCoreRoutes(
         return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
       }
     });
+    // DELETE: system settings RESET to default (the floor); dynamic settings are
+    // removed entirely (D-0060).
     app.delete("/settings/:key", async (req, reply) => {
       const key = decodeURIComponent((req.params as { key: string }).key);
       try {
-        return await settings.reset(key);
+        return await settings.remove(key);
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+    // Register a NEW dynamic setting at runtime (user via UI/API).
+    app.post("/settings", async (req, reply) => {
+      const body = req.body as import("../settings/registry.js").DynamicSpecInput | undefined;
+      if (!body?.key || !body?.type || body?.default === undefined || !body?.label) {
+        return reply.code(400).send({ error: "key, label, type, default required" });
+      }
+      try {
+        return await settings.register(body, "user");
       } catch (err) {
         return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
       }

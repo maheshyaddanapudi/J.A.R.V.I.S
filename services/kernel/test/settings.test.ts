@@ -76,6 +76,46 @@ describe.skipIf(!pool)("SettingsRegistry (D-0058)", () => {
     // and it is non-empty (proactivity gates registered)
     expect(SETTINGS_CATALOG.some((s) => s.key.startsWith("proactive."))).toBe(true);
   });
+
+  it("DYNAMIC settings (D-0060): register → surfaced+editable+deletable; survives a fresh instance", async () => {
+    await pool!.query("TRUNCATE setting_specs");
+    const r = new SettingsRegistry(pool!, audit, catalog);
+    await r.init();
+    const reg = await r.register(
+      { key: "arc.reactor.output", label: "Arc output", type: "number", default: 40, min: 0, max: 100, category: "Discovered" },
+      "jarvis",
+    );
+    expect(reg).toMatchObject({ origin: "dynamic", removable: true, value: 40 });
+    // editable like any setting
+    await r.set("arc.reactor.output", 88, "user", "ramp up");
+    expect(await r.get("arc.reactor.output")).toBe(88);
+    // a FRESH instance (restart) re-loads the dynamic spec
+    const r2 = new SettingsRegistry(pool!, audit, catalog);
+    await r2.init();
+    expect(r2.has("arc.reactor.output")).toBe(true);
+    expect(await r2.get("arc.reactor.output")).toBe(88); // override persisted too
+    // dynamic settings are fully deletable
+    const del = await r2.remove("arc.reactor.output");
+    expect(del.action).toBe("deleted");
+    expect(r2.has("arc.reactor.output")).toBe(false);
+  });
+
+  it("SYSTEM settings are the floor: 'delete' resets to default, never removes them", async () => {
+    const r = new SettingsRegistry(pool!, audit, catalog);
+    await r.init();
+    await r.set("t.num", 9, "user", "x");
+    const del = await r.remove("t.num");
+    expect(del.action).toBe("reset");
+    expect(r.has("t.num")).toBe(true);          // still present (floor)
+    expect(await r.get("t.num")).toBe(5);        // default kicked back in
+  });
+
+  it("register refuses Z1 keys and system-key collisions", async () => {
+    const r = new SettingsRegistry(pool!, audit, catalog);
+    await r.init();
+    await expect(r.register({ key: "approval.bypass", label: "x", type: "boolean", default: true }, "jarvis")).rejects.toThrow(/protected/);
+    await expect(r.register({ key: "t.num", label: "x", type: "number", default: 1 }, "jarvis")).rejects.toThrow(/system setting/);
+  });
 });
 
 // ---- gated tool round-trip through the real loop ----

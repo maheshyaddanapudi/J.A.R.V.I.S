@@ -2,21 +2,26 @@ import type pg from "pg";
 import type { AuditLog } from "../core/audit.js";
 
 /**
- * General runtime settings registry (D-0058) — the mechanism behind "edit any
- * and all possible things through the UI." A CATALOG of typed settings, each
- * with a *current* default; the effective value is the persisted override if
- * one exists, else the current default. Both the user (UI/API) and J.A.R.V.I.S.
- * (gated tool) can set/clear any catalogued key; every write is ledgered
- * (source/reason/when). New knobs become UI-editable simply by being added to
- * the catalog — the panel renders whatever is registered.
+ * General runtime settings registry (D-0058) + dynamic settings (D-0060) — the
+ * mechanism behind "edit any and all possible things through the UI," including
+ * knobs J.A.R.V.I.S. DISCOVERS at runtime.
  *
- * Z1 trust-core values are NEVER catalogued (R-CAP-08): the catalog is the
- * allowlist, so there is no key through which policy/approval/audit/e-stop/
- * credentials/sandbox could be edited here.
+ * Two origins:
+ *  - SYSTEM settings come from the static code catalog. They are the mandatory
+ *    floor: always present, editable; "delete" just RESETS them to their default
+ *    (they can't be removed — the default kicks back in).
+ *  - DYNAMIC settings are registered at runtime (by J.A.R.V.I.S. or the user)
+ *    and persisted (migration 0019). They are fully removable.
+ *
+ * The effective value of any setting is the persisted override (D-0058
+ * `runtime_settings`) ?? its current default. Every write is ledgered
+ * (source/reason/when). Z1 trust-core keys are refused on register — the
+ * catalog + dynamic specs together are the allowlist (R-CAP-08).
  */
 
 export type SettingType = "number" | "boolean" | "string" | "enum" | "hour";
 export type SettingValue = number | boolean | string;
+export type SettingOrigin = "system" | "dynamic";
 
 export interface SettingSpec {
   key: string;
@@ -32,6 +37,20 @@ export interface SettingSpec {
   options?: readonly string[];
 }
 
+/** Shape used to register a NEW dynamic setting at runtime. */
+export interface DynamicSpecInput {
+  key: string;
+  label: string;
+  category?: string;
+  type: SettingType;
+  default: SettingValue;
+  description?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface EffectiveSetting {
   key: string;
   label: string;
@@ -40,6 +59,9 @@ export interface EffectiveSetting {
   value: SettingValue;
   default: SettingValue;
   source: "default" | "user" | "jarvis";
+  origin: SettingOrigin;
+  /** true = fully deletable (dynamic); false = system floor (delete = reset) */
+  removable: boolean;
   reason: string;
   updatedAt: string | null;
   description: string;
@@ -55,6 +77,9 @@ interface Override {
   reason: string;
   updated_at: string;
 }
+
+/** Z1 trust-core concerns may never become a setting (R-CAP-08). */
+const Z1_KEY = /policy|approval|audit|estop|e-stop|credential|secret|vault|sandbox/i;
 
 function validate(spec: SettingSpec, raw: unknown): SettingValue {
   switch (spec.type) {
@@ -82,9 +107,7 @@ function validate(spec: SettingSpec, raw: unknown): SettingValue {
 
 export class SettingsRegistry {
   private readonly specs = new Map<string, SettingSpec>();
-
-  /** notified after any set/reset so live consumers (e.g. the autonomy
-   *  scheduler) can reconcile — set via onChange() */
+  private readonly origins = new Map<string, SettingOrigin>();
   private changeListener?: (key: string) => void;
 
   constructor(
@@ -92,20 +115,42 @@ export class SettingsRegistry {
     private readonly audit: AuditLog,
     catalog: SettingSpec[],
   ) {
-    for (const s of catalog) this.specs.set(s.key, s);
+    for (const s of catalog) {
+      this.specs.set(s.key, s);
+      this.origins.set(s.key, "system");
+    }
   }
 
-  /** Register a listener called (best-effort) after a setting changes. */
-  onChange(fn: (key: string) => void): void {
-    this.changeListener = fn;
+  /** Load persisted dynamic specs (call once at startup). Best-effort. */
+  async init(): Promise<void> {
+    try {
+      const { rows } = await this.pool.query<{
+        key: string; label: string; category: string; type: SettingType;
+        default_val: SettingValue; description: string;
+        min_val: number | null; max_val: number | null; step_val: number | null; options: string[] | null;
+      }>(`SELECT key, label, category, type, default_val, description, min_val, max_val, step_val, options FROM setting_specs`);
+      for (const r of rows) {
+        if (this.origins.get(r.key) === "system") continue; // never shadow a system key
+        this.specs.set(r.key, {
+          key: r.key, label: r.label, category: r.category, type: r.type,
+          default: () => r.default_val, description: r.description,
+          ...(r.min_val !== null ? { min: r.min_val } : {}),
+          ...(r.max_val !== null ? { max: r.max_val } : {}),
+          ...(r.step_val !== null ? { step: r.step_val } : {}),
+          ...(r.options ? { options: r.options } : {}),
+        });
+        this.origins.set(r.key, "dynamic");
+      }
+    } catch { /* dynamic specs are additive — boot works without them */ }
   }
+
+  onChange(fn: (key: string) => void): void { this.changeListener = fn; }
   private notify(key: string): void {
-    try { this.changeListener?.(key); } catch { /* listener is best-effort */ }
+    try { this.changeListener?.(key); } catch { /* best-effort */ }
   }
 
-  has(key: string): boolean {
-    return this.specs.has(key);
-  }
+  has(key: string): boolean { return this.specs.has(key); }
+  origin(key: string): SettingOrigin | undefined { return this.origins.get(key); }
 
   private async override(key: string): Promise<Override | null> {
     try {
@@ -115,11 +160,10 @@ export class SettingsRegistry {
       );
       return rows[0] ?? null;
     } catch {
-      return null; // settings are an overlay — a read failure falls back to defaults
+      return null;
     }
   }
 
-  /** Effective typed value of a single setting (override ?? current default). */
   async get(key: string): Promise<SettingValue | undefined> {
     const spec = this.specs.get(key);
     if (!spec) return undefined;
@@ -127,53 +171,39 @@ export class SettingsRegistry {
     return o ? o.value : spec.default();
   }
 
-  /** Convenience typed getters (fall back to the default's type). */
   async num(key: string, fallback: number): Promise<number> {
-    const v = await this.get(key);
-    return typeof v === "number" ? v : fallback;
+    const v = await this.get(key); return typeof v === "number" ? v : fallback;
   }
   async bool(key: string, fallback: boolean): Promise<boolean> {
-    const v = await this.get(key);
-    return typeof v === "boolean" ? v : fallback;
+    const v = await this.get(key); return typeof v === "boolean" ? v : fallback;
   }
   async str(key: string, fallback: string): Promise<string> {
-    const v = await this.get(key);
-    return typeof v === "string" ? v : fallback;
+    const v = await this.get(key); return typeof v === "string" ? v : fallback;
   }
 
-  /** The full catalog with effective values — what the UI renders. */
+  private row(spec: SettingSpec, o: Override | null): EffectiveSetting {
+    const def = spec.default();
+    const origin = this.origins.get(spec.key) ?? "system";
+    return {
+      key: spec.key, label: spec.label, category: spec.category, type: spec.type,
+      value: o ? o.value : def, default: def,
+      source: o ? o.source : "default", origin, removable: origin === "dynamic",
+      reason: o?.reason ?? "", updatedAt: o?.updated_at ?? null, description: spec.description,
+      ...(spec.min !== undefined ? { min: spec.min } : {}),
+      ...(spec.max !== undefined ? { max: spec.max } : {}),
+      ...(spec.step !== undefined ? { step: spec.step } : {}),
+      ...(spec.options ? { options: spec.options } : {}),
+    };
+  }
+
+  /** The full catalog (system + dynamic) with effective values — the UI renders this. */
   async effective(): Promise<EffectiveSetting[]> {
     const out: EffectiveSetting[] = [];
-    for (const spec of this.specs.values()) {
-      const o = await this.override(spec.key);
-      const def = spec.default();
-      out.push({
-        key: spec.key,
-        label: spec.label,
-        category: spec.category,
-        type: spec.type,
-        value: o ? o.value : def,
-        default: def,
-        source: o ? o.source : "default",
-        reason: o?.reason ?? "",
-        updatedAt: o?.updated_at ?? null,
-        description: spec.description,
-        ...(spec.min !== undefined ? { min: spec.min } : {}),
-        ...(spec.max !== undefined ? { max: spec.max } : {}),
-        ...(spec.step !== undefined ? { step: spec.step } : {}),
-        ...(spec.options ? { options: spec.options } : {}),
-      });
-    }
+    for (const spec of this.specs.values()) out.push(this.row(spec, await this.override(spec.key)));
     return out;
   }
 
-  /** Set a catalogued setting (user or J.A.R.V.I.S.); validated + ledgered. */
-  async set(
-    key: string,
-    rawValue: unknown,
-    source: "user" | "jarvis",
-    reason: string,
-  ): Promise<EffectiveSetting> {
+  async set(key: string, rawValue: unknown, source: "user" | "jarvis", reason: string): Promise<EffectiveSetting> {
     const spec = this.specs.get(key);
     if (!spec) throw new Error(`unknown setting '${key}' (not in the editable catalog)`);
     const value = validate(spec, rawValue);
@@ -184,21 +214,77 @@ export class SettingsRegistry {
                                        reason = EXCLUDED.reason, updated_at = now()`,
       [key, JSON.stringify(value), source, reason],
     );
-    await this.audit.append({
-      actor: source === "user" ? "user" : "kernel",
-      event: "setting_set",
-      payload: { key, source, reason },
-    });
+    await this.audit.append({ actor: source === "user" ? "user" : "kernel", event: "setting_set", payload: { key, source, reason } });
     this.notify(key);
-    return (await this.effective()).find((e) => e.key === key)!;
+    return this.row(spec, await this.override(key));
   }
 
-  /** Clear an override → the key returns to its current default. */
+  /** Clear an override → the current default kicks back in. */
   async reset(key: string): Promise<EffectiveSetting> {
-    if (!this.specs.has(key)) throw new Error(`unknown setting '${key}'`);
+    const spec = this.specs.get(key);
+    if (!spec) throw new Error(`unknown setting '${key}'`);
     await this.pool.query(`DELETE FROM runtime_settings WHERE key = $1`, [key]);
     await this.audit.append({ actor: "user", event: "setting_reset", payload: { key } });
     this.notify(key);
-    return (await this.effective()).find((e) => e.key === key)!;
+    return this.row(spec, await this.override(key));
+  }
+
+  /**
+   * Register a NEW dynamic setting at runtime (J.A.R.V.I.S.'s own evolution or
+   * the user). Persisted so it survives restart; refuses Z1 keys and collisions
+   * with system keys.
+   */
+  async register(input: DynamicSpecInput, createdBy: "jarvis" | "user"): Promise<EffectiveSetting> {
+    const key = input.key.trim();
+    if (!/^[a-z][a-z0-9_.-]{1,80}$/i.test(key)) throw new Error(`invalid setting key '${key}'`);
+    if (Z1_KEY.test(key)) throw new Error(`refused: '${key}' names a protected trust-core concern (R-CAP-08)`);
+    if (this.origins.get(key) === "system") throw new Error(`'${key}' is a system setting — cannot redefine`);
+    if (!["number", "boolean", "string", "enum", "hour"].includes(input.type)) throw new Error(`bad type '${input.type}'`);
+    if (input.type === "enum" && !(input.options && input.options.length)) throw new Error(`enum '${key}' needs options`);
+    // validate the declared default against its own spec
+    const spec: SettingSpec = {
+      key, label: input.label, category: input.category ?? "Discovered", type: input.type,
+      default: () => input.default, description: input.description ?? "",
+      ...(input.min !== undefined ? { min: input.min } : {}),
+      ...(input.max !== undefined ? { max: input.max } : {}),
+      ...(input.step !== undefined ? { step: input.step } : {}),
+      ...(input.options ? { options: input.options } : {}),
+    };
+    validate(spec, input.default);
+    await this.pool.query(
+      `INSERT INTO setting_specs (key, label, category, type, default_val, description, min_val, max_val, step_val, options, created_by)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10::jsonb,$11)
+       ON CONFLICT (key) DO UPDATE SET label=EXCLUDED.label, category=EXCLUDED.category, type=EXCLUDED.type,
+         default_val=EXCLUDED.default_val, description=EXCLUDED.description, min_val=EXCLUDED.min_val,
+         max_val=EXCLUDED.max_val, step_val=EXCLUDED.step_val, options=EXCLUDED.options`,
+      [key, spec.label, spec.category, spec.type, JSON.stringify(input.default), spec.description,
+       input.min ?? null, input.max ?? null, input.step ?? null,
+       input.options ? JSON.stringify(input.options) : null, createdBy],
+    );
+    this.specs.set(key, spec);
+    this.origins.set(key, "dynamic");
+    await this.audit.append({ actor: createdBy === "user" ? "user" : "kernel", event: "setting_registered", payload: { key, createdBy } });
+    this.notify(key);
+    return this.row(spec, await this.override(key));
+  }
+
+  /**
+   * Delete a setting. SYSTEM settings are the floor — "delete" resets them to
+   * default (they cannot be removed). DYNAMIC settings are removed entirely
+   * (spec + any override). Returns which happened.
+   */
+  async remove(key: string): Promise<{ action: "reset" | "deleted"; setting?: EffectiveSetting }> {
+    const spec = this.specs.get(key);
+    if (!spec) throw new Error(`unknown setting '${key}'`);
+    if (this.origins.get(key) === "system") {
+      return { action: "reset", setting: await this.reset(key) };
+    }
+    await this.pool.query(`DELETE FROM setting_specs WHERE key = $1`, [key]);
+    await this.pool.query(`DELETE FROM runtime_settings WHERE key = $1`, [key]);
+    this.specs.delete(key);
+    this.origins.delete(key);
+    await this.audit.append({ actor: "user", event: "setting_deleted", payload: { key } });
+    this.notify(key);
+    return { action: "deleted" };
   }
 }

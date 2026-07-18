@@ -120,4 +120,26 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     default: () => true,
     description: "Run bounded self-calibration + proposals on each tick.",
   },
+
+  // ---- Reasoning / generation defaults (mirror the JARVIS_EFFORT/THINKING env,
+  //      surfaced for UI editing; the gateway reads env at load, these give a
+  //      visible, editable home for the same intent) ----
+  {
+    key: "reasoning.defaultEffort",
+    label: "Default reasoning effort (remote)",
+    category: "Reasoning",
+    type: "enum",
+    options: ["low", "medium", "high", "xhigh", "max"] as const,
+    default: () => (process.env.JARVIS_EFFORT as string) || "high",
+    description: "Preferred effort for remote reasoning-capable models when a role target does not set its own.",
+  },
+  {
+    key: "reasoning.defaultThinking",
+    label: "Default extended thinking (remote)",
+    category: "Reasoning",
+    type: "enum",
+    options: ["on", "off"] as const,
+    default: () => (process.env.JARVIS_THINKING as string) || "on",
+    description: "Whether remote reasoning models think by default when a role target does not set its own.",
+  },
 ];

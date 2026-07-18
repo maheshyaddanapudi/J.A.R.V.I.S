@@ -59,7 +59,7 @@ export function settingsTools(settings: SettingsRegistry): Tool[] {
     },
     {
       name: "settings.reset",
-      description: "Reset a runtime setting to its current default.",
+      description: "Reset a runtime setting to its current default (or, for a dynamic setting, delete it entirely).",
       riskClass: "LOW_REVERSIBLE",
       action: "configure",
       inputSchema: {
@@ -70,8 +70,62 @@ export function settingsTools(settings: SettingsRegistry): Tool[] {
       async run(args) {
         const a = z.object({ key: z.string() }).parse(args);
         if (!settings.has(a.key)) return { ok: false, summary: `unknown setting '${a.key}'` };
-        const eff = await settings.reset(a.key);
-        return { ok: true, summary: `'${a.key}' reset to default (${JSON.stringify(eff.value)})`, data: eff };
+        const r = await settings.remove(a.key);
+        return {
+          ok: true,
+          summary: r.action === "deleted" ? `'${a.key}' deleted (dynamic setting)` : `'${a.key}' reset to default`,
+          data: r,
+        };
+      },
+    },
+    {
+      name: "settings.register",
+      description:
+        "Register a NEW configurable setting J.A.R.V.I.S. has discovered, so the user can see/edit/delete it. " +
+        "Persisted + surfaced in the settings panel. Cannot name a protected trust-core concern.",
+      riskClass: "CONSEQUENTIAL",
+      action: "configure",
+      inputSchema: {
+        type: "object",
+        properties: {
+          key: { type: "string" },
+          label: { type: "string" },
+          category: { type: "string" },
+          type: { type: "string", enum: ["number", "boolean", "string", "enum", "hour"] },
+          default: {},
+          description: { type: "string" },
+          min: { type: "number" },
+          max: { type: "number" },
+          step: { type: "number" },
+          options: { type: "array", items: { type: "string" } },
+        },
+        required: ["key", "label", "type", "default"],
+      },
+      disclose(args) {
+        const a = z.object({ key: z.string(), label: z.string(), type: z.string() }).parse(args);
+        return {
+          whatWillHappen: `a new editable setting '${a.key}' (${a.type}) will be surfaced in the settings panel`,
+          affected: [`settings catalog (dynamic): ${a.key}`],
+          proposedCommands: [`POST /settings ${a.key}`],
+          reason: `J.A.R.V.I.S. discovered a configurable value: ${a.label}`,
+          riskClass: "CONSEQUENTIAL",
+          reversible: true,
+          rollbackPlan: `settings.reset '${a.key}' removes the dynamic setting`,
+        };
+      },
+      async run(args) {
+        const a = args as import("./registry.js").DynamicSpecInput;
+        try {
+          const eff = await settings.register(a, "jarvis");
+          return {
+            ok: true,
+            summary: `registered new setting '${eff.key}' (${eff.type}, default ${JSON.stringify(eff.default)})`,
+            data: eff,
+            rollback: async () => { await settings.remove(eff.key); },
+          };
+        } catch (err) {
+          return { ok: false, summary: err instanceof Error ? err.message : String(err) };
+        }
       },
     },
   ];
