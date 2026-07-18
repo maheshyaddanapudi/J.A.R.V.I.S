@@ -56,6 +56,8 @@ import { SETTINGS_CATALOG } from "../settings/catalog.js";
 import { settingsTools } from "../settings/tools.js";
 import { DurableGrants } from "./grants.js";
 import { BackgroundScheduler } from "../autonomy/scheduler.js";
+import { A2uiRegistry } from "../a2ui/registry.js";
+import { a2uiTools } from "../a2ui/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
 import { gatewayTools, reasoningTools } from "../gateway/tools.js";
 
@@ -76,6 +78,7 @@ export interface Core {
   settings: SettingsRegistry;
   durableGrants: DurableGrants;
   autonomy: BackgroundScheduler;
+  a2ui: A2uiRegistry;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
@@ -230,6 +233,10 @@ export async function buildCore(opts: {
   for (const t of gatewayTools(opts.gateway, memory)) tools.register(t);
   for (const t of reasoningTools(reasoningTuner)) tools.register(t);
   for (const t of settingsTools(settings)) tools.register(t);
+  // A2UI (D-0061): J.A.R.V.I.S. composes declarative panels; validated against
+  // the whitelist + real references, rendered by a sandboxed client renderer.
+  const a2ui = new A2uiRegistry(opts.pool, audit, settings, tools);
+  for (const t of a2uiTools(a2ui)) tools.register(t);
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {
@@ -338,7 +345,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy,
+    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, a2ui,
     ...(secrets ? { secrets } : {}),
     loop,
   };

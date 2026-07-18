@@ -540,6 +540,33 @@ def main() -> int:
     except Exception as e:
         record("P-AUTONOMY-01", "background autonomy", "FAIL", str(e))
 
+    # ---- A2UI (D-0061): agent-generated declarative UI, safe by construction ----
+    try:
+        # J.A.R.V.I.S. composes a valid panel via the gated tool
+        comp = httpx.post(f"{K}/core/run-tool", json={
+            "tool": "ui.compose", "source": "accept", "autoApprove": "allow-once",
+            "args": {"spec": {"title": "Accept panel", "components": [
+                {"type": "heading", "text": "Settings"},
+                {"type": "settingsGroup", "category": "Autonomy"},
+                {"type": "setting", "key": "proactive.confidenceThreshold"},
+            ]}}}, timeout=30.0).json()
+        composed = comp.get("ok") is True
+        panels = get("/a2ui/panels").get("panels", [])
+        listed = len(panels) >= 1
+        # hostile specs rejected: non-whitelisted type + unknown-tool reference
+        iframe = httpx.post(f"{K}/a2ui/panels", json={"spec": {"title": "x", "components": [{"type": "iframe", "src": "http://evil"}]}}, timeout=10.0)
+        badtool = httpx.post(f"{K}/a2ui/panels", json={"spec": {"title": "x", "components": [{"type": "action", "label": "x", "tool": "danger.exec"}]}}, timeout=10.0)
+        rejected = iframe.status_code == 400 and badtool.status_code == 400
+        # cleanup composed panels
+        for p in get("/a2ui/panels").get("panels", []):
+            httpx.delete(f"{K}/a2ui/panels/{p['id']}", timeout=10.0)
+        ok = composed and listed and rejected
+        record("P-A2UI-01", "A2UI: agent composes declarative panel; whitelist + reference validation reject hostile specs",
+               "PASS" if ok else "FAIL",
+               f"composed:{composed} listed:{listed} iframe-rejected:{iframe.status_code==400} badtool-rejected:{badtool.status_code==400}")
+    except Exception as e:
+        record("P-A2UI-01", "A2UI declarative panels", "FAIL", str(e))
+
     # ---- Runtime role overrides (D-0054): live re-route, ledger, persistence ----
     try:
         roles_before = get("/gateway/roles")["roles"]

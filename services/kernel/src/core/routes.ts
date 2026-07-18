@@ -48,8 +48,29 @@ export function registerCoreRoutes(
     settings?: import("../settings/registry.js").SettingsRegistry;
     durableGrants?: import("./grants.js").DurableGrants;
     autonomy?: import("../autonomy/scheduler.js").BackgroundScheduler;
+    a2ui?: import("../a2ui/registry.js").A2uiRegistry;
   },
 ): void {
+  // A2UI (D-0061): agent-generated declarative panels. Specs are validated
+  // (whitelist schema + real references) on write; the client renders them
+  // through a sandboxed renderer. Panels are listable + deletable.
+  if (deps.a2ui) {
+    const a2ui = deps.a2ui;
+    app.get("/a2ui/panels", async () => ({ panels: await a2ui.list() }));
+    app.get("/a2ui/panels/:id", async (req, reply) => {
+      const p = await a2ui.get((req.params as { id: string }).id);
+      return p ?? reply.code(404).send({ error: "not found" });
+    });
+    app.post("/a2ui/panels", async (req, reply) => {
+      const spec = (req.body as { spec?: unknown } | undefined)?.spec ?? req.body;
+      try {
+        return await a2ui.create(spec, "user");
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    });
+    app.delete("/a2ui/panels/:id", async (req) => ({ removed: await a2ui.remove((req.params as { id: string }).id) }));
+  }
   // Background autonomy (D-0024): observe status + trigger a tick on demand.
   // Enabling/interval is via /settings (autonomy.*); this only reports + runs.
   if (deps.autonomy) {
