@@ -49,6 +49,7 @@ import { LocalAgentRuntime } from "../agent/runtime.js";
 import type { AgentRuntime } from "../agent/contract.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { PromptRegistry } from "../prompts/registry.js";
+import { ReasoningTuner } from "./reasoning.js";
 
 export interface Core {
   audit: AuditLog;
@@ -62,6 +63,7 @@ export interface Core {
   entityMemory: EntityMemory;
   /** episodic memory — the recallable timeline of notable events, encrypted at rest */
   episodicMemory: EpisodicMemory;
+  reasoningTuner: ReasoningTuner;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
   proactive: ProactivityEngine;
@@ -222,6 +224,10 @@ export async function buildCore(opts: {
     episodes: episodicMemory, // …and on what recently happened (non-sensitive)
   });
 
+  // Deep-reasoning learning (D-0050): learned topics live as ordinary
+  // preferences (history-preserving, visible/deletable in the memory panel).
+  const reasoningTuner = new ReasoningTuner(memory);
+
   const loop = new CoreLoop({
     gateway: opts.gateway,
     policy,
@@ -233,6 +239,7 @@ export async function buildCore(opts: {
     memory,
     context,
     episodes: episodicMemory,
+    reasoningTuner,
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
 
@@ -271,7 +278,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory,
+    entityMemory, episodicMemory, reasoningTuner,
     ...(secrets ? { secrets } : {}),
     loop,
   };

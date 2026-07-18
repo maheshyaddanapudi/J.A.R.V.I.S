@@ -6,7 +6,12 @@ import type { AuditLog } from "./audit.js";
 import type { EmergencyStop } from "./estop.js";
 import type { Grant, PolicyEngine, RiskClass } from "./policy.js";
 import type { ToolContext, ToolRegistry } from "./tools.js";
-import { assessDepth, type DepthAssessment, type ReasoningMode } from "./reasoning.js";
+import {
+  assessDepth,
+  type DepthAssessment,
+  type ReasoningMode,
+  type ReasoningTuner,
+} from "./reasoning.js";
 import type { MemoryService } from "../memory/memory.js";
 import type { EpisodicMemory } from "../memory/episodes.js";
 import type { ContextService } from "../context/service.js";
@@ -40,6 +45,8 @@ export class CoreLoop {
       context?: ContextService;
       /** episodic memory — real consequential actions are recorded on the timeline */
       episodes?: EpisodicMemory;
+      /** deep-reasoning learning (D-0050): learned topics + corrections */
+      reasoningTuner?: ReasoningTuner;
     },
   ) {}
 
@@ -245,10 +252,33 @@ export class CoreLoop {
     // Decide which brain answers (D-0048). Provider-agnostic: the roles map to
     // whatever the gateway config routes them to (local or remote).
     const requested = input.reasoning ?? "auto";
+    // Learned deep topics (D-0050) sharpen the auto assessment; best-effort.
+    let learnedTopics: string[] = [];
+    if (this.deps.reasoningTuner) {
+      try {
+        learnedTopics = await this.deps.reasoningTuner.topics();
+      } catch { /* learning must never block a conversation */ }
+    }
     let decision: DepthAssessment =
       requested === "auto"
-        ? assessDepth(input.text)
+        ? assessDepth(input.text, learnedTopics)
         : { mode: requested, why: "explicitly requested" };
+    // Learning-by-correction (D-0050): the user explicitly forced deep on a
+    // turn the auto assessment would have kept fast — remember what it was
+    // about; repeated corrections promote the topic to always-deep.
+    if (requested === "deep" && this.deps.reasoningTuner) {
+      try {
+        if (assessDepth(input.text, learnedTopics).mode === "fast") {
+          const promoted = await this.deps.reasoningTuner.recordCorrection(input.text);
+          if (promoted.length) {
+            decision = {
+              mode: "deep",
+              why: `explicitly requested — noted, I'll think deeply about '${promoted.join("', '")}' from now on`,
+            };
+          }
+        }
+      } catch { /* learning must never block a conversation */ }
+    }
     const privacy = input.privacyClass ?? "LOCAL_ONLY";
     let role: "fast_conversation" | "deep_reasoning" =
       decision.mode === "deep" ? "deep_reasoning" : "fast_conversation";

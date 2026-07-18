@@ -218,6 +218,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `resolveGatewayConfig(cfg, env)` is pure/testable. Targets setting neither
   field send byte-identical pre-D-0049 bodies. New provider (OpenRouter/Grok)
   = config entry only, zero code. 12 tests; live env-resolution verified.
+- Deep-reasoning learning ✅ (D-0050, 2026-07-18): `ReasoningTuner`
+  (`core/reasoning.ts`) — escalation now ADAPTS to the user, transparently (no
+  opaque ML): (1) instruction — `POST/GET/DELETE /core/reasoning/topics`;
+  (2) correction — explicit-deep on an auto-fast turn accumulates salient
+  terms, ≥2 corrections promote a term to a learned topic (announced in the
+  response). Learned topics escalate ALONE ("you've taught me to think deeply
+  about 'X'"). Stored as ordinary preferences (`reasoning_deep_topics`) —
+  history-preserving, restart-surviving, visible/deletable in the memory panel.
+  Best-effort everywhere (a memory failure never blocks conversation); only
+  the model ROLE is affected. Effort stays per-role config: escalation picks
+  BETWEEN the user's configured effort profiles. 5 tests; live teach→escalate,
+  correct×2→promote→auto-escalate, restart-survival; `P-REASON-01` extended.
 - Deep-reasoning escalation ✅ (D-0048, 2026-07-18): `src/core/reasoning.ts` (Z1)
   — `assessDepth(text)` decides when a turn warrants the `deep_reasoning` role:
   transparent deterministic signals, NOT a model call (explicit asks always

@@ -70,6 +70,7 @@ export function createServer(opts: {
       skills: opts.core.skills,
       files: opts.core.files,
       prompts: opts.core.prompts,
+      reasoningTuner: opts.core.reasoningTuner,
     });
     registerMemoryRoutes(app, opts.core.memory, opts.core.entityMemory, opts.core.episodicMemory);
   }

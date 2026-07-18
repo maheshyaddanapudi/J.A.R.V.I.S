@@ -461,11 +461,20 @@ def main() -> int:
             if deep_eligible else (deep.get("mode") == "fast" and "no eligible" in deep.get("why", ""))
         forced_ok = forced.get("mode") == "fast" and forced.get("why") == "explicitly requested"
         explained = all(e.get("why") for e in (routine, deep, forced))
-        ok = routine_ok and deep_ok and forced_ok and explained
-        record("P-REASON-01", "deep-reasoning escalation: auto role switch + why + user override",
+        # learning (D-0050): teach a topic, see it escalate an auto turn, forget it
+        marker = f"unobtainium{uuid.uuid4().hex[:5]}"
+        httpx.post(f"{K}/core/reasoning/topics", json={"topic": marker}, timeout=10.0)
+        taught = converse_decision(f"status of the {marker} project?")
+        # the taught why survives even an honest eligibility downgrade
+        learned_ok = "taught me to think deeply" in taught.get("why", "")
+        httpx.delete(f"{K}/core/reasoning/topics/{marker}", timeout=10.0)
+        gone = marker not in get("/core/reasoning/topics").get("topics", [])
+        ok = routine_ok and deep_ok and forced_ok and explained and learned_ok and gone
+        record("P-REASON-01", "deep-reasoning escalation: auto switch + why + override + learns topics",
                "PASS" if ok else "FAIL",
                f"routine=fast:{routine_ok} deep={'escalated' if deep_eligible else 'honest-downgrade'}:{deep_ok} "
-               f"override:{forced_ok} explained:{explained} (provider-agnostic: role routing is config)")
+               f"override:{forced_ok} explained:{explained} taught-topic-escalates:{learned_ok} forgettable:{gone} "
+               f"(provider-agnostic: role routing is config)")
     except Exception as e:
         record("P-REASON-01", "deep-reasoning escalation", "FAIL", str(e))
 

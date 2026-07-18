@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { assessDepth } from "../src/core/reasoning.js";
+import { assessDepth, ReasoningTuner, type TunerStore } from "../src/core/reasoning.js";
 import { CoreLoop } from "../src/core/loop.js";
 import { PolicyEngine } from "../src/core/policy.js";
 import { ApprovalBroker } from "../src/core/approvals.js";
@@ -43,6 +43,61 @@ describe("assessDepth", () => {
     const d = assessDepth("Good morning, what's on today?");
     expect(d.mode).toBe("fast");
     expect(d.why).toBe("routine conversational turn");
+  });
+
+  it("a learned topic escalates alone, with the taught why", () => {
+    const d = assessDepth("what's the status of the palladium core?", ["palladium"]);
+    expect(d.mode).toBe("deep");
+    expect(d.why).toContain("taught me to think deeply about 'palladium'");
+    expect(assessDepth("what's for dinner?", ["palladium"]).mode).toBe("fast");
+  });
+});
+
+// ---- learning (D-0050): instruction + correction, stored as preferences ----
+
+function fakeStore(): TunerStore & { data: Map<string, string> } {
+  const data = new Map<string, string>();
+  return {
+    data,
+    async get(key) {
+      const v = data.get(key);
+      return v === undefined ? null : { value: v };
+    },
+    async remember(input) {
+      data.set(input.key, input.value);
+      return {};
+    },
+  };
+}
+
+describe("ReasoningTuner", () => {
+  it("teach/forget round-trips through the preference store", async () => {
+    const tuner = new ReasoningTuner(fakeStore());
+    expect(await tuner.topics()).toEqual([]);
+    await tuner.teach("Vibranium");
+    expect(await tuner.topics()).toEqual(["vibranium"]);
+    await tuner.teach("vibranium"); // idempotent
+    expect(await tuner.topics()).toEqual(["vibranium"]);
+    await tuner.forget("vibranium");
+    expect(await tuner.topics()).toEqual([]);
+  });
+
+  it("promotes a topic after two corrections about it — not one", async () => {
+    const tuner = new ReasoningTuner(fakeStore());
+    const first = await tuner.recordCorrection("check the vibranium shield tolerances");
+    expect(first).toEqual([]);
+    expect(await tuner.topics()).toEqual([]);
+    const second = await tuner.recordCorrection("vibranium alloy stress numbers again");
+    expect(second).toEqual(["vibranium"]);
+    expect(await tuner.topics()).toContain("vibranium");
+  });
+
+  it("a failing store never throws out of topics()", async () => {
+    const tuner = new ReasoningTuner({
+      get: async () => { throw new Error("db down"); },
+      remember: async () => { throw new Error("db down"); },
+    });
+    expect(await tuner.topics()).toEqual([]);
   });
 });
 
@@ -122,6 +177,27 @@ describe("runConversation — deep-reasoning escalation (D-0048)", () => {
     );
     expect(calls[0]!.role).toBe("deep_reasoning");
     expect(calls[1]!.role).toBe("fast_conversation");
+  });
+
+  it("auto-escalates on a learned topic and records corrections that promote new ones", async () => {
+    const store = fakeStore();
+    const tuner = new ReasoningTuner(store);
+    await tuner.teach("palladium");
+    const { loop, calls } = convLoop({ deepEligible: true });
+    (loop as unknown as { deps: { reasoningTuner?: ReasoningTuner } }).deps.reasoningTuner = tuner;
+
+    // learned topic → auto goes deep
+    await drain(loop.runConversation({ text: "any palladium updates?", source: "test" }));
+    expect(calls[0]!.role).toBe("deep_reasoning");
+
+    // two explicit-deep corrections on auto-fast turns teach a new topic
+    await drain(loop.runConversation({ text: "check the vibranium shield", source: "test", reasoning: "deep" }));
+    await drain(loop.runConversation({ text: "vibranium tolerances again", source: "test", reasoning: "deep" }));
+    expect(await tuner.topics()).toContain("vibranium");
+
+    // …and from now on it auto-escalates
+    await drain(loop.runConversation({ text: "how is the vibranium doing?", source: "test" }));
+    expect(calls[3]!.role).toBe("deep_reasoning");
   });
 
   it("downgrades honestly (never errors) when deep_reasoning has no eligible provider", async () => {

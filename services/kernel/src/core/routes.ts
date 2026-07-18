@@ -43,8 +43,24 @@ export function registerCoreRoutes(
     skills: import("../skills/registry.js").SkillRegistry;
     files: import("../knowledge/contract.js").WorkspaceFiles;
     prompts?: import("../prompts/registry.js").PromptRegistry;
+    reasoningTuner?: import("./reasoning.js").ReasoningTuner;
   },
 ): void {
+  // Deep-reasoning learned topics (D-0050): what the user has taught (by
+  // instruction or repeated correction). Read/teach/forget — always inspectable.
+  if (deps.reasoningTuner) {
+    const tuner = deps.reasoningTuner;
+    app.get("/core/reasoning/topics", async () => ({ topics: await tuner.topics() }));
+    app.post("/core/reasoning/topics", async (req, reply) => {
+      const topic = (req.body as { topic?: string } | undefined)?.topic;
+      if (!topic?.trim()) return reply.code(400).send({ error: "topic required" });
+      return { topics: await tuner.teach(topic) };
+    });
+    app.delete("/core/reasoning/topics/:topic", async (req) => {
+      const topic = decodeURIComponent((req.params as { topic: string }).topic);
+      return { topics: await tuner.forget(topic) };
+    });
+  }
   app.get("/core/tools", async () => ({
     tools: deps.tools.list().map((t) => ({
       name: t.name,
