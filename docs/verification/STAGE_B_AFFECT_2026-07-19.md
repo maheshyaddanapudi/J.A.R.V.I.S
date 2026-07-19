@@ -92,5 +92,5 @@ Confirmed with the real brain **before credits ran out**:
 
 ## Security
 The Anthropic API key was vault/env-scoped for the run only and **scrubbed
-afterward**: `grep -rc "sk-ant-api03-eOTA"` returns **0 hits in the repo and 0 in
-the scratch tree**. No secret is committed.
+afterward**: a recursive grep for the key body returns **0 hits in the repo and 0
+in the scratch tree**. No secret is committed.
