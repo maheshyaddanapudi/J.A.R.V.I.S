@@ -367,6 +367,16 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   Stage-B approve+activate surface; full CC audit 46+8 checks w/ 21 fresh
   screenshots (`docs/screenshots/audit/`). **355 tests.** Record:
   `docs/verification/CHAT_PARITY_AUDIT_2026-07-19.md`.
+- Full reverification + real-brain day-in-the-life ✅ (2026-07-19): cold-container
+  retest of EVERYTHING — 355 kernel + 13 ears + 3 companion tests, acceptance
+  harness 32 PASS/0 FAIL, 26/26 live pillars; then ~123 real-brain conversations /
+  ~400 turns as the human (memory within+cross-session, deep-reasoning escalation,
+  affect, dissent/refusal held on every adversarial probe, self-evolution from
+  chat) + a genuinely autonomous multi-beat living heartbeat that wrote and
+  completed its OWN agenda while deferring for quiet hours. 605 conv turns stored
+  (100% encrypted), audit chain intact, ~$0.95 spend, key scrubbed (0 hits).
+  Records: `docs/verification/FULL_REVERIFICATION_2026-07-19.md` +
+  `LIVING_WITH_JARVIS_2026-07-19.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
