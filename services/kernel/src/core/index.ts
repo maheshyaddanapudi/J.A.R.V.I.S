@@ -56,6 +56,7 @@ import { SETTINGS_CATALOG } from "../settings/catalog.js";
 import { settingsTools } from "../settings/tools.js";
 import { DurableGrants } from "./grants.js";
 import { BackgroundScheduler } from "../autonomy/scheduler.js";
+import { Agenda, agendaTools } from "../autonomy/agenda.js";
 import { A2uiRegistry } from "../a2ui/registry.js";
 import { a2uiTools } from "../a2ui/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
@@ -78,6 +79,8 @@ export interface Core {
   settings: SettingsRegistry;
   durableGrants: DurableGrants;
   autonomy: BackgroundScheduler;
+  /** J.A.R.V.I.S.'s own intention ledger (D-0064) */
+  agenda: Agenda;
   a2ui: A2uiRegistry;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
@@ -235,6 +238,9 @@ export async function buildCore(opts: {
   for (const t of settingsTools(settings)) tools.register(t);
   // A2UI (D-0061): J.A.R.V.I.S. composes declarative panels; validated against
   // the whitelist + real references, rendered by a sandboxed client renderer.
+  const agenda = new Agenda(opts.pool, audit);
+  for (const t of agendaTools(agenda)) tools.register(t);
+
   const a2ui = new A2uiRegistry(opts.pool, audit, settings, tools);
   for (const t of a2uiTools(a2ui)) tools.register(t);
   // Cascade (D-0060 gap fix): a removed setting prunes itself out of any A2UI
@@ -328,7 +334,11 @@ export async function buildCore(opts: {
   // Background autonomy (D-0024, approved): bounded scheduler for the two safe
   // cycles (proactivity + sleep-cycle). Config is persisted D-0058 settings,
   // default OFF; the scheduler reconciles its timer whenever they change.
-  const autonomy = new BackgroundScheduler({ settings, proactive, sleepCycle, estop, audit, activity });
+  const autonomy = new BackgroundScheduler({
+    settings, proactive, sleepCycle, estop, audit, activity,
+    // the living heartbeat (D-0064): agenda + bounded brain pass + journal
+    agenda, agent, pool: opts.pool,
+  });
   settings.onChange((key) => { if (key.startsWith("autonomy.")) void autonomy.reconcile(); });
   void autonomy.reconcile();
 
@@ -352,7 +362,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, a2ui,
+    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, a2ui,
     ...(secrets ? { secrets } : {}),
     loop,
   };

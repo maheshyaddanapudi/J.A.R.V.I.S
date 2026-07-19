@@ -95,11 +95,20 @@ export class LocalAgentRuntime implements AgentRuntime {
           halted = true;
           break;
         }
+        const ceiling = opts.approvalCeiling;
+        const stepTool = this.deps.tools.get(call.name);
+        const ceilingResolution =
+          ceiling && !opts.autoApprove && stepTool
+            ? (stepTool.riskClass === "READ_ONLY" || stepTool.riskClass === "LOW_REVERSIBLE"
+                ? ("allow-once" as const)
+                : ("deny" as const))
+            : undefined;
         const exec = await this.deps.loop.runTool({
           tool: call.name,
           args: call.arguments,
           source,
           ...(opts.autoApprove ? { autoApprove: opts.autoApprove } : {}),
+          ...(ceilingResolution ? { autoApprove: ceilingResolution } : {}),
         });
         const step: AgentStep = {
           index: steps.length,

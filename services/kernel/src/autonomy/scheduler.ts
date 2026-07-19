@@ -2,6 +2,9 @@ import type { ActivityBus } from "../core/activity.js";
 import type { AuditLog } from "../core/audit.js";
 import type { EmergencyStop } from "../core/estop.js";
 import type { SettingsRegistry } from "../settings/registry.js";
+import type pg from "pg";
+import type { AgentRuntime } from "../agent/contract.js";
+import type { Agenda } from "./agenda.js";
 import type { ProactivityEngine } from "../proactive/engine.js";
 import type { SleepCycle } from "../core/consolidation.js";
 
@@ -29,6 +32,10 @@ import type { SleepCycle } from "../core/consolidation.js";
 export interface TickResult {
   proactiveSurfaced: number;
   consolidated: boolean;
+  /** heartbeat pass (D-0064): agenda items reviewed / completed, brain used */
+  agendaReviewed?: number;
+  agendaCompleted?: number;
+  brainUsed?: boolean;
   skipped?: string;
 }
 
@@ -55,6 +62,10 @@ export class BackgroundScheduler {
       estop: EmergencyStop;
       audit: AuditLog;
       activity: ActivityBus;
+      /** the living heartbeat (D-0064): J.A.R.V.I.S.'s own agenda + bounded brain pass */
+      agenda?: Agenda;
+      agent?: AgentRuntime;
+      pool?: pg.Pool;
       /** injectable clock for tests (defaults to real time) */
       now?: () => Date;
     },
@@ -107,16 +118,69 @@ export class BackgroundScheduler {
           consolidated = true;
         } catch { /* best-effort */ }
       }
-      this.lastResult = { proactiveSurfaced, consolidated };
+      // ---- The living heartbeat (D-0064): review J.A.R.V.I.S.'s OWN agenda and
+      // let it think + act within the safety ceiling. Autonomous COGNITION,
+      // gated ACTION: steps ≤ LOW_REVERSIBLE auto-run; anything consequential is
+      // auto-DENIED (the model queues it back on the agenda for the user).
+      let agendaReviewed = 0;
+      let agendaCompleted = 0;
+      let brainUsed = false;
+      let beatSummary = "";
+      let beatDetail = "";
+      if (this.deps.agenda) {
+        try {
+          const due = await this.deps.agenda.due(this.now());
+          agendaReviewed = due.length;
+          const brainMode = await s.str("heartbeat.brain", "when-agenda");
+          const shouldThink =
+            !!this.deps.agent && brainMode !== "off" && (brainMode === "every-tick" || due.length > 0);
+          if (shouldThink) {
+            const maxSteps = await s.num("heartbeat.maxSteps", 6);
+            const privacy = (await s.str("heartbeat.privacy", "LOCAL_ONLY")) as "LOCAL_ONLY" | "STANDARD";
+            const list = due.map((d) => `- (id ${d.id}) ${d.what}${d.why ? ` — ${d.why}` : ""}`).join("\n");
+            const objective =
+              `HEARTBEAT (nobody is talking to you; this is your own time). Your pending agenda:\n` +
+              (list || "- (empty — reflect briefly)") +
+              `\n\nWork the agenda: do what is safe now with your tools and mark items agenda.complete with the outcome. ` +
+              `Anything needing user approval WILL BE DENIED at this hour — do not force it; leave it pending or agenda.add a refined version for the user. ` +
+              `If you notice something worth doing later, agenda.add it (that is you planning your own next heartbeat). ` +
+              `Finish with ONE sentence summarising this heartbeat.`;
+            const r = await this.deps.agent!.run(objective, {
+              maxSteps: Math.max(2, Math.min(12, maxSteps)),
+              privacyClass: privacy,
+              source: "heartbeat",
+              approvalCeiling: "LOW_REVERSIBLE",
+            });
+            brainUsed = true;
+            beatSummary = (r.answer ?? "").slice(0, 300);
+            beatDetail = r.steps
+              .map((st) => `${st.tool}: ${st.ok ? "ok" : "DENIED/failed"} — ${String(st.summary ?? "").slice(0, 120)}`)
+              .join("\n")
+              .slice(0, 4000);
+            agendaCompleted = r.steps.filter((st) => st.tool === "agenda.complete" && st.ok).length;
+          }
+        } catch { /* the heartbeat must never crash the tick */ }
+      }
+      // journal the beat (persisted — the observable "I was alive at ...")
+      if (this.deps.pool) {
+        try {
+          await this.deps.pool.query(
+            `INSERT INTO heartbeats (at, proactive_surfaced, consolidated, agenda_reviewed, agenda_completed, brain_used, summary, detail)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [at, proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed, beatSummary, beatDetail],
+          );
+        } catch { /* journal is best-effort */ }
+      }
+      this.lastResult = { proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed };
       this.deps.activity.emit({
         kind: "decision",
-        summary: `autonomy tick: ${proactiveSurfaced} proactive surfaced${consolidated ? ", consolidated" : ""}`,
+        summary: `heartbeat: ${proactiveSurfaced} proactive${consolidated ? ", consolidated" : ""}, agenda ${agendaCompleted}/${agendaReviewed}${brainUsed ? " (thought)" : ""}${beatSummary ? ` — ${beatSummary.slice(0, 120)}` : ""}`,
         at,
       });
       await this.deps.audit.append({
         actor: "kernel",
         event: "autonomy_tick",
-        payload: { at, proactiveSurfaced, consolidated },
+        payload: { at, proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed },
       });
       return this.lastResult;
     } catch (err) {

@@ -124,6 +124,37 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
   // ---- Reasoning / generation defaults (mirror the JARVIS_EFFORT/THINKING env,
   //      surfaced for UI editing; the gateway reads env at load, these give a
   //      visible, editable home for the same intent) ----
+  // ---- Heartbeat (D-0064): J.A.R.V.I.S.'s own time between conversations ----
+  {
+    key: "heartbeat.brain",
+    label: "Heartbeat thinking",
+    category: "Autonomy",
+    type: "enum",
+    options: ["off", "when-agenda", "every-tick"] as const,
+    default: () => "when-agenda",
+    description: "When the heartbeat consults the model brain: never, only when agenda items are due, or on every tick. Consequential actions are always denied on a heartbeat and queued for you.",
+  },
+  {
+    key: "heartbeat.maxSteps",
+    label: "Heartbeat step budget",
+    category: "Autonomy",
+    type: "number",
+    min: 2,
+    max: 12,
+    step: 1,
+    default: () => 6,
+    description: "Maximum tool steps one heartbeat's thinking may take.",
+  },
+  {
+    key: "heartbeat.privacy",
+    label: "Heartbeat privacy class",
+    category: "Autonomy",
+    type: "enum",
+    options: ["LOCAL_ONLY", "STANDARD"] as const,
+    default: () => "LOCAL_ONLY",
+    description: "LOCAL_ONLY keeps heartbeat thinking on local models (default, local-first); STANDARD allows configured remote providers.",
+  },
+
   // ---- Memory consolidation (D-0063): quiet-hours tidy-up thresholds ----
   {
     key: "memory.consolidation.overlap",

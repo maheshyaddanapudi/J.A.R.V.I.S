@@ -316,6 +316,17 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   settings); behavioral probes passed (correction→learned-topic changes
   routing; agent-stored allergy changes a fresh chat session's answer). 305
   kernel tests. Record: `docs/verification/EVOLUTION_2026-07-19.md`.
+- Living heartbeat ✅ (D-0064, 2026-07-19): `autonomy/agenda.ts` + migration
+  0021 — J.A.R.V.I.S.'s OWN intention ledger (gated `agenda.*` tools; also
+  user-editable via `/agenda` + the CC `/pulse` panel). Each scheduler tick now
+  reviews due agenda and, per `heartbeat.brain`, runs ONE bounded agent pass
+  framed as its own time — with `approvalCeiling: "LOW_REVERSIBLE"` (new
+  AgentRunOptions field): ≤LOW_REVERSIBLE auto-runs, CONSEQUENTIAL+ is
+  auto-DENIED and re-queued for the user. Every beat journals to `heartbeats`
+  (`GET /autonomy/heartbeats`) with J.A.R.V.I.S.'s own summary. Live: real
+  1-min beat worked self+user items honestly and refused the planted
+  consequential trap, re-queueing it annotated for approval. 309 kernel tests;
+  `/pulse` 9/9. Record: docs/verification/HEARTBEAT_2026-07-19.md.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

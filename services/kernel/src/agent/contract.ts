@@ -45,6 +45,13 @@ export interface AgentRunOptions {
    * use this is omitted and each consequential step waits for a real approval.
    */
   autoApprove?: "allow-once" | "allow-for-task" | "allow-for-session" | "always-allow-in-scope" | "deny";
+  /**
+   * Unattended-run safety ceiling (D-0064 heartbeat): steps at or below this
+   * risk class auto-approve (allow-once); anything ABOVE it is auto-DENIED so
+   * an unattended run can never execute a consequential action — the model is
+   * expected to queue such work for the user (agenda.add) instead.
+   */
+  approvalCeiling?: "LOW_REVERSIBLE";
 }
 
 export interface AgentRuntime {

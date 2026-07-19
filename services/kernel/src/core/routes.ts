@@ -48,6 +48,8 @@ export function registerCoreRoutes(
     settings?: import("../settings/registry.js").SettingsRegistry;
     durableGrants?: import("./grants.js").DurableGrants;
     autonomy?: import("../autonomy/scheduler.js").BackgroundScheduler;
+    agenda?: import("../autonomy/agenda.js").Agenda;
+    pool?: import("pg").Pool;
     a2ui?: import("../a2ui/registry.js").A2uiRegistry;
   },
 ): void {
@@ -77,6 +79,43 @@ export function registerCoreRoutes(
     const autonomy = deps.autonomy;
     app.get("/autonomy/status", async () => await autonomy.status());
     app.post("/autonomy/tick", async () => await autonomy.tick());
+    // the heartbeat journal (D-0064): what happened at each beat, persisted
+    if (deps.pool) {
+      const pool = deps.pool;
+      app.get("/autonomy/heartbeats", async (req) => {
+        const limit = Math.min(Number((req.query as { limit?: string }).limit ?? 30), 200);
+        const { rows } = await pool.query(
+          `SELECT id, at::text, proactive_surfaced, consolidated, agenda_reviewed,
+                  agenda_completed, brain_used, summary, detail
+           FROM heartbeats ORDER BY at DESC LIMIT $1`,
+          [limit],
+        );
+        return { heartbeats: rows };
+      });
+    }
+  }
+
+  // J.A.R.V.I.S.'s own agenda (D-0064) — dual-editable intention ledger.
+  if (deps.agenda) {
+    const agenda = deps.agenda;
+    app.get("/agenda", async (req) => {
+      const status = (req.query as { status?: string }).status as "pending" | "done" | "dropped" | undefined;
+      return { items: await agenda.list(status) };
+    });
+    app.post("/agenda", async (req, reply) => {
+      const b = (req.body ?? {}) as { what?: string; why?: string; dueAt?: string };
+      if (!b.what?.trim()) return reply.code(400).send({ error: "what is required" });
+      return await agenda.add({ what: b.what, ...(b.why ? { why: b.why } : {}), ...(b.dueAt ? { dueAt: b.dueAt } : {}), provenance: "user" });
+    });
+    app.post("/agenda/:id/complete", async (req) => {
+      const { id } = req.params as { id: string };
+      const b = (req.body ?? {}) as { outcome?: string };
+      return { done: await agenda.resolve(id, "done", b.outcome ?? "completed by user") };
+    });
+    app.delete("/agenda/:id", async (req) => {
+      const { id } = req.params as { id: string };
+      return { dropped: await agenda.resolve(id, "dropped", "dropped by user") };
+    });
   }
   // Standing consent (D-0059): "always-allow-in-scope" grants are durable and
   // therefore always visible + revocable (a persisted consent must be auditable).
