@@ -206,6 +206,9 @@ export class BackgroundScheduler {
           }
         } catch { /* the heartbeat must never crash the tick */ }
       }
+      // record WHY the beat held back (budget) before journaling, so the beat
+      // shows the reason it was alive-but-quiet (observability).
+      if (budgetBlock && !beatSummary) beatSummary = `held back — ${budgetBlock}`;
       // journal the beat (persisted — the observable "I was alive at ...")
       if (this.deps.pool) {
         try {
@@ -216,7 +219,6 @@ export class BackgroundScheduler {
           );
         } catch { /* journal is best-effort */ }
       }
-      if (budgetBlock && !beatSummary) beatSummary = `held back — ${budgetBlock}`;
       this.lastResult = { proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed };
       this.deps.activity.emit({
         kind: "decision",
