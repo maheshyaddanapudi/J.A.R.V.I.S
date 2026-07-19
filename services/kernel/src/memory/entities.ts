@@ -25,8 +25,19 @@ const STOP_WORDS = new Set([
   "and", "or", "now", "not", "with", "for", "be", "was", "were", "has", "have", "had",
   "that", "this", "it", "as", "by", "from", "he", "she", "they", "we", "you",
 ]);
+/** Light suffix-stem so morphology doesn't defeat matching ("reviews" ~
+ *  "reviewing" ~ "reviewed" → "review"). Deliberately crude — thresholds and
+ *  containment still guard against false merges. */
+function stem(w: string): string {
+  if (w.length > 5 && w.endsWith("ing")) return w.slice(0, -3);
+  if (w.length > 4 && (w.endsWith("ed") || w.endsWith("es"))) return w.slice(0, -2);
+  if (w.length > 3 && w.endsWith("s")) return w.slice(0, -1);
+  return w;
+}
 function contentWords(s: string): Set<string> {
-  return new Set((s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)));
+  return new Set(
+    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)).map(stem),
+  );
 }
 
 export type EntityKind = string; // person | project | place | org | thing | topic | …
@@ -444,6 +455,94 @@ export class EntityMemory {
       }
     }
     return (rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Quiet-hours memory consolidation (D-0063) — the sleep-time half of "memories
+   * update live AND during quiet hours". Live writes stay immediate (every tool
+   * call above); this pass runs from the sleep cycle (autonomy tick) and tidies
+   * what the day accumulated, like sleep does for a person:
+   *  • near-duplicate ACTIVE facts on the same entity are MERGED — the older
+   *    restatement is superseded (kept as history, forward-linked to the kept
+   *    fact), so recall stops surfacing three wordings of the same thing.
+   *    Conservative: only when the older fact's content words are contained in
+   *    the newer's, or overlap ≥ `overlap` (content words, stop-words dropped).
+   *  • stale entities (not used/updated in `staleDays`) are PROPOSED for review
+   *    — never auto-forgotten (forgetting is the user's call, R-MEM-04).
+   * Bounded (≤200 entities, ≤30 facts each), audited, every merge reversible in
+   * the sense that history is kept (status='superseded', superseded_by set).
+   */
+  async consolidate(opts?: { overlap?: number; staleDays?: number }): Promise<{
+    entitiesScanned: number;
+    duplicatesMerged: number;
+    merged: string[];         // "entity: kept 'x' ⊃ superseded 'y'"
+    staleProposals: string[]; // entity names proposed for review
+  }> {
+    const overlap = Math.min(0.95, Math.max(0.5, opts?.overlap ?? 0.7));
+    const staleDays = Math.max(7, opts?.staleDays ?? 90);
+    const merged: string[] = [];
+    let duplicatesMerged = 0;
+
+    const { rows: entities } = await this.pool.query<{ id: string; name: string }>(
+      `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded')
+       ORDER BY updated_at DESC LIMIT 200`,
+    );
+    for (const e of entities) {
+      const { rows: facts } = await this.pool.query<{ id: string; statement: string; created_at: string }>(
+        `SELECT id, statement, created_at::text FROM memory_facts
+         WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+         ORDER BY created_at ASC LIMIT 30`,
+        [e.id],
+      );
+      if (facts.length < 2) continue;
+      const decoded = facts.map((f) => ({ ...f, text: this.dec(f.statement), words: contentWords(this.dec(f.statement)) }));
+      const gone = new Set<string>();
+      // newer fact wins; compare each older fact against every newer one
+      for (let i = 0; i < decoded.length; i++) {
+        if (gone.has(decoded[i]!.id)) continue;
+        for (let j = i + 1; j < decoded.length; j++) {
+          if (gone.has(decoded[j]!.id)) continue;
+          const a = decoded[i]!, b = decoded[j]!; // a older, b newer
+          if (!a.words.size || !b.words.size) continue;
+          let inter = 0;
+          for (const w of a.words) if (b.words.has(w)) inter++;
+          const contained = inter === a.words.size;                        // b restates a (with possibly more detail)
+          const jac = inter / (new Set([...a.words, ...b.words]).size || 1);
+          if (contained || jac >= overlap) {
+            await this.pool.query(
+              `UPDATE memory_facts SET status = 'superseded', superseded_by = $1 WHERE id = $2`,
+              [b.id, a.id],
+            );
+            if (this.semantic) void this.semantic.remove("fact", a.id);
+            gone.add(a.id);
+            duplicatesMerged++;
+            merged.push(`${e.name}: kept "${b.text}" ⊃ superseded "${a.text}"`);
+            break; // a is merged; move to the next older fact
+          }
+        }
+      }
+    }
+
+    const { rows: stale } = await this.pool.query<{ name: string }>(
+      `SELECT name FROM memory_entities
+       WHERE status NOT IN ('deleted','superseded')
+         AND GREATEST(COALESCE(last_used_at, updated_at), updated_at) < now() - ($1 || ' days')::interval
+       ORDER BY updated_at ASC LIMIT 10`,
+      [staleDays],
+    );
+    if (duplicatesMerged || stale.length) {
+      await this.audit.append({
+        actor: "kernel",
+        event: "memory_consolidated",
+        payload: { entitiesScanned: entities.length, duplicatesMerged, staleProposed: stale.length },
+      });
+    }
+    return {
+      entitiesScanned: entities.length,
+      duplicatesMerged,
+      merged,
+      staleProposals: stale.map((s) => s.name),
+    };
   }
 
   /** Soft-delete ONE fact by id (from a prior recall) — for "that's no longer

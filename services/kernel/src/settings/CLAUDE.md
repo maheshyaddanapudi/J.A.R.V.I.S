@@ -47,6 +47,11 @@ at boot; `register()` refuses Z1 keys + system collisions; `remove()` resets a
 system key but deletes a dynamic one. `POST /settings` (register), gated
 `settings.register` tool. Panel tags them "◆ discovered".
 
+## Memory-consolidation knobs (D-0063)
+`memory.consolidation.overlap` (0.5–0.95, default 0.7) and
+`memory.consolidation.staleDays` (7–365, default 90) tune the quiet-hours
+memory pass the sleep cycle runs; read live via `settings.num` on each run.
+
 ## Verified (2026-07-18)
 5 settings tests (default fallback, persist+reset, type/bounds validation,
 unknown-key reject, Z1-exclusion, gated tool round-trip incl. deny-changes-

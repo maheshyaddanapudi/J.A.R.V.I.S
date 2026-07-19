@@ -302,6 +302,20 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   kernel tests; live clean-slate real-brain retest: agent chose
   recall→correct(factId)×2→forget(factId) unprompted. Record:
   `docs/verification/GAP_FIXES_2026-07-19.md`.
+- Quiet-hours memory consolidation ✅ (D-0063, 2026-07-19): memories update
+  LIVE (every tool write, immediate) **and** during quiet hours — user prefers
+  both. `EntityMemory.consolidate()` (bounded, audited): merges near-duplicate
+  active facts per entity (older superseded w/ history + `superseded_by` link;
+  stop-word-filtered + lightly STEMMED content-word matching — reviews ~
+  reviewing; containment or overlap ≥ `memory.consolidation.overlap`) and
+  PROPOSES stale entities (`.staleDays`) — never auto-forgets (R-MEM-04).
+  Runs inside `SleepCycle.run()` (report gains a `memory` section) → the
+  D-0024 BackgroundScheduler timer runs it unattended; thresholds are
+  catalogued editable settings. Live-verified: real 1-min timer tick merged a
+  seeded dupe (incl. after restart — scheduler re-arms from persisted
+  settings); behavioral probes passed (correction→learned-topic changes
+  routing; agent-stored allergy changes a fresh chat session's answer). 305
+  kernel tests. Record: `docs/verification/EVOLUTION_2026-07-19.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

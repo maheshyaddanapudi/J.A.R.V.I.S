@@ -282,6 +282,10 @@ export async function buildCore(opts: {
     tuner: reasoningTuner,
     episodes: episodicMemory,
     store: memory,
+    // quiet-hours MEMORY consolidation (D-0063): the sleep cycle tidies the
+    // day's memories too — dupes merged (with history), stale only PROPOSED.
+    memory: entityMemory,
+    settings,
   });
 
   const loop = new CoreLoop({

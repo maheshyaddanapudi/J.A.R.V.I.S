@@ -1,5 +1,7 @@
 import type pg from "pg";
+import type { EntityMemory } from "../memory/entities.js";
 import type { EpisodicMemory } from "../memory/episodes.js";
+import type { SettingsRegistry } from "../settings/registry.js";
 import {
   type Autotune,
   type DepthReason,
@@ -47,6 +49,8 @@ export interface ConsolidationReport {
   /** respected constraints, e.g. a standing user override */
   notes: string[];
   autotune: Autotune;
+  /** quiet-hours MEMORY consolidation (D-0063): dupes merged + stale proposals */
+  memory?: { entitiesScanned: number; duplicatesMerged: number; staleProposals: number };
 }
 
 export const CONSOLIDATION_KEY = "reasoning_last_consolidation";
@@ -81,6 +85,10 @@ export class SleepCycle {
       episodes?: EpisodicMemory;
       /** report persistence (any TunerStore-compatible preference store) */
       store: { remember(i: { key: string; value: string; provenance: string }): Promise<unknown> };
+      /** quiet-hours MEMORY consolidation (D-0063) — merge duplicate facts, propose stale */
+      memory?: EntityMemory;
+      /** thresholds read live from the editable catalog (D-0058) */
+      settings?: SettingsRegistry;
     },
   ) {}
 
@@ -222,6 +230,30 @@ export class SleepCycle {
       }
     }
 
+    // Quiet-hours MEMORY consolidation (D-0063): the sleep-time half of
+    // "memories update live AND during quiet hours". Best-effort — a memory
+    // failure never blocks the behavioral consolidation.
+    let memorySection: ConsolidationReport["memory"];
+    if (this.deps.memory) {
+      try {
+        const overlap = (await this.deps.settings?.num("memory.consolidation.overlap", 0.7)) ?? 0.7;
+        const staleDays = (await this.deps.settings?.num("memory.consolidation.staleDays", 90)) ?? 90;
+        const m = await this.deps.memory.consolidate({ overlap, staleDays });
+        memorySection = {
+          entitiesScanned: m.entitiesScanned,
+          duplicatesMerged: m.duplicatesMerged,
+          staleProposals: m.staleProposals.length,
+        };
+        if (m.duplicatesMerged) {
+          findings.push(`memory: merged ${m.duplicatesMerged} duplicate fact(s) across ${m.entitiesScanned} entities`);
+          for (const d of m.merged.slice(0, 5)) notes.push(`memory merge — ${d}`);
+        }
+        for (const name of m.staleProposals) {
+          proposals.push(`memory: '${name}' hasn't come up in a long while — forget it, or keep it? (never auto-forgotten)`);
+        }
+      } catch { /* memory pass is best-effort */ }
+    }
+
     const atRow = await pool.query<{ now: string }>("SELECT now()::text AS now");
     const report: ConsolidationReport = {
       at: atRow.rows[0]!.now,
@@ -233,6 +265,7 @@ export class SleepCycle {
       adjustments,
       notes,
       autotune: await tuner.autotune(),
+      ...(memorySection ? { memory: memorySection } : {}),
     };
 
     // Persist for GET + land on the timeline (both best-effort).

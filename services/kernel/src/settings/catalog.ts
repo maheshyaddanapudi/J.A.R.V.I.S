@@ -124,6 +124,30 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
   // ---- Reasoning / generation defaults (mirror the JARVIS_EFFORT/THINKING env,
   //      surfaced for UI editing; the gateway reads env at load, these give a
   //      visible, editable home for the same intent) ----
+  // ---- Memory consolidation (D-0063): quiet-hours tidy-up thresholds ----
+  {
+    key: "memory.consolidation.overlap",
+    label: "Fact-merge overlap threshold",
+    category: "Memory",
+    type: "number",
+    min: 0.5,
+    max: 0.95,
+    step: 0.05,
+    default: () => 0.7,
+    description: "How similar two facts about the same entity must be (content-word overlap) before the sleep cycle merges the older into the newer. Higher = more conservative.",
+  },
+  {
+    key: "memory.consolidation.staleDays",
+    label: "Stale-memory review age (days)",
+    category: "Memory",
+    type: "number",
+    min: 7,
+    max: 365,
+    step: 1,
+    default: () => 90,
+    description: "Entities unused for this many days are PROPOSED for review during the sleep cycle — never auto-forgotten.",
+  },
+
   {
     key: "reasoning.defaultEffort",
     label: "Default reasoning effort (remote)",

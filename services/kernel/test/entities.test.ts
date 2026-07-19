@@ -203,6 +203,50 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     expect(pepper.facts).not.toContain("home address is private"); // private fact excluded
   });
 
+  it("consolidate() merges near-duplicate facts (quiet-hours pass, D-0063), keeps distinct ones", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Luis", entityKind: "person", statement: "programs my strength sessions", provenance: "test" });
+    await mem.rememberFact({ entityName: "Luis", statement: "Luis programs my strength sessions on Tuesdays and Fridays", provenance: "test" });
+    await mem.rememberFact({ entityName: "Luis", statement: "allergic to peanuts", provenance: "test" });
+    const r = await mem.consolidate();
+    expect(r.duplicatesMerged).toBe(1); // the restatement merged into the fuller fact
+    const after = (await mem.recall("Luis"))!.facts.map((f) => f.statement);
+    expect(after).toContain("Luis programs my strength sessions on Tuesdays and Fridays");
+    expect(after).toContain("allergic to peanuts");           // distinct fact untouched
+    expect(after).not.toContain("programs my strength sessions"); // older restatement gone from recall
+    // merged row is HISTORY, not deleted — superseded + forward-linked
+    const { rows } = await pool!.query(
+      "SELECT count(*) FROM memory_facts WHERE status='superseded' AND superseded_by IS NOT NULL",
+    );
+    expect(Number(rows[0].count)).toBe(1);
+    // idempotent: a second pass finds nothing new
+    expect((await mem.consolidate()).duplicatesMerged).toBe(0);
+  });
+
+  it("consolidate() merges across MORPHOLOGY (reviews ~ reviewing) via light stemming", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Pepper", entityKind: "person", statement: "Pepper reviews the investor deck", provenance: "test" });
+    await mem.rememberFact({ entityName: "Pepper", statement: "Pepper is reviewing the Q3 investor deck this week", provenance: "test" });
+    await mem.rememberFact({ entityName: "Pepper", statement: "met Pepper at the Tokyo office", provenance: "test" });
+    const r = await mem.consolidate();
+    expect(r.duplicatesMerged).toBe(1);
+    const after = (await mem.recall("Pepper"))!.facts.map((f) => f.statement);
+    expect(after).toContain("Pepper is reviewing the Q3 investor deck this week"); // fuller, newer kept
+    expect(after).toContain("met Pepper at the Tokyo office");                      // distinct kept
+    expect(after).not.toContain("Pepper reviews the investor deck");                // restatement merged
+  });
+
+  it("consolidate() PROPOSES stale entities for review — never auto-forgets", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberEntity({ kind: "thing", name: "Old Gadget", provenance: "test" });
+    await pool!.query(
+      "UPDATE memory_entities SET updated_at = now() - interval '120 days', last_used_at = NULL WHERE name = 'Old Gadget'",
+    );
+    const r = await mem.consolidate({ staleDays: 90 });
+    expect(r.staleProposals).toContain("Old Gadget");
+    expect(await mem.recall("Old Gadget")).not.toBeNull(); // still recallable — proposal only
+  });
+
   it("lists entities by kind", async () => {
     const mem = new EntityMemory(pool!, audit, vault);
     await mem.rememberEntity({ kind: "person", name: "Rhodey", provenance: "test" });
