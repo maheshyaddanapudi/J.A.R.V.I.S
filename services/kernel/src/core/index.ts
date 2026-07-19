@@ -58,6 +58,11 @@ import { DurableGrants } from "./grants.js";
 import { BackgroundScheduler } from "../autonomy/scheduler.js";
 import { Agenda, agendaTools } from "../autonomy/agenda.js";
 import { Budget } from "./budget.js";
+import { Announcer, announceTools } from "../autonomy/announce.js";
+import { Projects, projectTools } from "../autonomy/projects.js";
+import { PerceptionService, FilePerceptionSource, perceptionTools } from "../perception/service.js";
+import { Ops } from "../ops/ops.js";
+import { join as joinPath } from "node:path";
 import { A2uiRegistry } from "../a2ui/registry.js";
 import { a2uiTools } from "../a2ui/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
@@ -84,6 +89,14 @@ export interface Core {
   agenda: Agenda;
   /** spend governance (D-0066) */
   budget: Budget;
+  /** outbound initiative — announcements + advisory dissent (D-0068) */
+  announcer: Announcer;
+  /** durable long-horizon projects (D-0069) */
+  projects: Projects;
+  /** perception core — situational observation from a feed (D-0070) */
+  perception: PerceptionService;
+  /** longevity ops — health/backup/restore (D-0071) */
+  ops: Ops;
   a2ui: A2uiRegistry;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
@@ -243,6 +256,16 @@ export async function buildCore(opts: {
   // the whitelist + real references, rendered by a sandboxed client renderer.
   const agenda = new Agenda(opts.pool, audit);
   for (const t of agendaTools(agenda)) tools.register(t);
+  const announcer = new Announcer(opts.pool, audit, settings, activity);
+  for (const t of announceTools(announcer)) tools.register(t);
+  const projects = new Projects(opts.pool, audit, opts.vault);
+  for (const t of projectTools(projects)) tools.register(t);
+  // Perception core (D-0070): a SIMULATION file feed in-container (screen source
+  // on the Mac swaps in behind the same contract); flows into context + a look tool.
+  const perception = new PerceptionService();
+  perception.register(new FilePerceptionSource("screen", "screen", joinPath(opts.workspaceRoot, "perception.json")));
+  for (const t of perceptionTools(perception)) tools.register(t);
+  const ops = new Ops(opts.pool, audit, settings, opts.workspaceRoot);
 
   const a2ui = new A2uiRegistry(opts.pool, audit, settings, tools);
   for (const t of a2uiTools(a2ui)) tools.register(t);
@@ -271,6 +294,8 @@ export async function buildCore(opts: {
     knowledge: entityMemory, // J.A.R.V.I.S. draws on what it knows (non-sensitive) in conversation
     episodes: episodicMemory, // …and on what recently happened (non-sensitive)
   });
+  // Perception (D-0070) flows into situational context (labeled by provenance).
+  context.addProvider(perception.contextProvider());
 
   // Restore persisted runtime role overrides onto the gateway (D-0054) —
   // best-effort: a stale pin is skipped and reported, never a boot failure.
@@ -346,6 +371,8 @@ export async function buildCore(opts: {
     lastUserActivity: () => loop.lastUserActivityAt,
     // self-restraint (D-0066): autonomy pauses when its token cap is hit
     budget,
+    // durable projects (D-0069): the heartbeat advances active goals
+    projects,
   });
   settings.onChange((key) => { if (key.startsWith("autonomy.")) void autonomy.reconcile(); });
   void autonomy.reconcile();
@@ -370,7 +397,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, a2ui,
+    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, announcer, projects, perception, ops, a2ui,
     ...(secrets ? { secrets } : {}),
     loop,
   };

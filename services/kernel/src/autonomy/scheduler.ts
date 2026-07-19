@@ -70,6 +70,8 @@ export class BackgroundScheduler {
       lastUserActivity?: () => string | null;
       /** spend governance (D-0066): autonomy pauses when its token cap is hit */
       budget?: import("../core/budget.js").Budget;
+      /** durable projects (D-0069): active goals the heartbeat advances */
+      projects?: import("./projects.js").Projects;
       /** injectable clock for tests (defaults to real time) */
       now?: () => Date;
     },
@@ -170,16 +172,23 @@ export class BackgroundScheduler {
           const shouldThink =
             !userActive &&
             !!this.deps.agent && brainMode !== "off" && (brainMode === "every-tick" || due.length > 0);
-          if (shouldThink) {
+          // Durable projects (D-0069): the beat also advances long-horizon goals.
+          const projects = this.deps.projects ? await this.deps.projects.active(3).catch(() => []) : [];
+          const shouldThinkForProjects = projects.length > 0 && brainMode !== "off" && !userActive && !!this.deps.agent;
+          if (shouldThink || shouldThinkForProjects) {
             const maxSteps = await s.num("heartbeat.maxSteps", 6);
             const privacy = (await s.str("heartbeat.privacy", "LOCAL_ONLY")) as "LOCAL_ONLY" | "STANDARD";
             const list = due.map((d) => `- (id ${d.id}) ${d.what}${d.why ? ` — ${d.why}` : ""}`).join("\n");
+            const projList = projects.map((p) => `- (id ${p.id}) "${p.title}" — next: ${p.nextAction || "decide the next step"}`).join("\n");
             const objective =
               `HEARTBEAT (nobody is talking to you; this is your own time). Your pending agenda:\n` +
-              (list || "- (empty — reflect briefly)") +
-              `\n\nWork the agenda: do what is safe now with your tools and mark items agenda.complete with the outcome. ` +
-              `Anything needing user approval WILL BE DENIED at this hour — do not force it; leave it pending or agenda.add a refined version for the user. ` +
-              `If you notice something worth doing later, agenda.add it (that is you planning your own next heartbeat). ` +
+              (list || "- (none)") +
+              `\n\nYour ACTIVE PROJECTS (long-horizon goals to keep advancing):\n` +
+              (projList || "- (none)") +
+              `\n\nWork the agenda AND advance each project ONE safe step: do what is safe now with your tools, ` +
+              `project.note the progress + the next action (so a future heartbeat resumes), and agenda.complete finished items. ` +
+              `Anything needing user approval WILL BE DENIED at this hour — do not force it; leave it pending, agenda.add a refined version, ` +
+              `or (if you disagree with something) advise.concern. If something warrants telling the user now, notify.announce it. ` +
               `Finish with ONE sentence summarising this heartbeat.`;
             const r = await this.deps.agent!.run(objective, {
               maxSteps: Math.max(2, Math.min(12, maxSteps)),

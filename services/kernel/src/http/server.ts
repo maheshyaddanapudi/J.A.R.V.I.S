@@ -78,6 +78,10 @@ export function createServer(opts: {
       autonomy: opts.core.autonomy,
       agenda: opts.core.agenda,
       budget: opts.core.budget,
+      announcer: opts.core.announcer,
+      projects: opts.core.projects,
+      perception: opts.core.perception,
+      ops: opts.core.ops,
       pool: opts.pool,
       a2ui: opts.core.a2ui,
     });

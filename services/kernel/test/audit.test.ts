@@ -43,7 +43,10 @@ describe.skipIf(!pool)("AuditLog hash chain (integration)", () => {
     await pool!.query("TRUNCATE audit_log RESTART IDENTITY");
   });
   afterAll(async () => {
-    await pool!.query("DROP TABLE IF EXISTS audit_log");
+    // Do NOT drop audit_log — it is a migrated table SHARED with the rest of the
+    // suite (serial file execution). Dropping it here used to leave every later
+    // file that uses a real AuditLog with "relation audit_log does not exist".
+    await pool!.query("TRUNCATE audit_log RESTART IDENTITY");
     await pool!.end();
   });
 

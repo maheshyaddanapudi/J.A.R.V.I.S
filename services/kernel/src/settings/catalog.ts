@@ -124,6 +124,15 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
   // ---- Reasoning / generation defaults (mirror the JARVIS_EFFORT/THINKING env,
   //      surfaced for UI editing; the gateway reads env at load, these give a
   //      visible, editable home for the same intent) ----
+  {
+    key: "announce.holdInQuietHours",
+    label: "Hold non-urgent announcements in quiet hours",
+    category: "Autonomy",
+    type: "boolean",
+    default: () => true,
+    description: "When on, J.A.R.V.I.S. queues non-urgent announcements during quiet hours and surfaces them after; 'urgent' always breaks through.",
+  },
+
   // ---- Spend governance (D-0066): self-restraint on autonomous cost ----
   {
     key: "budget.autonomy.dailyTokenCap",

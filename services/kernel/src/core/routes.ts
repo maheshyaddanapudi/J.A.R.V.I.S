@@ -50,6 +50,10 @@ export function registerCoreRoutes(
     autonomy?: import("../autonomy/scheduler.js").BackgroundScheduler;
     agenda?: import("../autonomy/agenda.js").Agenda;
     budget?: import("../core/budget.js").Budget;
+    announcer?: import("../autonomy/announce.js").Announcer;
+    projects?: import("../autonomy/projects.js").Projects;
+    perception?: import("../perception/service.js").PerceptionService;
+    ops?: import("../ops/ops.js").Ops;
     pool?: import("pg").Pool;
     a2ui?: import("../a2ui/registry.js").A2uiRegistry;
   },
@@ -100,6 +104,49 @@ export function registerCoreRoutes(
   if (deps.budget) {
     const budget = deps.budget;
     app.get("/budget/status", async () => await budget.status());
+  }
+
+  // Perception (D-0070): what J.A.R.V.I.S. currently observes (provenance-labeled).
+  if (deps.perception) {
+    const perception = deps.perception;
+    app.get("/perception", async () => ({ observations: await perception.observe() }));
+  }
+
+  // Longevity ops (D-0071): self-health/watchdog + brain backup.
+  if (deps.ops) {
+    const ops = deps.ops;
+    app.get("/ops/health", async () => await ops.health());
+    app.post("/ops/backup", async (req) => {
+      const b = (req.body ?? {}) as { label?: string };
+      return await ops.backup(b.label ?? "manual");
+    });
+  }
+
+  // Durable projects (D-0069): long-horizon goals + their progress logs.
+  if (deps.projects) {
+    const projects = deps.projects;
+    app.get("/projects", async (req) => {
+      const status = (req.query as { status?: string }).status as "active" | "paused" | "done" | "abandoned" | undefined;
+      return { projects: status ? await projects.list(status) : await projects.list() };
+    });
+    app.get("/projects/:id/log", async (req) => ({ log: await projects.log((req.params as { id: string }).id) }));
+    app.post("/projects", async (req, reply) => {
+      const b = (req.body ?? {}) as { title?: string; goal?: string; nextAction?: string };
+      if (!b.title?.trim() || !b.goal?.trim()) return reply.code(400).send({ error: "title and goal are required" });
+      return await projects.start({ title: b.title, goal: b.goal, ...(b.nextAction ? { nextAction: b.nextAction } : {}), createdBy: "user" });
+    });
+    app.post("/projects/:id/status", async (req) => {
+      const b = (req.body ?? {}) as { status?: "active" | "paused" | "done" | "abandoned"; note?: string };
+      return { ok: await projects.setStatus((req.params as { id: string }).id, b.status ?? "done", b.note, "user") };
+    });
+  }
+
+  // Outbound initiative (D-0068): announcements + advisory concerns.
+  if (deps.announcer) {
+    const announcer = deps.announcer;
+    app.get("/announcements", async () => ({ pending: await announcer.pending(), recent: await announcer.list(20) }));
+    app.post("/announcements/:id/deliver", async (req) => ({ delivered: await announcer.markDelivered((req.params as { id: string }).id) }));
+    app.delete("/announcements/:id", async (req) => ({ dismissed: await announcer.dismiss((req.params as { id: string }).id) }));
   }
 
   // J.A.R.V.I.S.'s own agenda (D-0064) — dual-editable intention ledger.
