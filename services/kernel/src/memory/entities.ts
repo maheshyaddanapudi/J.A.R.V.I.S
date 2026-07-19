@@ -159,9 +159,36 @@ export class EntityMemory {
         ],
       );
       if (superseded.length) {
+        const oldIds = superseded.map((r) => r.id);
         await client.query(
           `UPDATE memory_entities SET superseded_by = $1 WHERE id = ANY($2::uuid[])`,
-          [rows[0].id, superseded.map((r) => r.id)],
+          [rows[0].id, oldIds],
+        );
+        // MIGRATE knowledge forward (fixes fact fragmentation): re-mentioning an
+        // entity supersedes the old row, but its still-active FACTS must move to
+        // the new active entity — otherwise recall of the current entity loses
+        // everything learned in earlier mentions. History of the ENTITY
+        // (attributes) is preserved on the superseded rows; the KNOWLEDGE
+        // accumulates on the live entity. Relations are migrated conflict-safely
+        // (skip any that would duplicate an existing edge on the new entity).
+        await client.query(
+          `UPDATE memory_facts SET entity_id = $1
+           WHERE entity_id = ANY($2::uuid[]) AND status NOT IN ('deleted','superseded')`,
+          [rows[0].id, oldIds],
+        );
+        await client.query(
+          `UPDATE memory_relations r SET from_entity = $1
+           WHERE r.from_entity = ANY($2::uuid[])
+             AND NOT EXISTS (SELECT 1 FROM memory_relations x
+               WHERE x.from_entity = $1 AND x.to_entity = r.to_entity AND x.relation = r.relation)`,
+          [rows[0].id, oldIds],
+        );
+        await client.query(
+          `UPDATE memory_relations r SET to_entity = $1
+           WHERE r.to_entity = ANY($2::uuid[])
+             AND NOT EXISTS (SELECT 1 FROM memory_relations x
+               WHERE x.to_entity = $1 AND x.from_entity = r.from_entity AND x.relation = r.relation)`,
+          [rows[0].id, oldIds],
         );
       }
       await client.query("COMMIT");

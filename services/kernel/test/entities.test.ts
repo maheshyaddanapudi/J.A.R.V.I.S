@@ -84,6 +84,25 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     expect(Number(all.rows[0].count)).toBe(2);
   });
 
+  it("re-mentioning an entity MIGRATES its facts forward — knowledge is not lost (fragmentation fix)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    const v1 = await mem.rememberEntity({ kind: "thing", name: "ArcCore", attributes: "power core", provenance: "test" });
+    await mem.rememberFact({ entityName: "ArcCore", statement: "uses a palladium core", provenance: "test" });
+    // a later, separate mention supersedes the entity row...
+    await mem.rememberEntity({ kind: "thing", name: "ArcCore", attributes: "power core, upgraded", provenance: "test" });
+    await mem.rememberFact({ entityName: "ArcCore", statement: "outputs three gigajoules", provenance: "test" });
+    // ...but recall of the CURRENT entity must still see BOTH facts (nothing stranded)
+    const r = await mem.recall("ArcCore");
+    const statements = r!.facts.map((f) => f.statement);
+    expect(statements).toContain("uses a palladium core");
+    expect(statements).toContain("outputs three gigajoules");
+    // the earlier fact was re-pointed to the live entity, not left on the superseded row
+    const stranded = await pool!.query(
+      "SELECT count(*) FROM memory_facts f JOIN memory_entities e ON e.id=f.entity_id WHERE e.status='superseded' AND f.status NOT IN ('deleted','superseded') AND e.name='ArcCore'",
+    );
+    expect(Number(stranded.rows[0].count)).toBe(0);
+  });
+
   it("supersede links the old entity FORWARD to its replacement (superseded_by)", async () => {
     const mem = new EntityMemory(pool!, audit, vault);
     const v1 = await mem.rememberEntity({ kind: "project", name: "Suit", attributes: "Mark 1", provenance: "test" });
