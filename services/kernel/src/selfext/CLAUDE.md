@@ -73,6 +73,19 @@ kind) — a denylisted composition is TERMINAL at Stage A. Full loop live-verifi
 11/11: gap→draft→scan→propose→(heartbeat denied)→approve→activate→use.
 Record: `docs/verification/CHAT_PARITY_AUDIT_2026-07-19.md`.
 
+## Code-authored capabilities in-container (D-0074, 2026-07-19)
+A capability isn't limited to composing *pre-existing* logic: J.A.R.V.I.S. writes
+a NEW program to its workspace (gated `workspace.writeNote`/`files.edit`) and a
+draft composing `terminal.run` over it turns that new code into a reusable
+`capability:<name>` — the code runs as an external subprocess through the gated
+`bash -lc` terminal (DENY-first policy), never loaded into the Z1 process. The
+executor now propagates the caller's approval to the fixed composed steps
+(`ToolContext.autoApprove`), so approving the named capability authorizes its
+steps for that run without re-prompting (policy still evaluates each step, so a
+`rm -rf /` capability is still refused). This means the earlier "novel code needs
+a Mac" claim was wrong — corrected. The Mac only adds a heavier isolation sandbox
++ SBOM/license scanning for hardened untrusted generation at scale.
+
 ## Next (on the Mac / future hardening)
 The isolated-worktree sandboxed GENERATOR (a subagent producing the manifest +
 composition out-of-process) and dep/SBOM/license scans run on the M3 Max. Future

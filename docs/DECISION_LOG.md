@@ -6,6 +6,15 @@ Statuses below marked PROPOSED are **awaiting the Phase 0 check-in** — nothing
 
 ---
 
+## D-0074 — Code-authored capabilities run in-container; "novel code needs a Mac" was WRONG (corrected)
+- **Date:** 2026-07-19 · **Status:** APPROVED (correction of an inaccurate claim, verified in this environment).
+- **What was wrong:** earlier verification docs said J.A.R.V.I.S. needs the Mac for "novel-code" self-extension. That conflated "a hardened isolation sandbox" (a future enhancement) with "the ability to write and run new code" (which already exists here). J.A.R.V.I.S. has a REAL gated `bash -lc` terminal (`src/terminal/`, DENY-first command policy, workspace-scoped) and REAL gated file-writing (`workspace.writeNote`, `files.edit`). So it can write a genuinely new program to its workspace and execute it — in THIS container, no Mac.
+- **What is now enabled (this session):** a self-written PROGRAM becomes a **reusable capability** by composing `terminal.run` over it in a `selfext.draft` — safe by construction (the code runs as an external subprocess through the gated terminal, never loaded into the Z1 trust-core process). The one blocker was that a capability's composed steps waited on their own approval; fixed by **propagating the caller's approval decision to the fixed, reviewed composed steps** (`ToolContext.autoApprove`, populated per-call by `CoreLoop.runTool`, read by the `capability:<name>` executor). This NEVER widens what's allowed — policy still evaluates each step DENY-first. Live-verified: J.A.R.V.I.S. wrote a twin-prime sieve, ran it, and turned it into `capability:twin-prime-finder` that computed `primes<=100: 25; twin-prime pairs: [(3,5),(5,7),…]`; a `wiper` capability composing `rm -rf /` was REFUSED at the terminal policy. 356 kernel tests (incl. the approval-propagation test).
+- **What the Mac genuinely adds (interface/hardening, not core):** a heavier isolation sandbox (dedicated worktree/container) + dep/SBOM/license scanning for a hardened generation pipeline at scale, and running fully-untrusted generated code. The CORE — write code, run it, reuse it — needs no Mac.
+- **The one boundary that IS deliberate (safety, not hardware):** self-written code is never loaded as a NATIVE in-process kernel tool (that could reach Z1). It runs as an external subprocess via the gated terminal. R-CAP-08 unchanged.
+
+---
+
 ## D-0001 — Phase 0 document set & file naming
 - **Date:** 2026-07-16 · **Status:** PROPOSED
 - **Decision:** Generated docs use the exact names from the goal (`docs/PRODUCT_SPEC.md`, `docs/CAPABILITY_PARITY_MATRIX.md`, `docs/ARCHITECTURE.md`, `docs/THREAT_MODEL.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/DECISION_LOG.md`, `docs/REQUIREMENTS_TRACEABILITY.md`), plus a supporting `docs/RESEARCH_VERIFICATION.md` holding the sourced 2026-07-16 platform/license verification. The authored binding docs exist on disk with spaces in their filenames (`docs/01 Mission And Core Loop.md` etc.) while the goal text references underscore names (`docs/01_MISSION_AND_CORE_LOOP.md`); we treat them as the same documents and do not rename user-authored files.

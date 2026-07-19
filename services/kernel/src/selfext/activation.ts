@@ -1,7 +1,7 @@
 import type { AuditLog } from "../core/audit.js";
 import { redactSecrets } from "../core/audit.js";
 import type { RiskClass } from "../core/policy.js";
-import type { Tool, ToolRegistry, ToolResult } from "../core/tools.js";
+import type { Tool, ToolContext, ToolRegistry, ToolResult } from "../core/tools.js";
 import type { CapabilityRegistry, CapabilityRecord } from "./registry.js";
 import type { StageAPipeline } from "./stageA.js";
 import {
@@ -49,6 +49,7 @@ export interface StepRunner {
     tool: string;
     args: unknown;
     source: string;
+    autoApprove?: import("../core/approvals.js").ApprovalResolution;
   }): Promise<{ ok: boolean; summary: string; denied?: boolean; detail?: string }>;
 }
 
@@ -150,15 +151,23 @@ export class ActivationService {
             }),
           }
         : {}),
-      async run(callArgs: unknown): Promise<ToolResult> {
+      async run(callArgs: unknown, ctx: ToolContext): Promise<ToolResult> {
         const outcomes: { tool: string; ok: boolean; summary: string }[] = [];
         const call = (callArgs ?? {}) as Record<string, unknown>;
+        // Propagate the caller's approval to the FIXED, reviewed composition:
+        // approving "run capability:X" authorizes X's known steps for this run.
+        // Policy still evaluates every step (DENY-first), so this never widens
+        // what's allowed — it only avoids re-prompting for one logical action.
+        const inheritedApproval = ctx?.autoApprove;
         for (let i = 0; i < steps.length; i++) {
           const step = steps[i]!;
           // Step args are authoritative (the declared, validated composition);
           // call-time args only fill placeholders the composition left open.
           const args = { ...call, ...(step.args ?? {}) };
-          const r = await runner.runTool({ tool: step.tool, args, source: toolName });
+          const r = await runner.runTool({
+            tool: step.tool, args, source: toolName,
+            ...(inheritedApproval !== undefined ? { autoApprove: inheritedApproval } : {}),
+          });
           outcomes.push({ tool: step.tool, ok: r.ok, summary: r.summary });
           if (!r.ok || r.denied) {
             return {

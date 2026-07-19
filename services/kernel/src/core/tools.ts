@@ -14,6 +14,19 @@ import type { RiskClass } from "./policy.js";
 export interface ToolContext {
   /** workspace root the reversible tool is scoped to (never outside it) */
   workspaceRoot: string;
+  /**
+   * The approval decision the CALLER supplied for this invocation, and the
+   * caller's source. The loop populates these per-call. A composite tool (a
+   * Stage-B `capability:<name>`) reads them so the user's approval of the named
+   * composite propagates to its FIXED, already-reviewed composed steps — the
+   * user shouldn't be re-prompted per step for a single logical action they
+   * approved by name. Policy still evaluates every step (DENY-first: a dangerous
+   * command is refused regardless of any approval), so propagation never widens
+   * what is allowed — it only avoids a redundant second prompt.
+   */
+  autoApprove?: import("./approvals.js").ApprovalResolution;
+  /** the caller's source string (for audit/provenance on nested steps) */
+  callSource?: string;
 }
 
 export interface ToolResult {

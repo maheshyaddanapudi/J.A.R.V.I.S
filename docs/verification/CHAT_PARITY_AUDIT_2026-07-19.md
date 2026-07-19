@@ -120,10 +120,14 @@ DENIED → user approval → ACTIVATED → the new `capability:situation-report`
 ran its composition through the gated loop → audit hash-chain intact.
 
 **Still honestly gapped (self-evolution):**
-1. **Novel-code capabilities**: drafts compose *existing* tools. A capability
-   needing genuinely new code (new API integration, new algorithm) still needs
-   the Mac-hosted out-of-process sandboxed generator + dep/SBOM/license scans
-   (planned, R-CAP-05 scope). In-container, such needs land in the gap ledger.
+1. ~~Novel-code capabilities need a Mac.~~ **CORRECTED 2026-07-19 (D-0074).**
+   J.A.R.V.I.S. writes + runs genuinely new code in-container via its gated
+   terminal + file tools, and a self-written program becomes a reusable
+   `capability:<name>` (composed over `terminal.run`; verified — it authored and
+   ran a twin-prime sieve as a capability). The Mac only adds heavier isolation +
+   SBOM/license scanning for hardened untrusted generation at scale. The
+   deliberate boundary is loading code as a native IN-PROCESS tool (never — Z1
+   safety), not code generation itself.
 2. **Observe-first-executions with auto-rollback, signed artifacts, capability
    versioning/upgrade** — activation hardening still to build.
 3. **Unbroken real-brain demonstration** of the agent spontaneously drafting +

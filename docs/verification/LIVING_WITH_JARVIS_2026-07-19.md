@@ -73,10 +73,17 @@ audited loop, verified across ~400 real turns.
    was excellent on Sonnet-5/Haiku; it is only ever as good as the model serving
    the gateway roles. The *mechanisms* are at parity; a fictional AGI's ceiling
    is not a thing any system can "reach."
-2. **Novel-CODE self-generation is not in-container.** J.A.R.V.I.S. can author
-   capabilities by COMPOSING its existing tools (verified), but writing
-   genuinely new code needs the Mac-hosted sandboxed generator + SBOM/license
-   scans. In-container, such needs go to the gap ledger.
+2. ~~Novel-CODE self-generation is not in-container.~~ **CORRECTED 2026-07-19
+   (D-0074) — this was wrong.** J.A.R.V.I.S. writes and runs genuinely new code
+   HERE: a gated `bash -lc` terminal + gated file tools, and a self-written
+   program becomes a reusable `capability:<name>` (composing `terminal.run` over
+   it — safe subprocess, never in-process Z1). Live-verified: it authored a
+   twin-prime sieve and the capability computed the primes; a `rm -rf /`
+   capability was refused by the terminal policy. No Mac needed. What the Mac
+   adds is only a *heavier isolation sandbox + SBOM/license scanning* for
+   hardened, fully-untrusted generation at scale — an enhancement, not the core
+   ability. The one deliberate boundary (safety, not hardware): self-written code
+   is never loaded as a native in-process kernel tool.
 3. **Four interface extensions are NEEDS-MAC** (live voice I/O, packaged app,
    real macOS control, real Home Assistant) — exactly the "extension of
    interface" the user set aside. Verified in SIMULATION/adapter form here.

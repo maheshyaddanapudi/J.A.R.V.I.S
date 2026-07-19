@@ -133,6 +133,25 @@ describe.skipIf(!pool)("Stage-B activation (D-0073)", () => {
     expect((r.reasons ?? []).join(" ")).toMatch(/credential:read/);
   });
 
+  it("propagates the caller's approval to composed steps (approving the named capability authorizes its fixed steps)", async () => {
+    await seed("code-runner", [{ tool: "terminal.run", args: { command: "python3 x.py" } }]);
+    const tools = new ToolRegistry();
+    tools.register(stub("terminal.run", "CONSEQUENTIAL"));
+    const seenApprovals: (string | undefined)[] = [];
+    const runner: StepRunner = {
+      runTool: async (i) => { seenApprovals.push(i.autoApprove); return { ok: true, summary: `ran ${i.tool}` }; },
+    };
+    const { svc } = activationWith(tools, runner);
+    await svc.activate("code-runner", "0.1.0");
+    const cap = tools.get("capability:code-runner")!;
+    // caller approves the whole capability with allow-once → the inner step inherits it
+    await cap.run({}, { workspaceRoot: "/tmp", autoApprove: "allow-once" } as never);
+    expect(seenApprovals).toEqual(["allow-once"]);
+    // caller gives no approval → inner step gets none (would wait on the broker)
+    await cap.run({}, { workspaceRoot: "/tmp" } as never);
+    expect(seenApprovals[1]).toBeUndefined();
+  });
+
   it("HALTS the composition when a composed step is denied — later steps do not run", async () => {
     await seed("halter", [{ tool: "perceive.observe" }, { tool: "notify.announce" }]);
     const tools = seededTools();

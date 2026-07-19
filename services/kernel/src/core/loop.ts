@@ -173,7 +173,15 @@ export class CoreLoop {
 
     let result: Awaited<ReturnType<typeof tool.run>>;
     try {
-      result = await tool.run(input.args, this.deps.toolCtx);
+      // Per-call context: carry the caller's approval decision + source so a
+      // composite capability can propagate the user's approval to its fixed,
+      // reviewed composed steps (never widening what policy allows).
+      const callCtx: ToolContext = {
+        ...this.deps.toolCtx,
+        ...(input.autoApprove !== undefined ? { autoApprove: input.autoApprove } : {}),
+        callSource: input.source,
+      };
+      result = await tool.run(input.args, callCtx);
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       await this.deps.audit.append({
