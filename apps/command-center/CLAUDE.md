@@ -230,6 +230,19 @@ never decoration (R-UI-03, R-CORE-02).
   error). 5s auto-refresh, resilient partial loading, e-stop. **Verified live via
   headless Chromium (12/12)** over three REAL audit rows (local chat ok · remote
   no-key fail · embeddings ok); screenshot `docs/screenshots/models.png`.
+- **Self-extension panel is now Stage A + Stage B** (2026-07-19, D-0073): the
+  `/selfext` page adds the REVIEW QUEUE (per-capability **approve + activate**
+  button — the click IS the human approval, routed through the gated
+  CONSEQUENTIAL `selfext.activate`), the ACTIVE CAPABILITIES list (run +
+  deactivate, shows the composed tool chain), a last-action result strip, and
+  updated copy (activation exists; a rejected capability can never appear).
+  Aria-labels: `activate <name>` / `run <name>` / `deactivate <name>`.
+- **Full-surface audit 2026-07-19** (`docs/verification/CHAT_PARITY_AUDIT_…md`):
+  all 20 pages screenshotted fresh to `docs/screenshots/audit/` (00–20) and the
+  action buttons driven headlessly with kernel-state cross-checks — 46 checks +
+  8 focused retests all pass. Notable: the A2UI generated panel's `action`
+  button correctly FILES AN APPROVAL (resolved on the dashboard) rather than
+  executing directly — generated UI and built-in UI share the same broker.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for

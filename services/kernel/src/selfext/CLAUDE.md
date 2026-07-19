@@ -62,6 +62,17 @@ CONSEQUENTIAL activate is auto-DENIED — nothing self-activates.**
   activatable; heartbeat can't self-activate. Record:
   `docs/verification/STAGE_B_AFFECT_2026-07-19.md`.
 
+## Authoring (D-0073 completion, 2026-07-19)
+`authoringTools(stageA, registry, tools)` closes the loop's FIRST link:
+`selfext.draft` (LOW_REVERSIBLE) — J.A.R.V.I.S. authors a **composition-only**
+capability itself (files/permissions forced empty; unknown/denylisted tools +
+secret-shaped args refused; declared risk = ceiling of steps; guard-scanned →
+`awaiting_review`, never activates) and `selfext.recordGap` (LOW_REVERSIBLE).
+The hard limit itself scans compositions now (`protected_composition` violation
+kind) — a denylisted composition is TERMINAL at Stage A. Full loop live-verified
+11/11: gap→draft→scan→propose→(heartbeat denied)→approve→activate→use.
+Record: `docs/verification/CHAT_PARITY_AUDIT_2026-07-19.md`.
+
 ## Next (on the Mac / future hardening)
 The isolated-worktree sandboxed GENERATOR (a subagent producing the manifest +
 composition out-of-process) and dep/SBOM/license scans run on the M3 Max. Future

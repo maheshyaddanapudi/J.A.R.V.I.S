@@ -1,10 +1,13 @@
 import type { AuditLog } from "../core/audit.js";
+import { redactSecrets } from "../core/audit.js";
 import type { RiskClass } from "../core/policy.js";
 import type { Tool, ToolRegistry, ToolResult } from "../core/tools.js";
 import type { CapabilityRegistry, CapabilityRecord } from "./registry.js";
+import type { StageAPipeline } from "./stageA.js";
 import {
   COMPOSITION_TOOL_DENYLIST,
   findHardLimitViolations,
+  type CapabilityManifest,
   type CompositionStep,
 } from "./protected.js";
 
@@ -391,4 +394,126 @@ export function activationTools(
   };
 
   return [propose, activate, deactivate, listActive, reviewQueue];
+}
+
+/**
+ * AUTHORING tools (D-0073 completion) — the missing first link of the
+ * self-evolution loop: J.A.R.V.I.S. noticing a gap and DRAFTING a new capability
+ * ITSELF, over any interface. A draft is **composition-only**: no code files, no
+ * permission scopes — strictly narrower than the file-bearing manifests the
+ * Stage-A pipeline already accepts from the (Mac-hosted) sandboxed generator.
+ * Everything still funnels through the same guard scan and the same
+ * propose → approve → activate flow; drafting NEVER activates anything.
+ */
+export function authoringTools(stageA: StageAPipeline, registry: CapabilityRegistry, tools: ToolRegistry): Tool[] {
+  const draft: Tool = {
+    name: "selfext.draft",
+    description:
+      "DRAFT a new capability for yourself by COMPOSING your existing gated tools into a reusable, named sequence " +
+      "(e.g. a 'morning-briefing' = perceive.observe then agenda.list). Use this when you notice a recurring need " +
+      "your current tools can serve together. The draft is scanned by the hard limit and lands in the review queue — " +
+      "it does NOT activate. When the moment is right, propose it (selfext.propose) so the user can approve it.",
+    riskClass: "LOW_REVERSIBLE",
+    action: "draft a composed capability",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "kebab-case capability name, e.g. morning-briefing" },
+        purpose: { type: "string", description: "what need this serves (recorded as provenance)" },
+        composition: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              tool: { type: "string", description: "an EXISTING gated tool name" },
+              args: { type: "object", description: "static args for this step (optional)" },
+              note: { type: "string" },
+            },
+            required: ["tool"],
+            additionalProperties: false,
+          },
+          minItems: 1,
+        },
+        version: { type: "string" },
+      },
+      required: ["name", "purpose", "composition"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { name: string; purpose: string; composition: CompositionStep[]; version?: string };
+      const name = (a.name ?? "").trim().toLowerCase();
+      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(name)) {
+        return { ok: false, summary: `refused: '${a.name}' is not a valid kebab-case capability name` };
+      }
+      const steps = Array.isArray(a.composition) ? a.composition : [];
+      if (!steps.length) return { ok: false, summary: "refused: a draft needs at least one composition step" };
+      // Fast, actionable feedback before the guard: every step must be a real,
+      // non-denylisted tool, and static args must not smuggle secrets (R-MEM-06).
+      for (const step of steps) {
+        if (COMPOSITION_TOOL_DENYLIST.some((p) => step.tool?.startsWith(p))) {
+          return { ok: false, summary: `refused: composition may not call '${step.tool}' (denylisted — privilege/recursion/self-activation)` };
+        }
+        if (!step.tool || !tools.has(step.tool)) {
+          return { ok: false, summary: `refused: unknown tool '${step.tool}' — compose only tools you actually have (see your tool list)` };
+        }
+        const argsJson = JSON.stringify(step.args ?? {});
+        if (redactSecrets(argsJson) !== argsJson) {
+          return { ok: false, summary: "refused: composition args look like they contain a secret — credentials belong in the vault, never in a capability (R-MEM-06)" };
+        }
+      }
+      // Declared risk = the honest ceiling of the composed steps (recomputed
+      // again at activation; this just makes the review queue truthful).
+      let maxRisk: RiskClass = "READ_ONLY";
+      for (const step of steps) {
+        const t = tools.get(step.tool);
+        if (t && RISK_ORDER[t.riskClass] > RISK_ORDER[maxRisk]) maxRisk = t.riskClass;
+      }
+      const manifest: CapabilityManifest = {
+        name,
+        version: a.version?.trim() || "0.1.0",
+        riskClass: maxRisk,
+        permissions: [], // composition-only drafts request NO permission scopes
+        files: [],       // and contain NO code — strictly safe-by-construction
+        composition: steps.map((s) => ({ tool: s.tool, ...(s.args ? { args: s.args } : {}), ...(s.note ? { note: s.note } : {}) })),
+      };
+      const report = await stageA.run(manifest, {
+        need: a.purpose,
+        context: "drafted by J.A.R.V.I.S. via selfext.draft (composition-only)",
+      });
+      return report.verdict.decision === "rejected"
+        ? { ok: false, summary: `draft REJECTED by the hard limit: ${report.summary}`, data: report }
+        : {
+            ok: true,
+            summary: `drafted "${name}" v${manifest.version} (risk ${maxRisk}) — awaiting review; propose it when the moment is right`,
+            data: { name, version: manifest.version, state: "awaiting_review", steps: steps.map((s) => s.tool) },
+          };
+    },
+  };
+
+  const recordGap: Tool = {
+    name: "selfext.recordGap",
+    description:
+      "Record a CAPABILITY GAP — something you were asked to do but genuinely cannot with your current tools " +
+      "(and cannot compose from them either — if you CAN compose it, use selfext.draft instead). " +
+      "Gaps are visible to the user and feed future capability work. This records only; it builds nothing.",
+    riskClass: "LOW_REVERSIBLE",
+    action: "record a capability gap",
+    inputSchema: {
+      type: "object",
+      properties: {
+        need: { type: "string", description: "what capability was missing" },
+        context: { type: "string", description: "where/why the gap surfaced" },
+      },
+      required: ["need"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { need: string; context?: string };
+      const clean = redactSecrets(a.need);
+      const id = await registry.recordGap(clean, redactSecrets(a.context ?? ""), true);
+      return { ok: true, summary: `capability gap recorded: ${clean.slice(0, 80)}`, data: { id } };
+    },
+  };
+
+  return [draft, recordGap];
 }

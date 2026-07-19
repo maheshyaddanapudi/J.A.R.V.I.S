@@ -2,10 +2,11 @@ import { describe, expect, it, afterAll, beforeEach, vi } from "vitest";
 import pg from "pg";
 import { CapabilityRegistry } from "../src/selfext/registry.js";
 import { CapabilityGuard } from "../src/selfext/guard.js";
-import { ActivationService, activationTools, type StepRunner } from "../src/selfext/activation.js";
+import { StageAPipeline } from "../src/selfext/stageA.js";
+import { ActivationService, activationTools, authoringTools, type StepRunner } from "../src/selfext/activation.js";
 import { ToolRegistry, type Tool } from "../src/core/tools.js";
 import type { RiskClass } from "../src/core/policy.js";
-import type { CapabilityManifest, CompositionStep } from "../src/selfext/protected.js";
+import { findHardLimitViolations, type CapabilityManifest, type CompositionStep } from "../src/selfext/protected.js";
 import type { AuditLog } from "../src/core/audit.js";
 
 /**
@@ -178,6 +179,56 @@ describe.skipIf(!pool)("Stage-B activation (D-0073)", () => {
     expect(restored.restored).toBe(0);
     expect(restored.skipped.join(" ")).toMatch(/orphan/);
     expect(tools2.has("capability:orphan")).toBe(false);
+  });
+
+  it("HARD LIMIT scans compositions terminally at Stage A (deny-first)", () => {
+    const m: CapabilityManifest = {
+      name: "sneaky-recursor", version: "0.1.0", riskClass: "LOW_REVERSIBLE",
+      permissions: [], files: [],
+      composition: [{ tool: "selfext.activate" }],
+    };
+    const v = findHardLimitViolations(m);
+    expect(v.some((x) => x.kind === "protected_composition")).toBe(true);
+  });
+
+  it("selfext.draft: J.A.R.V.I.S. AUTHORS a capability itself → guard scan → awaiting_review → activatable", async () => {
+    const tools = seededTools();
+    const { svc } = activationWith(tools);
+    const stageA = new StageAPipeline(registry, audit);
+    const [draft] = authoringTools(stageA, registry, tools);
+    expect(draft!.riskClass).toBe("LOW_REVERSIBLE"); // drafting is heartbeat-safe
+
+    // refuses unknown tools, denylisted tools, and secret-shaped args
+    expect((await draft!.run({ name: "x-cap", purpose: "p", composition: [{ tool: "nope.missing" }] }, {} as never)).ok).toBe(false);
+    expect((await draft!.run({ name: "x-cap", purpose: "p", composition: [{ tool: "selfext.activate" }] }, {} as never)).ok).toBe(false);
+    expect((await draft!.run({ name: "x-cap", purpose: "p", composition: [{ tool: "notify.announce", args: { text: "key sk-ant-api03-abcdefghij1234567890" } }] }, {} as never)).ok).toBe(false);
+
+    // a clean draft lands awaiting_review with the composition persisted…
+    const r = await draft!.run(
+      { name: "Evening-Recap", purpose: "recap the day", composition: [{ tool: "perceive.observe" }, { tool: "notify.announce", args: { text: "day recap ready" } }] },
+      {} as never,
+    );
+    expect(r.ok).toBe(true);
+    const rec = await registry.record("evening-recap");
+    expect(rec!.state).toBe("awaiting_review");
+    expect(rec!.composition.map((s) => s.tool)).toEqual(["perceive.observe", "notify.announce"]);
+    expect(rec!.riskClass).toBe("LOW_REVERSIBLE"); // honest ceiling of its steps
+    // …is NOT active…
+    expect(tools.has("capability:evening-recap")).toBe(false);
+    // …and, once the user approves, activates and runs like any capability.
+    const act = await svc.activate("evening-recap");
+    expect(act.ok).toBe(true);
+    expect((await tools.get("capability:evening-recap")!.run({}, {} as never)).ok).toBe(true);
+  });
+
+  it("selfext.recordGap records a gap (redacted) without building anything", async () => {
+    const tools = seededTools();
+    const stageA = new StageAPipeline(registry, audit);
+    const [, recordGap] = authoringTools(stageA, registry, tools);
+    const r = await recordGap!.run({ need: "control the workshop lights", context: "asked during chat" }, {} as never);
+    expect(r.ok).toBe(true);
+    const gaps = await registry.listGaps();
+    expect(gaps.some((g) => g.need.includes("workshop lights"))).toBe(true);
   });
 
   it("selfext.propose raises an announcement + agenda and does NOT activate (heartbeat-safe, LOW_REVERSIBLE)", async () => {

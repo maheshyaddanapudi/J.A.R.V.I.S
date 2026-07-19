@@ -97,7 +97,7 @@ export const COMPOSITION_TOOL_DENYLIST: readonly string[] = [
 
 
 export interface GuardViolation {
-  kind: "protected_path" | "protected_permission" | "protected_symbol";
+  kind: "protected_path" | "protected_permission" | "protected_symbol" | "protected_composition";
   detail: string;
 }
 
@@ -137,6 +137,25 @@ export function findHardLimitViolations(manifest: CapabilityManifest): GuardViol
         kind: "protected_permission",
         detail: `requests protected permission '${perm}'`,
       });
+    }
+  }
+
+  // Stage-B compositions are part of the hard limit too (deny-first): a
+  // composition step may never call the self-extension machinery, another
+  // capability, or a privilege-bearing tool prefix. (Activation re-checks this;
+  // here it is rejected TERMINALLY at Stage A.)
+  for (const step of manifest.composition ?? []) {
+    if (typeof step.tool !== "string" || !step.tool.trim()) {
+      violations.push({ kind: "protected_composition", detail: "composition step missing a tool name" });
+      continue;
+    }
+    for (const prefix of COMPOSITION_TOOL_DENYLIST) {
+      if (step.tool.startsWith(prefix)) {
+        violations.push({
+          kind: "protected_composition",
+          detail: `composition calls denylisted tool '${step.tool}' (matches '${prefix}')`,
+        });
+      }
     }
   }
 

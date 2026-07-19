@@ -34,7 +34,7 @@ import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
 import { StageAPipeline } from "../selfext/stageA.js";
-import { ActivationService, activationTools } from "../selfext/activation.js";
+import { ActivationService, activationTools, authoringTools } from "../selfext/activation.js";
 import { ProactivityEngine } from "../proactive/engine.js";
 import { ProactiveRules } from "../proactive/rules.js";
 import { StarkResidence } from "../devices/simulator.js";
@@ -369,6 +369,11 @@ export async function buildCore(opts: {
   })) {
     tools.register(t);
   }
+  // Authoring (self-evolution's first link): J.A.R.V.I.S. can DRAFT a new
+  // composition-only capability itself (guard-scanned, lands awaiting_review —
+  // never activates) and record genuine capability gaps. Works over any
+  // interface, including chat and the heartbeat brain pass.
+  for (const t of authoringTools(stageA, capabilities, tools)) tools.register(t);
   // Durable activation: re-register the tools of capabilities that were active
   // before a restart (each re-validated; a now-invalid one is skipped, not fatal).
   try {

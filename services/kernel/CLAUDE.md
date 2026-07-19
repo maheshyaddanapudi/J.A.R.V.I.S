@@ -359,6 +359,14 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   Nothing self-activates (a heartbeat can propose, not activate). 9 tests; live
   clean-slate real-brain verified. **Full suite: 352 pass.** Record:
   `docs/verification/STAGE_B_AFFECT_2026-07-19.md`.
+- Self-evolution authoring ✅ (D-0073 completion, 2026-07-19): gated
+  `selfext.draft` (J.A.R.V.I.S. authors composition-only capabilities ITSELF —
+  guard-scanned, awaiting_review, never activates) + `selfext.recordGap`; the
+  R-CAP-08 hard limit scans compositions terminally (`protected_composition`).
+  Full loop live 11/11 over the gated chat path; CC `/selfext` gained the
+  Stage-B approve+activate surface; full CC audit 46+8 checks w/ 21 fresh
+  screenshots (`docs/screenshots/audit/`). **355 tests.** Record:
+  `docs/verification/CHAT_PARITY_AUDIT_2026-07-19.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
