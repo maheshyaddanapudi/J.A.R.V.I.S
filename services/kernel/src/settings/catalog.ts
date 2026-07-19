@@ -124,6 +124,30 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
   // ---- Reasoning / generation defaults (mirror the JARVIS_EFFORT/THINKING env,
   //      surfaced for UI editing; the gateway reads env at load, these give a
   //      visible, editable home for the same intent) ----
+  // ---- Spend governance (D-0066): self-restraint on autonomous cost ----
+  {
+    key: "budget.autonomy.dailyTokenCap",
+    label: "Autonomy daily token cap",
+    category: "Autonomy",
+    type: "number",
+    min: 0,
+    max: 100000000,
+    step: 10000,
+    default: () => 500000,
+    description: "Max model tokens autonomy (heartbeat + sleep) may spend per rolling 24h. 0 = unlimited. When reached, background thinking pauses; live conversation is never blocked.",
+  },
+  {
+    key: "budget.dailyTokenCap",
+    label: "Overall daily token cap (advisory)",
+    category: "Autonomy",
+    type: "number",
+    min: 0,
+    max: 1000000000,
+    step: 100000,
+    default: () => 0,
+    description: "Max total model tokens per rolling 24h. 0 = unlimited. Over this, autonomy pauses and a warning surfaces — a live conversation is still served.",
+  },
+
   // ---- Heartbeat (D-0064): J.A.R.V.I.S.'s own time between conversations ----
   {
     key: "heartbeat.brain",

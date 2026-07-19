@@ -68,6 +68,8 @@ export class BackgroundScheduler {
       pool?: pg.Pool;
       /** last USER-driven activity (heartbeat excluded) — for defer-while-active */
       lastUserActivity?: () => string | null;
+      /** spend governance (D-0066): autonomy pauses when its token cap is hit */
+      budget?: import("../core/budget.js").Budget;
       /** injectable clock for tests (defaults to real time) */
       now?: () => Date;
     },
@@ -106,15 +108,25 @@ export class BackgroundScheduler {
         this.lastResult = { proactiveSurfaced: 0, consolidated: false, skipped: "disabled" };
         return this.lastResult;
       }
+      // Spend governance (D-0066): if autonomy has spent its cap, this whole
+      // tick's WORK is skipped (journaled) — but a beat still records that it
+      // was alive and why it held back. Live conversation is unaffected.
+      let budgetBlock: string | undefined;
+      if (this.deps.budget) {
+        try {
+          const b = await this.deps.budget.allowAutonomy();
+          if (!b.allowed) budgetBlock = b.reason;
+        } catch { /* metering glitch must not freeze autonomy */ }
+      }
       let proactiveSurfaced = 0;
       let consolidated = false;
-      if (await s.bool("autonomy.runProactive", true)) {
+      if (!budgetBlock && await s.bool("autonomy.runProactive", true)) {
         try {
           const r = await this.deps.proactive.run(this.now());
           proactiveSurfaced = r.surfaced.length;
         } catch { /* a cycle failure must not stop the loop */ }
       }
-      if (await s.bool("autonomy.runSleepCycle", true)) {
+      if (!budgetBlock && await s.bool("autonomy.runSleepCycle", true)) {
         // THREE-RHYTHM SEPARATION: sleep (deep consolidation) is a QUIET-HOURS
         // activity, distinct from the frequent heartbeat. When opted in, it runs
         // only inside the household quiet-hours window; heartbeats outside the
@@ -142,7 +154,7 @@ export class BackgroundScheduler {
       let brainUsed = false;
       let beatSummary = "";
       let beatDetail = "";
-      if (this.deps.agenda) {
+      if (!budgetBlock && this.deps.agenda) {
         try {
           const due = await this.deps.agenda.due(this.now());
           agendaReviewed = due.length;
@@ -195,6 +207,7 @@ export class BackgroundScheduler {
           );
         } catch { /* journal is best-effort */ }
       }
+      if (budgetBlock && !beatSummary) beatSummary = `held back — ${budgetBlock}`;
       this.lastResult = { proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed };
       this.deps.activity.emit({
         kind: "decision",

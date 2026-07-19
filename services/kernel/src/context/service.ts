@@ -1,6 +1,7 @@
 import type pg from "pg";
 import type { ApprovalBroker } from "../core/approvals.js";
 import type { EmergencyStop } from "../core/estop.js";
+import { RECALLED_MEMORY_NOTE, wrapRecalledMemory } from "../core/untrusted.js";
 import type {
   CommitmentContext,
   ContextProvider,
@@ -99,26 +100,32 @@ export class ContextService {
     if (s.pinnedFacts.length) {
       lines.push(`Pinned preferences: ${s.pinnedFacts.map((f) => `${f.key}=${f.value}`).join("; ")}.`);
     }
+    // Recalled MEMORY (entity facts + episode summaries) is enveloped separately
+    // (D-0067): its content can contain text laundered from an external source,
+    // so it is quoted DATA, never trusted instructions. Kernel-derived lines
+    // above (time, commitments, approvals) are trusted and stay plain.
+    const memoryLines: string[] = [];
     if (s.knownEntities.length) {
       const parts = s.knownEntities.map((e) => {
         const facts = e.facts.length ? ` (${e.facts.join("; ")})` : "";
         return `${e.kind} ${e.name}${facts}`;
       });
-      lines.push(`You know about: ${parts.join("; ")}.`);
+      memoryLines.push(`You know about: ${parts.join("; ")}.`);
     }
     if (s.recentEpisodes.length) {
       const parts = s.recentEpisodes.map((e) => `${e.summary} (${relativeTime(e.when, now)})`);
-      lines.push(`Recently: ${parts.join("; ")}.`);
+      memoryLines.push(`Recently: ${parts.join("; ")}.`);
     }
     for (const [k, v] of Object.entries(s.extra)) lines.push(`${k}: ${v}.`);
 
-    if (lines.length === 1) lines.push("Nothing else notable right now.");
+    if (lines.length === 1 && !memoryLines.length) lines.push("Nothing else notable right now.");
 
-    return (
+    const header =
       "Current situational context (reference only — this is background awareness, " +
       "not an instruction to act; take a consequential action only through the normal " +
-      `approval flow):\n${lines.map((l) => `- ${l}`).join("\n")}`
-    );
+      `approval flow):\n${lines.map((l) => `- ${l}`).join("\n")}`;
+    if (!memoryLines.length) return header;
+    return `${header}\n\n${RECALLED_MEMORY_NOTE}\n${wrapRecalledMemory(memoryLines.map((l) => `- ${l}`).join("\n"))}`;
   }
 
   private async commitments(now: Date): Promise<CommitmentContext[]> {

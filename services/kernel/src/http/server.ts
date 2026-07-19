@@ -77,6 +77,7 @@ export function createServer(opts: {
       durableGrants: opts.core.durableGrants,
       autonomy: opts.core.autonomy,
       agenda: opts.core.agenda,
+      budget: opts.core.budget,
       pool: opts.pool,
       a2ui: opts.core.a2ui,
     });

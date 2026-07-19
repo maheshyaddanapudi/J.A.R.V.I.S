@@ -57,6 +57,7 @@ import { settingsTools } from "../settings/tools.js";
 import { DurableGrants } from "./grants.js";
 import { BackgroundScheduler } from "../autonomy/scheduler.js";
 import { Agenda, agendaTools } from "../autonomy/agenda.js";
+import { Budget } from "./budget.js";
 import { A2uiRegistry } from "../a2ui/registry.js";
 import { a2uiTools } from "../a2ui/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
@@ -81,6 +82,8 @@ export interface Core {
   autonomy: BackgroundScheduler;
   /** J.A.R.V.I.S.'s own intention ledger (D-0064) */
   agenda: Agenda;
+  /** spend governance (D-0066) */
+  budget: Budget;
   a2ui: A2uiRegistry;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
@@ -334,12 +337,15 @@ export async function buildCore(opts: {
   // Background autonomy (D-0024, approved): bounded scheduler for the two safe
   // cycles (proactivity + sleep-cycle). Config is persisted D-0058 settings,
   // default OFF; the scheduler reconciles its timer whenever they change.
+  const budget = new Budget(opts.pool, settings);
   const autonomy = new BackgroundScheduler({
     settings, proactive, sleepCycle, estop, audit, activity,
     // the living heartbeat (D-0064): agenda + bounded brain pass + journal
     agenda, agent, pool: opts.pool,
     // no-collide (D-0065): a beat defers its thinking while a live session is on
     lastUserActivity: () => loop.lastUserActivityAt,
+    // self-restraint (D-0066): autonomy pauses when its token cap is hit
+    budget,
   });
   settings.onChange((key) => { if (key.startsWith("autonomy.")) void autonomy.reconcile(); });
   void autonomy.reconcile();
@@ -364,7 +370,7 @@ export async function buildCore(opts: {
   return {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
-    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, a2ui,
+    entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, a2ui,
     ...(secrets ? { secrets } : {}),
     loop,
   };

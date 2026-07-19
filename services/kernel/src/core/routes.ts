@@ -49,6 +49,7 @@ export function registerCoreRoutes(
     durableGrants?: import("./grants.js").DurableGrants;
     autonomy?: import("../autonomy/scheduler.js").BackgroundScheduler;
     agenda?: import("../autonomy/agenda.js").Agenda;
+    budget?: import("../core/budget.js").Budget;
     pool?: import("pg").Pool;
     a2ui?: import("../a2ui/registry.js").A2uiRegistry;
   },
@@ -93,6 +94,12 @@ export function registerCoreRoutes(
         return { heartbeats: rows };
       });
     }
+  }
+
+  // Spend governance (D-0066): what autonomy is costing + caps.
+  if (deps.budget) {
+    const budget = deps.budget;
+    app.get("/budget/status", async () => await budget.status());
   }
 
   // J.A.R.V.I.S.'s own agenda (D-0064) — dual-editable intention ledger.
