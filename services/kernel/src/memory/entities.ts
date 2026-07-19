@@ -509,10 +509,14 @@ export class EntityMemory {
           const contained = inter === a.words.size;                        // b restates a (with possibly more detail)
           const jac = inter / (new Set([...a.words, ...b.words]).size || 1);
           if (contained || jac >= overlap) {
-            await this.pool.query(
-              `UPDATE memory_facts SET status = 'superseded', superseded_by = $1 WHERE id = $2`,
+            // status re-check: if a LIVE write superseded/deleted this fact
+            // since we read it, leave it alone (no-collide with live updates)
+            const { rowCount } = await this.pool.query(
+              `UPDATE memory_facts SET status = 'superseded', superseded_by = $1
+               WHERE id = $2 AND status NOT IN ('deleted','superseded')`,
               [b.id, a.id],
             );
+            if (!rowCount) continue;
             if (this.semantic) void this.semantic.remove("fact", a.id);
             gone.add(a.id);
             duplicatesMerged++;

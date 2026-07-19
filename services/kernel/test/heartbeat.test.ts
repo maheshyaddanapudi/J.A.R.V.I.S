@@ -102,6 +102,46 @@ describe.skipIf(!pool)("Agenda (D-0064) — J.A.R.V.I.S.'s own intention ledger"
     expect((await pool!.query("SELECT count(*) FROM heartbeats")).rows[0].count).toBe("1");
   });
 
+  it("NO-COLLIDE (D-0065): a beat defers its brain pass while a live session is active", async () => {
+    const agenda = new Agenda(pool!, audit);
+    await agenda.add({ what: "anything due", provenance: "jarvis" });
+    const agent: AgentRuntime = { run: vi.fn(async () => { throw new Error("must not think while user is active"); }) };
+    const sched = new BackgroundScheduler({
+      settings: {
+        bool: async (k: string, f: boolean) => (k === "autonomy.enabled" ? true : f),
+        num: async (_k: string, f: number) => f, // deferWhileActiveMinutes default 5
+        str: async (_k: string, f: string) => f,
+      } as unknown as SettingsRegistry,
+      proactive, sleepCycle, estop, audit, activity, agenda, agent, pool: pool!,
+      lastUserActivity: () => new Date().toISOString(), // user active RIGHT NOW
+    });
+    const r = await sched.tick();
+    expect(r.brainUsed).toBe(false);          // beat stayed quiet
+    expect(r.agendaReviewed).toBe(1);         // agenda intact for the next beat
+    const { rows } = await pool!.query("SELECT summary FROM heartbeats ORDER BY at DESC LIMIT 1");
+    expect(rows[0].summary).toMatch(/deferred — live session active/);
+  });
+
+  it("THREE RHYTHMS (D-0065): sleep-cycle confined to the quiet-hours window when opted in", async () => {
+    const agenda = new Agenda(pool!, audit);
+    const mkSched = (hour: number) => new BackgroundScheduler({
+      settings: {
+        bool: async (k: string, f: boolean) =>
+          k === "autonomy.enabled" ? true : k === "sleep.useQuietHours" ? true : f,
+        num: async (_k: string, f: number) => f, // quietHours 22→7 defaults
+        str: async (k: string, f: string) => (k === "heartbeat.brain" ? "off" : f),
+      } as unknown as SettingsRegistry,
+      proactive, sleepCycle, estop, audit, activity, agenda, pool: pool!,
+      now: () => new Date(2026, 6, 19, hour, 30, 0),
+    });
+    (sleepCycle.run as ReturnType<typeof vi.fn>).mockClear();
+    const daytime = await mkSched(14).tick();     // 14:30 — outside 22→7
+    expect(daytime.consolidated).toBe(false);     // heartbeat stays LIGHT by day
+    const night = await mkSched(23).tick();       // 23:30 — inside the window
+    expect(night.consolidated).toBe(true);        // deep work happens at night
+    expect(sleepCycle.run).toHaveBeenCalledTimes(1);
+  });
+
   it("agenda tools registerable + agenda.add tool redacts and returns the item", async () => {
     const agenda = new Agenda(pool!, audit);
     const tools = agendaTools(agenda);

@@ -338,6 +338,8 @@ export async function buildCore(opts: {
     settings, proactive, sleepCycle, estop, audit, activity,
     // the living heartbeat (D-0064): agenda + bounded brain pass + journal
     agenda, agent, pool: opts.pool,
+    // no-collide (D-0065): a beat defers its thinking while a live session is on
+    lastUserActivity: () => loop.lastUserActivityAt,
   });
   settings.onChange((key) => { if (key.startsWith("autonomy.")) void autonomy.reconcile(); });
   void autonomy.reconcile();

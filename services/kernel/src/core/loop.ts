@@ -28,6 +28,12 @@ import type { ContextService } from "../context/service.js";
  * are independently verified and everything is audited + emitted to the timeline.
  */
 export class CoreLoop {
+  /** last moment a USER-driven request touched the loop (heartbeat excluded) —
+   *  lets the scheduler defer its brain pass while a live session is active */
+  lastUserActivityAt: string | null = null;
+  private touch(source: string): void {
+    if (source !== "heartbeat") this.lastUserActivityAt = new Date().toISOString();
+  }
   private sessionGrants: Grant[] = [];
 
   constructor(
@@ -85,6 +91,7 @@ export class CoreLoop {
       return { ok: false, summary: "emergency stop engaged — execution halted", denied: true };
     }
 
+    this.touch(input.source);
     const tool = this.deps.tools.get(input.tool);
     if (!tool) {
       this.deps.activity.emit({ kind: "error", message: `unknown tool ${input.tool}`, at: now() });
@@ -260,6 +267,7 @@ export class CoreLoop {
     onDecision?: (d: { mode: ReasoningMode; why: string; role: string }) => void;
   }): AsyncGenerator<string> {
     this.deps.estop.assertClear();
+    this.touch(input.source);
     const now = () => new Date().toISOString();
 
     // Decide which brain answers (D-0048). Provider-agnostic: the roles map to

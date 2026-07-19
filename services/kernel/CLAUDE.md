@@ -327,6 +327,12 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   1-min beat worked self+user items honestly and refused the planted
   consequential trap, re-queueing it annotated for approval. 309 kernel tests;
   `/pulse` 9/9. Record: docs/verification/HEARTBEAT_2026-07-19.md.
+- Three rhythms, no collisions ✅ (D-0065, 2026-07-19): live / heartbeat /
+  quiet-hours are DISTINCT — `sleep.useQuietHours` confines the sleep cycle to
+  the quiet-hours window (day beats stay light); `heartbeat.deferWhileActiveMinutes`
+  + `CoreLoop.lastUserActivityAt` make a beat skip its brain pass while a live
+  session is active ("deferred — live session active" journaled); consolidation
+  merge re-checks status so it never overwrites a live supersession. 311 tests.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

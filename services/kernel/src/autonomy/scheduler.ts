@@ -66,6 +66,8 @@ export class BackgroundScheduler {
       agenda?: Agenda;
       agent?: AgentRuntime;
       pool?: pg.Pool;
+      /** last USER-driven activity (heartbeat excluded) — for defer-while-active */
+      lastUserActivity?: () => string | null;
       /** injectable clock for tests (defaults to real time) */
       now?: () => Date;
     },
@@ -113,10 +115,23 @@ export class BackgroundScheduler {
         } catch { /* a cycle failure must not stop the loop */ }
       }
       if (await s.bool("autonomy.runSleepCycle", true)) {
-        try {
-          await this.deps.sleepCycle.run(24);
-          consolidated = true;
-        } catch { /* best-effort */ }
+        // THREE-RHYTHM SEPARATION: sleep (deep consolidation) is a QUIET-HOURS
+        // activity, distinct from the frequent heartbeat. When opted in, it runs
+        // only inside the household quiet-hours window; heartbeats outside the
+        // window stay light. (On-demand POST /core/reasoning/consolidate always works.)
+        let inWindow = true;
+        if (await s.bool("sleep.useQuietHours", false)) {
+          const start = await s.num("proactive.quietHours.start", 22);
+          const end = await s.num("proactive.quietHours.end", 7);
+          const h = this.now().getHours();
+          inWindow = start <= end ? h >= start && h < end : h >= start || h < end;
+        }
+        if (inWindow) {
+          try {
+            await this.deps.sleepCycle.run(24);
+            consolidated = true;
+          } catch { /* best-effort */ }
+        }
       }
       // ---- The living heartbeat (D-0064): review J.A.R.V.I.S.'s OWN agenda and
       // let it think + act within the safety ceiling. Autonomous COGNITION,
@@ -132,7 +147,16 @@ export class BackgroundScheduler {
           const due = await this.deps.agenda.due(this.now());
           agendaReviewed = due.length;
           const brainMode = await s.str("heartbeat.brain", "when-agenda");
+          // NO-COLLIDE with a live session: if the user interacted moments ago,
+          // this beat stays quiet (agenda holds; the next beat picks it up).
+          const deferMin = await s.num("heartbeat.deferWhileActiveMinutes", 5);
+          const lastActive = this.deps.lastUserActivity?.() ?? null;
+          const userActive =
+            deferMin > 0 && lastActive !== null &&
+            this.now().getTime() - new Date(lastActive).getTime() < deferMin * 60_000;
+          if (userActive) beatSummary = "deferred — live session active";
           const shouldThink =
+            !userActive &&
             !!this.deps.agent && brainMode !== "off" && (brainMode === "every-tick" || due.length > 0);
           if (shouldThink) {
             const maxSteps = await s.num("heartbeat.maxSteps", 6);

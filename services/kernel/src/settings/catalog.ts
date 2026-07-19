@@ -155,6 +155,26 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     description: "LOCAL_ONLY keeps heartbeat thinking on local models (default, local-first); STANDARD allows configured remote providers.",
   },
 
+  {
+    key: "heartbeat.deferWhileActiveMinutes",
+    label: "Defer heartbeat while I'm active (min)",
+    category: "Autonomy",
+    type: "number",
+    min: 0,
+    max: 60,
+    step: 1,
+    default: () => 5,
+    description: "Skip the heartbeat's thinking pass if you interacted within this many minutes (0 = never defer). Keeps beats from competing with a live session.",
+  },
+  {
+    key: "sleep.useQuietHours",
+    label: "Deep consolidation only in quiet hours",
+    category: "Autonomy",
+    type: "boolean",
+    default: () => false,
+    description: "When on, the sleep cycle (incl. memory consolidation) runs only inside the quiet-hours window (proactive.quietHours.start/end) — deep work while you sleep. Off = it runs on every heartbeat. On-demand runs are unaffected.",
+  },
+
   // ---- Memory consolidation (D-0063): quiet-hours tidy-up thresholds ----
   {
     key: "memory.consolidation.overlap",
