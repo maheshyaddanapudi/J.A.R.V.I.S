@@ -70,13 +70,31 @@ export interface ProposedFile {
   content?: string; // for create/modify
 }
 
+/** One step of an activatable capability: invoke an EXISTING gated tool. Stage-B
+ *  capabilities are compositions of these — never raw code — so an activated
+ *  capability can only do what the user could already do through gated tools. */
+export interface CompositionStep {
+  tool: string;                       // must be an already-registered gated tool
+  args?: Record<string, unknown>;     // static args (merged with call-time args)
+  note?: string;
+}
+
 export interface CapabilityManifest {
   name: string;
   version: string;
   riskClass: "READ_ONLY" | "LOW_REVERSIBLE" | "CONSEQUENTIAL" | "HIGH_RISK_PHYSICAL";
   permissions: string[];
   files: ProposedFile[];
+  /** Stage-B executable form: a composition of existing gated tools (optional). */
+  composition?: CompositionStep[];
 }
+
+/** Tool-name prefixes a composition may NEVER call (privilege / recursion / the
+ *  self-extension machinery itself). Structural guard for Stage-B activation. */
+export const COMPOSITION_TOOL_DENYLIST: readonly string[] = [
+  "selfext.", "capability:", "settings.register", "gateway.route",
+];
+
 
 export interface GuardViolation {
   kind: "protected_path" | "protected_permission" | "protected_symbol";

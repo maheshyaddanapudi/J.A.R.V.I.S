@@ -333,6 +333,32 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   + `CoreLoop.lastUserActivityAt` make a beat skip its brain pass while a live
   session is active ("deferred — live session active" journaled); consolidation
   merge re-checks status so it never overwrites a live supersession. 311 tests.
+- Core-parity presence/endurance ✅ (D-0066–0071, 2026-07-19): spend governance
+  (`core/budget.ts` — model_calls split interactive/autonomy, 24h token caps + USD
+  estimate; autonomy pauses, live turns never blocked), memory-injection
+  hardening (`core/untrusted.ts` `wrapRecalledMemory` — recalled memory enveloped
+  as data-not-instructions), initiative to speak + advisory dissent
+  (`autonomy/announce.ts` — `notify.announce`/`advise.concern`, quiet-hours defer,
+  migration 0022), durable projects (`autonomy/projects.ts` — encrypted resumable
+  goals worked across heartbeats, migration 0023), perception core
+  (`perception/service.ts` — SIMULATION file feed → context + `perceive.observe`,
+  provenance-labeled), longevity ops (`ops/ops.ts` — health/backup/restore,
+  `/ops/*`).
+- Affect layer ✅ (D-0072, 2026-07-19): `affect/service.ts` `inferAffect` —
+  deterministic, transparent, TEXT-ONLY tone inference from the user's own words.
+  Off by default (`affect.enabled`); wired into `/core/converse` (SSE
+  `{type:"affect"}` first, tone hint appended to persona). Never a gate, never
+  stored, always surfaces the firing signals. 6 tests.
+- Stage-B self-extension activation ✅ (D-0073, 2026-07-19): `selfext/activation.ts`
+  + migration 0024. An approved Stage-A capability activates as a
+  `capability:<name>` gated tool that COMPOSES existing gated tools (never manifest
+  code, never Z1); R-CAP-08 re-validated at activation. propose→approve→activate:
+  `selfext.reviewQueue`/`propose` (LOW_REVERSIBLE, heartbeat-safe)/`activate`
+  (CONSEQUENTIAL — the approval gate)/`deactivate`/`listActive`; routes
+  `/selfext/active|activate|deactivate`; `restoreActive()` durable across restart.
+  Nothing self-activates (a heartbeat can propose, not activate). 9 tests; live
+  clean-slate real-brain verified. **Full suite: 352 pass.** Record:
+  `docs/verification/STAGE_B_AFFECT_2026-07-19.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

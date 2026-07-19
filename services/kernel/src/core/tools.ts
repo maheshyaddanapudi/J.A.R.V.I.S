@@ -54,6 +54,17 @@ export class ToolRegistry {
   register(tool: Tool): void {
     this.tools.set(tool.name, tool);
   }
+  /**
+   * Remove a tool by name (returns true if one was present). Used only to
+   * DEACTIVATE a Stage-B capability tool (D-0073); the built-in Z1 tools are
+   * never unregistered at runtime.
+   */
+  unregister(name: string): boolean {
+    return this.tools.delete(name);
+  }
+  has(name: string): boolean {
+    return this.tools.has(name);
+  }
   get(name: string): Tool | undefined {
     return this.tools.get(name);
   }

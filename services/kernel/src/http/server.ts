@@ -61,6 +61,7 @@ export function createServer(opts: {
       activity: opts.core.activity,
       capabilities: opts.core.capabilities,
       stageA: opts.core.stageA,
+      activation: opts.core.activation,
       proactive: opts.core.proactive,
       proactiveRules: opts.core.proactiveRules,
       mcp: opts.core.mcp,

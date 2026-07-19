@@ -6,6 +6,7 @@ import type { AuditLog } from "./audit.js";
 import type { EmergencyStop } from "./estop.js";
 import type { CoreLoop } from "./loop.js";
 import type { ToolRegistry } from "./tools.js";
+import { inferAffect } from "../affect/service.js";
 
 /**
  * SSE responses write raw headers (bypassing the onSend CORS hook), so they must
@@ -33,6 +34,7 @@ export function registerCoreRoutes(
     activity: ActivityBus;
     capabilities: import("../selfext/registry.js").CapabilityRegistry;
     stageA: import("../selfext/stageA.js").StageAPipeline;
+    activation?: import("../selfext/activation.js").ActivationService;
     proactive: import("../proactive/engine.js").ProactivityEngine;
     proactiveRules?: import("../proactive/rules.js").ProactiveRules;
     mcp: import("../mcp/registry.js").McpRegistry;
@@ -187,6 +189,12 @@ export function registerCoreRoutes(
   if (deps.settings) {
     const settings = deps.settings;
     app.get("/settings", async () => ({ settings: await settings.effective() }));
+    // Affect preview (D-0072): what J.A.R.V.I.S. would sense from a phrase (transparent).
+    app.get("/affect", async (req) => {
+      const text = String((req.query as { text?: string }).text ?? "");
+      const enabled = await settings.bool("affect.enabled", false);
+      return { enabled, reading: inferAffect(text) };
+    });
     app.put("/settings/:key", async (req, reply) => {
       const key = decodeURIComponent((req.params as { key: string }).key);
       const body = req.body as { value?: unknown; reason?: string } | undefined;
@@ -367,6 +375,38 @@ export function registerCoreRoutes(
     });
     return report;
   });
+
+  // Stage-B controlled activation (D-0073). Activating goes through the gated
+  // loop via the CONSEQUENTIAL `selfext.activate` tool — a user hitting this
+  // endpoint IS the human approval "through any interface" (allow-once). The
+  // R-CAP-08 envelope is re-validated inside; a rejected/unsafe capability is
+  // refused with reasons, never activated. Deactivation is always available.
+  if (deps.activation) {
+    const activation = deps.activation;
+    app.get("/selfext/active", async () => ({ active: await activation.listActive() }));
+    app.post("/selfext/activate", async (req, reply) => {
+      const b = (req.body ?? {}) as { name?: string; version?: string };
+      if (!b.name) return reply.code(400).send({ error: "name required" });
+      const r = await deps.loop.runTool({
+        tool: "selfext.activate",
+        args: { name: b.name, ...(b.version ? { version: b.version } : {}) },
+        source: "user",
+        autoApprove: "allow-once",
+      });
+      return r;
+    });
+    app.post("/selfext/deactivate", async (req, reply) => {
+      const b = (req.body ?? {}) as { name?: string; version?: string };
+      if (!b.name) return reply.code(400).send({ error: "name required" });
+      const r = await deps.loop.runTool({
+        tool: "selfext.deactivate",
+        args: { name: b.name, ...(b.version ? { version: b.version } : {}) },
+        source: "user",
+        autoApprove: "allow-once",
+      });
+      return r;
+    });
+  }
 
   // Proactivity (Phase 4 foundation). run() computes a cycle on demand and
   // records surfaced items; it surfaces information/suggestions only and never
@@ -694,7 +734,17 @@ export function registerCoreRoutes(
     });
     deps.activity.emit({ kind: "objective", text: body.text, at: new Date().toISOString() });
     try {
-      const persona = await activePersona();
+      let persona = await activePersona();
+      // Affect layer (D-0072): OPT-IN, text-only, transparent. When enabled, read
+      // tone from the user's own words and nudge reply TONE only (never a gate,
+      // never stored). Surface the reading first so the UI shows what was sensed.
+      if (deps.settings && (await deps.settings.bool("affect.enabled", false))) {
+        const reading = inferAffect(body.text);
+        if (reading.tone !== "neutral") {
+          reply.raw.write(`data: ${JSON.stringify({ type: "affect", tone: reading.tone, intensity: reading.intensity, signals: reading.signals })}\n\n`);
+          persona = `${persona}\n\n[Tone guidance — the user's phrasing suggests: ${reading.tone} (${reading.signals.join(", ")}). ${reading.guidance} This is a tone hint only; it changes HOW you respond, never WHAT you are willing to do.]`;
+        }
+      }
       for await (const token of deps.loop.runConversation({
         text: body.text,
         source: body.source,

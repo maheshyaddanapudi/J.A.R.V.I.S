@@ -125,6 +125,14 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
   //      surfaced for UI editing; the gateway reads env at load, these give a
   //      visible, editable home for the same intent) ----
   {
+    key: "affect.enabled",
+    label: "Emotional attunement (affect)",
+    category: "Persona",
+    type: "boolean",
+    default: () => false,
+    description: "OFF by default. When on, J.A.R.V.I.S. reads tone/stress from YOUR OWN WORDS (never camera/mic) and gently adjusts its reply tone. It shows you what it sensed; it never gates what it will do and never stores a judgment about you.",
+  },
+  {
     key: "announce.holdInQuietHours",
     label: "Hold non-urgent announcements in quiet hours",
     category: "Autonomy",

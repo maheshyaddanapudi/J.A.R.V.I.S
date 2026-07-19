@@ -34,6 +34,7 @@ import type { Vault } from "../crypto/vault.js";
 import { SecretsVault } from "../crypto/secrets.js";
 import { CapabilityRegistry } from "../selfext/registry.js";
 import { StageAPipeline } from "../selfext/stageA.js";
+import { ActivationService, activationTools } from "../selfext/activation.js";
 import { ProactivityEngine } from "../proactive/engine.js";
 import { ProactiveRules } from "../proactive/rules.js";
 import { StarkResidence } from "../devices/simulator.js";
@@ -100,6 +101,8 @@ export interface Core {
   a2ui: A2uiRegistry;
   capabilities: CapabilityRegistry;
   stageA: StageAPipeline;
+  /** Stage-B controlled activation (D-0073) — activate/deactivate generated capabilities */
+  activation: ActivationService;
   proactive: ProactivityEngine;
   /** user-defined proactivity rules (what J.A.R.V.I.S. is proactive about) — R-CAP-01 */
   proactiveRules: ProactiveRules;
@@ -354,6 +357,26 @@ export async function buildCore(opts: {
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);
+  // Stage-B controlled activation (D-0073): a generated capability, once the user
+  // approves, becomes a `capability:<name>` gated tool that COMPOSES existing
+  // gated tools (never executed manifest code, never Z1). The R-CAP-08 envelope
+  // is re-validated at activation. J.A.R.V.I.S. proposes; the user approves
+  // through any interface (the CONSEQUENTIAL selfext.activate gate).
+  const activation = new ActivationService(capabilities, tools, loop, audit);
+  for (const t of activationTools(activation, capabilities, {
+    announce: (input) => announcer.raise({ ...input, source: "jarvis" }),
+    addAgenda: (input) => agenda.add({ ...input, provenance: "jarvis" }),
+  })) {
+    tools.register(t);
+  }
+  // Durable activation: re-register the tools of capabilities that were active
+  // before a restart (each re-validated; a now-invalid one is skipped, not fatal).
+  try {
+    const { restored, skipped } = await activation.restoreActive();
+    if (restored || skipped.length) {
+      console.log(`capabilities re-activated: ${restored}${skipped.length ? `, skipped: ${skipped.join("; ")}` : ""}`);
+    }
+  } catch { /* activation restore is best-effort — the base tool set always works */ }
   // User-defined proactivity rules (R-CAP-01 "rules" kind) — add candidates that
   // still pass the gate stack; the engine surfaces suggestions only, never acts.
   const proactiveRules = new ProactiveRules(opts.pool, audit);
@@ -396,7 +419,7 @@ export async function buildCore(opts: {
 
   return {
     audit, estop, policy, approvals, activity, tools, memory,
-    capabilities, stageA, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
+    capabilities, stageA, activation, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
     entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, announcer, projects, perception, ops, a2ui,
     ...(secrets ? { secrets } : {}),
     loop,
