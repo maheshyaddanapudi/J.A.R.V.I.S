@@ -84,6 +84,101 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     expect(Number(all.rows[0].count)).toBe(2);
   });
 
+  it("supersede links the old entity FORWARD to its replacement (superseded_by)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    const v1 = await mem.rememberEntity({ kind: "project", name: "Suit", attributes: "Mark 1", provenance: "test" });
+    const v2 = await mem.rememberEntity({ kind: "project", name: "Suit", attributes: "Mark 42", provenance: "test" });
+    const { rows } = await pool!.query(
+      "SELECT superseded_by FROM memory_entities WHERE id = $1", [v1.id],
+    );
+    expect(rows[0].superseded_by).toBe(v2.id); // the history chain is walkable, not dangling
+  });
+
+  it("correctFact supersedes a matching prior fact (with history) and links it forward", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Happy", entityKind: "person", statement: "head of security", provenance: "test" });
+    const { fact, supersededCount } = await mem.correctFact({
+      entityName: "Happy", newStatement: "Chief of Security", replaces: "head of security", provenance: "test",
+    });
+    expect(supersededCount).toBe(1);
+    // recall shows ONLY the corrected fact (stale one is superseded, not lingering)
+    const r = await mem.recall("Happy");
+    const statements = r!.facts.map((f) => f.statement);
+    expect(statements).toContain("Chief of Security");
+    expect(statements).not.toContain("head of security");
+    // the old fact is retained as history and points forward to the new one
+    const { rows } = await pool!.query(
+      "SELECT status, superseded_by FROM memory_facts WHERE entity_id = (SELECT entity_id FROM memory_facts WHERE id=$1) AND status='superseded'",
+      [fact.id],
+    );
+    expect(rows.length).toBe(1);
+    expect(rows[0].superseded_by).toBe(fact.id);
+  });
+
+  it("correctFact targets an exact factId (read-then-write, no guessing)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Vision", entityKind: "person", statement: "powered by the Mind Stone", provenance: "test" });
+    const keep = await mem.rememberFact({ entityName: "Vision", statement: "can phase through walls", provenance: "test" });
+    const target = (await mem.recall("Vision"))!.facts.find((f) => f.statement.includes("Mind Stone"))!;
+    const { supersededCount, fact } = await mem.correctFact({
+      entityName: "Vision", newStatement: "powered by the solar gem", factId: target.id, provenance: "test",
+    });
+    expect(supersededCount).toBe(1);
+    const after = (await mem.recall("Vision"))!.facts.map((f) => f.statement);
+    expect(after).toContain("powered by the solar gem");
+    expect(after).toContain("can phase through walls");    // untargeted fact untouched
+    expect(after).not.toContain("powered by the Mind Stone");
+    // superseded row points forward at the replacement
+    const { rows } = await pool!.query("SELECT superseded_by FROM memory_facts WHERE id=$1", [target.id]);
+    expect(rows[0].superseded_by).toBe(fact.id);
+    expect(keep.id).not.toBe(target.id);
+  });
+
+  it("correctFact REFUSES a stale/foreign factId instead of guessing", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Wanda", entityKind: "person", statement: "lives in Westview", provenance: "test" });
+    await expect(mem.correctFact({
+      entityName: "Wanda", newStatement: "lives in Malibu",
+      factId: "00000000-0000-0000-0000-000000000000", provenance: "test",
+    })).rejects.toThrow(/no active fact/);
+    // nothing changed
+    expect((await mem.recall("Wanda"))!.facts.map((f) => f.statement)).toEqual(["lives in Westview"]);
+  });
+
+  it("forgetFact soft-deletes ONE fact, leaving the entity and other facts intact", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Thor", entityKind: "person", statement: "wields Mjolnir", provenance: "test" });
+    await mem.rememberFact({ entityName: "Thor", statement: "is from Asgard", provenance: "test" });
+    const gone = (await mem.recall("Thor"))!.facts.find((f) => f.statement.includes("Mjolnir"))!;
+    expect(await mem.forgetFact(gone.id)).toBe(true);
+    expect(await mem.forgetFact(gone.id)).toBe(false); // already inactive → honest false
+    const after = (await mem.recall("Thor"))!;
+    expect(after.facts.map((f) => f.statement)).toEqual(["is from Asgard"]);
+  });
+
+  it("correctFact matches by WORD-OVERLAP when the wording differs (robust supersede)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Me", entityKind: "person", statement: "runs at 6am every day", provenance: "test" });
+    // 'replaces' is worded differently ("6am run") but overlaps → still supersedes
+    const { supersededCount } = await mem.correctFact({
+      entityName: "Me", newStatement: "runs at 5:30am", replaces: "6am run", provenance: "test",
+    });
+    expect(supersededCount).toBe(1);
+    const r = await mem.recall("Me");
+    expect(r!.facts.map((f) => f.statement)).toEqual(["runs at 5:30am"]);
+  });
+
+  it("correctFact with no matching 'replaces' still records the new fact (reported)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberFact({ entityName: "Loki", entityKind: "person", statement: "is in Asgard", provenance: "test" });
+    const { supersededCount } = await mem.correctFact({
+      entityName: "Loki", newStatement: "is on Earth", replaces: "no such prior statement", provenance: "test",
+    });
+    expect(supersededCount).toBe(0);
+    const r = await mem.recall("Loki");
+    expect(r!.facts.map((f) => f.statement)).toContain("is on Earth");
+  });
+
   it("forget excludes an entity from recall immediately", async () => {
     const mem = new EntityMemory(pool!, audit, vault);
     await mem.rememberEntity({ kind: "person", name: "Obadiah", provenance: "test" });

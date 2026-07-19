@@ -183,7 +183,96 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
     },
   };
 
-  return [rememberEntity, rememberFact, relate, recall, related, recallGraph];
+  const correct: Tool = {
+    name: "memory.correct",
+    description:
+      "Correct a fact you already hold about an entity: supersede the old statement (kept as history) and record the new one. " +
+      "READ-THEN-WRITE: call memory.recall first — it lists each fact with its factId — then pass the exact factId here. " +
+      "Use this — NOT rememberFact — whenever the user updates/changes/corrects something you know, so the stale fact doesn't linger alongside the new one.",
+    riskClass: "LOW_REVERSIBLE",
+    action: "correct fact in local memory",
+    inputSchema: {
+      type: "object",
+      properties: {
+        entity: { type: "string", description: "the entity the fact is about" },
+        newStatement: { type: "string", description: "the corrected/updated fact" },
+        factId: { type: "string", description: "the exact id of the fact to supersede (from memory.recall) — PREFERRED" },
+        replaces: { type: "string", description: "fallback: text of the OLD fact to supersede, if you don't have its factId" },
+        kind: { type: "string", description: "entity kind if it must be created" },
+      },
+      required: ["entity", "newStatement"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { entity: string; newStatement: string; factId?: string; replaces?: string; kind?: string };
+      try {
+        const r = await mem.correctFact({
+          entityName: a.entity,
+          newStatement: a.newStatement,
+          ...(a.factId ? { factId: a.factId } : {}),
+          ...(a.replaces ? { replaces: a.replaces } : {}),
+          ...(a.kind ? { entityKind: a.kind } : {}),
+          provenance: "conversation (user corrected me)",
+        });
+        return {
+          ok: true,
+          summary: r.supersededCount
+            ? `corrected '${a.entity}' — superseded ${r.supersededCount} prior fact${r.supersededCount > 1 ? "s" : ""}, kept as history`
+            : `recorded a new fact about '${a.entity}' (no prior statement matched to supersede — recall the entity and pass a factId to target precisely)`,
+          data: { id: r.fact.id, entity: a.entity, superseded: r.supersededCount },
+        };
+      } catch (err) {
+        // e.g. a stale/wrong factId — surfaced to the model so it can re-recall.
+        return { ok: false, summary: err instanceof Error ? err.message : String(err) };
+      }
+    },
+  };
+
+  const forget: Tool = {
+    name: "memory.forget",
+    description:
+      "Forget (soft-delete) knowledge — excluded from recall immediately. Whole entity by name, or ONE fact by its factId " +
+      "(from memory.recall) when only a single statement is no longer true. Look names/factIds up with memory.recall first if unsure.",
+    riskClass: "CONSEQUENTIAL",
+    action: "forget from local memory",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "entity to forget entirely (with its facts)" },
+        factId: { type: "string", description: "OR: forget just this one fact (id from memory.recall)" },
+      },
+      additionalProperties: false,
+    },
+    disclose(args: unknown) {
+      const a = args as { name?: string; factId?: string };
+      const what = a.factId ? `one fact (${a.factId})` : `entity '${a.name}' and its facts`;
+      return {
+        whatWillHappen: `${what} will be forgotten (soft-deleted; excluded from recall immediately)`,
+        affected: [a.factId ? `memory fact ${a.factId}` : `memory entity '${a.name}'`],
+        proposedCommands: [`forget ${a.factId ?? `'${a.name}'`}`],
+        reason: "user asked me to forget it",
+        riskClass: "CONSEQUENTIAL" as const,
+        reversible: false,
+        rollbackPlan: "none — forgetting is a deliberate removal",
+      };
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { name?: string; factId?: string };
+      if (a.factId) {
+        const ok = await mem.forgetFact(a.factId);
+        return ok
+          ? { ok: true, summary: `forgot fact ${a.factId}`, data: { factId: a.factId, forgotten: true } }
+          : { ok: true, summary: `no active fact ${a.factId} to forget (recall the entity for current factIds)`, data: { factId: a.factId, forgotten: false } };
+      }
+      if (!a.name) return { ok: false, summary: "give an entity name or a factId" };
+      const ok = await mem.forgetEntity(a.name);
+      return ok
+        ? { ok: true, summary: `forgot '${a.name}'`, data: { name: a.name, forgotten: true } }
+        : { ok: true, summary: `no active memory of '${a.name}' to forget`, data: { name: a.name, forgotten: false } };
+    },
+  };
+
+  return [rememberEntity, rememberFact, correct, relate, recall, related, recallGraph, forget];
 }
 
 function renderNeighborhood(g: GraphNeighborhood): string {
@@ -212,8 +301,10 @@ function renderGraphRecall(r: GraphRecall): string {
 function renderRecall(r: Recall): string {
   const lines = [`${r.entity.kind} — ${r.entity.name}${r.entity.attributes ? ` (${r.entity.attributes})` : ""}`];
   if (r.facts.length) {
+    // Fact ids are surfaced so the model can READ-then-WRITE precisely:
+    // recall → decide → memory.correct/forget with the exact factId (no guessing).
     lines.push("facts:");
-    for (const f of r.facts) lines.push(`  - ${f.statement} [${f.status}]`);
+    for (const f of r.facts) lines.push(`  - ${f.statement} [${f.status}] (factId: ${f.id})`);
   }
   for (const rel of r.relationsOut) lines.push(`  → ${rel.relation} → ${rel.toKind} ${rel.toName}${rel.note ? ` (${rel.note})` : ""}`);
   for (const rel of r.relationsIn) lines.push(`  ← ${rel.fromKind} ${rel.fromName} ${rel.relation} → this`);

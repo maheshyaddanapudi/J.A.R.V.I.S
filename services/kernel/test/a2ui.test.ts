@@ -101,4 +101,24 @@ describe.skipIf(!pool)("A2uiRegistry (D-0061) — validate + store", () => {
     expect(await reg.remove(id)).toBe(true);
     expect(await reg.list()).toHaveLength(0);
   });
+
+  it("pruneSetting cascades a removed setting out of panels (gap 4 fix)", async () => {
+    const reg = new A2uiRegistry(pool!, audit, settings, toolReg());
+    // panel that is ONLY that setting → becomes empty → removed entirely
+    await reg.create({ title: "Solo", components: [{ type: "setting", key: "proactive.confidenceThreshold" }] }, "jarvis");
+    // panel with a heading + that setting → the setting is pruned, heading kept
+    await reg.create({ title: "Mixed", components: [
+      { type: "heading", text: "Config" },
+      { type: "setting", key: "proactive.confidenceThreshold" },
+    ] }, "jarvis");
+    const res = await reg.pruneSetting("proactive.confidenceThreshold");
+    expect(res.panelsRemoved).toBe(1);
+    expect(res.panelsUpdated).toBe(1);
+    const panels = await reg.list();
+    expect(panels).toHaveLength(1);
+    expect(panels[0]!.title).toBe("Mixed");
+    // no dangling "setting" component left pointing at the deleted key
+    expect(panels[0]!.spec.components.some((c) => c.type === "setting")).toBe(false);
+    expect(panels[0]!.spec.components.some((c) => c.type === "heading")).toBe(true);
+  });
 });

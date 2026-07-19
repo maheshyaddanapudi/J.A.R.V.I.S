@@ -18,6 +18,17 @@ import type { EpistemicStatus, Sensitivity } from "./memory.js";
  * (R-MEM-05); re-remembering supersedes the old row (kept for history).
  */
 
+/** Content words of a phrase (stop-words dropped) — used to match a correction's
+ *  `replaces` hint against a stored fact even when the wording differs. */
+const STOP_WORDS = new Set([
+  "is", "are", "the", "a", "an", "of", "to", "in", "on", "at", "my", "your", "i", "me",
+  "and", "or", "now", "not", "with", "for", "be", "was", "were", "has", "have", "had",
+  "that", "this", "it", "as", "by", "from", "he", "she", "they", "we", "you",
+]);
+function contentWords(s: string): Set<string> {
+  return new Set((s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)));
+}
+
 export type EntityKind = string; // person | project | place | org | thing | topic | …
 
 export interface Entity {
@@ -113,10 +124,13 @@ export class EntityMemory {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      // supersede any active entity with the same (name, kind)
-      await client.query(
+      // Supersede any active entity with the same (name, kind), capturing their
+      // ids so we can link them FORWARD to the replacement (superseded_by) — the
+      // history chain is walkable, not just a dangling 'superseded' status.
+      const { rows: superseded } = await client.query<{ id: string }>(
         `UPDATE memory_entities SET status = 'superseded', updated_at = now()
-         WHERE lower(name) = lower($1) AND kind = $2 AND status NOT IN ('deleted','superseded')`,
+         WHERE lower(name) = lower($1) AND kind = $2 AND status NOT IN ('deleted','superseded')
+         RETURNING id`,
         [input.name, input.kind],
       );
       const { rows } = await client.query(
@@ -133,6 +147,12 @@ export class EntityMemory {
           input.sensitivity ?? "personal",
         ],
       );
+      if (superseded.length) {
+        await client.query(
+          `UPDATE memory_entities SET superseded_by = $1 WHERE id = ANY($2::uuid[])`,
+          [rows[0].id, superseded.map((r) => r.id)],
+        );
+      }
       await client.query("COMMIT");
       await this.audit.append({
         actor: "kernel",
@@ -208,6 +228,101 @@ export class EntityMemory {
       void this.semantic.index("fact", fact.id, `${entity.name}: ${input.statement}`);
     }
     return fact;
+  }
+
+  /**
+   * Correct a FACT about an entity: supersede the prior statement(s) — kept as
+   * history with `superseded_by` pointing at the replacement — and record the new
+   * one. This is the fact-level analogue of entity re-remember (D-0060 gap fix):
+   * before this, a contradicting fact just piled up alongside the stale one.
+   * `replaces` (a substring of the old statement, case-insensitive) targets which
+   * fact(s) to supersede; if omitted, the single most-recent active fact is
+   * superseded. If nothing matches, the new fact is still recorded (reported).
+   */
+  async correctFact(input: {
+    entityName: string;
+    newStatement: string;
+    /** PRECISE target: the id of the fact to supersede (from a prior recall —
+     *  the read-before-write path; always preferred over text matching). */
+    factId?: string;
+    replaces?: string;
+    entityKind?: string;
+    provenance: string;
+  }): Promise<{ fact: Fact; supersededCount: number }> {
+    if (!input.newStatement.trim()) throw new Error("refused: a correction needs a new statement");
+    assertNotSecret(input.newStatement);
+    const entity = await this.ensureEntity(input.entityName, input.entityKind ?? "thing", input.provenance);
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows: active } = await client.query<{ id: string; statement: string }>(
+        `SELECT id, statement FROM memory_facts
+         WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+         ORDER BY created_at DESC`,
+        [entity.id],
+      );
+      let targets: string[];
+      if (input.factId) {
+        // Explicit id from a prior recall — exact, no guessing. Must belong to
+        // this entity and still be active, else the correction is refused
+        // (an id typo must not silently supersede nothing or the wrong thing).
+        if (!active.some((r) => r.id === input.factId)) {
+          throw new Error(`no active fact ${input.factId} on '${entity.name}' — recall the entity and use a current fact id`);
+        }
+        targets = [input.factId];
+      } else if (input.replaces && input.replaces.trim()) {
+        const needle = input.replaces.trim().toLowerCase();
+        // 1) exact substring match (precise).
+        targets = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
+        // 2) fallback: the active fact sharing the most CONTENT words with
+        //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
+        //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
+        //    ≥1 shared content word; otherwise the new statement is just added.
+        if (!targets.length) {
+          const want = contentWords(needle);
+          let best: { id: string; shared: number } | null = null;
+          for (const r of active) {
+            const have = contentWords(this.dec(r.statement));
+            let shared = 0;
+            for (const w of want) if (have.has(w)) shared++;
+            if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+          }
+          if (best && best.shared >= 1) targets = [best.id];
+        }
+      } else {
+        targets = active.length ? [active[0]!.id] : []; // no target named → most recent active fact
+      }
+      const { rows: ins } = await client.query(
+        `INSERT INTO memory_facts (entity_id, statement, status, provenance, confidence, sensitivity)
+         VALUES ($1,$2,'user_statement',$3,1.0,'personal')
+         RETURNING id, entity_id, statement, status, provenance, confidence, sensitivity, created_at`,
+        [entity.id, this.enc(input.newStatement), input.provenance],
+      );
+      const newId = ins[0]!.id as string;
+      if (targets.length) {
+        await client.query(
+          `UPDATE memory_facts SET status = 'superseded', superseded_by = $1 WHERE id = ANY($2::uuid[])`,
+          [newId, targets],
+        );
+      }
+      await client.query("COMMIT");
+      await this.audit.append({
+        actor: "kernel",
+        event: "fact_corrected",
+        payload: { entity: entity.name, superseded: targets.length, provenance: input.provenance },
+      });
+      // Vector index: drop the superseded facts, index the replacement (best-effort).
+      if (this.semantic) {
+        for (const id of targets) void this.semantic.remove("fact", id);
+        void this.semantic.index("fact", newId, `${entity.name}: ${input.newStatement}`);
+      }
+      return { fact: this.hydrateFact(ins[0]), supersededCount: targets.length };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async relate(input: {
@@ -327,6 +442,21 @@ export class EntityMemory {
           for (const f of facts) void this.semantic.remove("fact", f.id);
         }
       }
+    }
+    return (rowCount ?? 0) > 0;
+  }
+
+  /** Soft-delete ONE fact by id (from a prior recall) — for "that's no longer
+   *  true" without dropping the whole entity or replacing the fact. */
+  async forgetFact(factId: string): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE memory_facts SET status = 'deleted'
+       WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
+      [factId],
+    );
+    if (rowCount) {
+      await this.audit.append({ actor: "kernel", event: "fact_forgotten", payload: { factId } });
+      if (this.semantic) void this.semantic.remove("fact", factId);
     }
     return (rowCount ?? 0) > 0;
   }

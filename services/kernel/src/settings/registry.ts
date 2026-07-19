@@ -81,6 +81,18 @@ interface Override {
 /** Z1 trust-core concerns may never become a setting (R-CAP-08). */
 const Z1_KEY = /policy|approval|audit|estop|e-stop|credential|secret|vault|sandbox/i;
 
+/** Normalize a key for near-duplicate detection (case/separator-insensitive). */
+const normKey = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+/** Word tokens of a label, for overlap-based duplicate detection. */
+const tokens = (s: string): Set<string> => new Set(s.toLowerCase().match(/[a-z0-9]+/g) ?? []);
+/** Jaccard overlap of two token sets (0..1). */
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  return inter / new Set([...a, ...b]).size;
+}
+
 function validate(spec: SettingSpec, raw: unknown): SettingValue {
   switch (spec.type) {
     case "number":
@@ -109,6 +121,7 @@ export class SettingsRegistry {
   private readonly specs = new Map<string, SettingSpec>();
   private readonly origins = new Map<string, SettingOrigin>();
   private changeListener?: (key: string) => void;
+  private removeListener?: (key: string) => void;
 
   constructor(
     private readonly pool: pg.Pool,
@@ -147,6 +160,12 @@ export class SettingsRegistry {
   onChange(fn: (key: string) => void): void { this.changeListener = fn; }
   private notify(key: string): void {
     try { this.changeListener?.(key); } catch { /* best-effort */ }
+  }
+  /** Fired when a setting is actually DELETED (dynamic removal), so dependents
+   *  (e.g. A2UI panels referencing it) can prune themselves — D-0060 cascade. */
+  onRemove(fn: (key: string) => void): void { this.removeListener = fn; }
+  private notifyRemove(key: string): void {
+    try { this.removeListener?.(key); } catch { /* best-effort */ }
   }
 
   has(key: string): boolean { return this.specs.has(key); }
@@ -241,6 +260,22 @@ export class SettingsRegistry {
     if (this.origins.get(key) === "system") throw new Error(`'${key}' is a system setting — cannot redefine`);
     if (!["number", "boolean", "string", "enum", "hour"].includes(input.type)) throw new Error(`bad type '${input.type}'`);
     if (input.type === "enum" && !(input.options && input.options.length)) throw new Error(`enum '${key}' needs options`);
+    // Near-duplicate guard (D-0060 gap fix): refuse a knob that is effectively the
+    // same as one that already exists — a normalized-key collision (quiet_hours vs
+    // quietHours) or a high label-token overlap (≥0.6, e.g. "Quiet Hours Start" vs
+    // "Quiet Hours Start Time"). Re-registering the SAME key is allowed (upsert).
+    // The remedy the message points to is settings.list → edit/remove the existing.
+    const nkey = normKey(key);
+    const nlabel = tokens(input.label);
+    for (const [k, sp] of this.specs) {
+      if (k === key) continue;
+      if (normKey(k) === nkey || jaccard(nlabel, tokens(sp.label)) >= 0.6) {
+        throw new Error(
+          `refused: a very similar setting already exists — '${k}' ("${sp.label}"). ` +
+          `Edit or remove it (see settings.list) instead of creating a near-duplicate.`,
+        );
+      }
+    }
     // validate the declared default against its own spec
     const spec: SettingSpec = {
       key, label: input.label, category: input.category ?? "Discovered", type: input.type,
@@ -285,6 +320,7 @@ export class SettingsRegistry {
     this.origins.delete(key);
     await this.audit.append({ actor: "user", event: "setting_deleted", payload: { key } });
     this.notify(key);
+    this.notifyRemove(key); // cascade: let A2UI prune panels referencing this key
     return { action: "deleted" };
   }
 }

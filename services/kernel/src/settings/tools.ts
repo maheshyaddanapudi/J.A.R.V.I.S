@@ -12,6 +12,32 @@ import type { SettingsRegistry } from "./registry.js";
 export function settingsTools(settings: SettingsRegistry): Tool[] {
   return [
     {
+      name: "settings.list",
+      description:
+        "List the current configurable settings (key, label, category, type, value, origin). " +
+        "Read-only. Call this FIRST to find an existing knob before registering a new one, or to get the exact key before editing/removing one.",
+      riskClass: "READ_ONLY",
+      action: "list settings",
+      inputSchema: {
+        type: "object",
+        properties: { category: { type: "string", description: "optional: filter to one category" } },
+        additionalProperties: false,
+      },
+      async run(args) {
+        const a = (args ?? {}) as { category?: string };
+        const all = await settings.effective();
+        const rows = a.category
+          ? all.filter((s) => s.category.toLowerCase() === a.category!.toLowerCase())
+          : all;
+        return {
+          ok: true,
+          summary: `${rows.length} setting(s)${a.category ? ` in '${a.category}'` : ""}`,
+          data: rows.map((s) => ({ key: s.key, label: s.label, category: s.category, type: s.type, value: s.value, origin: s.origin, removable: s.removable })),
+          detail: rows.map((s) => `${s.key} = ${JSON.stringify(s.value)} (${s.type}, ${s.category}${s.removable ? ", removable" : ""})`).join("\n"),
+        };
+      },
+    },
+    {
       name: "settings.set",
       description:
         "Set a catalogued runtime setting (e.g. proactive.confidenceThreshold). " +
@@ -82,7 +108,8 @@ export function settingsTools(settings: SettingsRegistry): Tool[] {
       name: "settings.register",
       description:
         "Register a NEW configurable setting J.A.R.V.I.S. has discovered, so the user can see/edit/delete it. " +
-        "Persisted + surfaced in the settings panel. Cannot name a protected trust-core concern.",
+        "Persisted + surfaced in the settings panel. Cannot name a protected trust-core concern. " +
+        "Call settings.list FIRST — a near-duplicate of an existing knob is refused.",
       riskClass: "CONSEQUENTIAL",
       action: "configure",
       inputSchema: {

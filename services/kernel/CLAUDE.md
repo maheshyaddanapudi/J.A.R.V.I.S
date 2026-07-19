@@ -288,6 +288,20 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   recall@8 on realistic dense vectors). Traversal (recursive CTE) was already
   index-backed (`from_idx`/`to_idx`, 1.2 ms at depth 3, bounded 100 nodes) — no
   change. `hnsw.ef_search` (default 40) tunes recall/speed for very large brains.
+- Memory-evolution completeness ✅ (D-0062, 2026-07-19): the 5 scale-test gaps
+  closed. Agent-owned lifecycle: `memory.correct` (supersede-with-history) +
+  `memory.forget` (entity OR single fact, CONSEQUENTIAL+disclosure) — with the
+  **read-then-write contract**: `memory.recall` surfaces each fact's `factId`,
+  correct/forget take the exact id (stale/foreign id → refused), text-match
+  (`replaces` substring → content-word overlap) only as fallback. Entity AND
+  fact supersession now populate `superseded_by` (walkable history chains).
+  `SettingsRegistry.register` refuses near-duplicates (normalized-key collision
+  or label overlap ≥0.6, incl. vs SYSTEM keys); READ_ONLY `settings.list` lets a
+  stateless run rediscover exact keys; `settings.onRemove → a2ui.pruneSetting`
+  cascades a deleted setting out of stored panels (empty panel removed). 302
+  kernel tests; live clean-slate real-brain retest: agent chose
+  recall→correct(factId)×2→forget(factId) unprompted. Record:
+  `docs/verification/GAP_FIXES_2026-07-19.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

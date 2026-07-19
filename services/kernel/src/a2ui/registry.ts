@@ -76,4 +76,29 @@ export class A2uiRegistry {
     if (rowCount) await this.audit.append({ actor: "user", event: "a2ui_panel_deleted", payload: { id } });
     return Boolean(rowCount);
   }
+
+  /**
+   * Cascade for a REMOVED setting (D-0060 gap fix): drop every `setting` component
+   * that points at `key` from stored panels, so no panel is left rendering a
+   * dangling "unknown setting" row. A panel left with no components is removed
+   * entirely. Wired to `SettingsRegistry.onRemove`. Best-effort, idempotent.
+   */
+  async pruneSetting(key: string): Promise<{ panelsUpdated: number; panelsRemoved: number }> {
+    let panelsUpdated = 0;
+    let panelsRemoved = 0;
+    for (const p of await this.list()) {
+      const kept = p.spec.components.filter((c) => !(c.type === "setting" && c.key === key));
+      if (kept.length === p.spec.components.length) continue; // no reference to this key
+      if (kept.length === 0) {
+        await this.remove(p.id);
+        panelsRemoved++;
+      } else {
+        const newSpec = { ...p.spec, components: kept };
+        await this.pool.query(`UPDATE ui_panels SET spec = $1::jsonb WHERE id = $2`, [JSON.stringify(newSpec), p.id]);
+        await this.audit.append({ actor: "kernel", event: "a2ui_panel_pruned", payload: { id: p.id, removedSetting: key } });
+        panelsUpdated++;
+      }
+    }
+    return { panelsUpdated, panelsRemoved };
+  }
 }

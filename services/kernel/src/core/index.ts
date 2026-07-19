@@ -237,6 +237,9 @@ export async function buildCore(opts: {
   // the whitelist + real references, rendered by a sandboxed client renderer.
   const a2ui = new A2uiRegistry(opts.pool, audit, settings, tools);
   for (const t of a2uiTools(a2ui)) tools.register(t);
+  // Cascade (D-0060 gap fix): a removed setting prunes itself out of any A2UI
+  // panel that referenced it, so no panel is left pointing at a dead setting.
+  settings.onRemove((key) => { void a2ui.pruneSetting(key); });
 
   // When e-stop engages, deny everything pending and announce it.
   estop.onChange((engaged) => {

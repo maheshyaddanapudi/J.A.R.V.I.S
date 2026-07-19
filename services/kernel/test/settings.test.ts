@@ -41,7 +41,7 @@ const catalog: SettingSpec[] = [
 afterAll(async () => { await pool?.end(); });
 
 describe.skipIf(!pool)("SettingsRegistry (D-0058)", () => {
-  beforeEach(async () => { await pool!.query("TRUNCATE runtime_settings"); });
+  beforeEach(async () => { await pool!.query("TRUNCATE runtime_settings, setting_specs"); });
 
   it("effective = current default when nothing persisted", async () => {
     const r = new SettingsRegistry(pool!, audit, catalog);
@@ -115,6 +115,36 @@ describe.skipIf(!pool)("SettingsRegistry (D-0058)", () => {
     await r.init();
     await expect(r.register({ key: "approval.bypass", label: "x", type: "boolean", default: true }, "jarvis")).rejects.toThrow(/protected/);
     await expect(r.register({ key: "t.num", label: "x", type: "number", default: 1 }, "jarvis")).rejects.toThrow(/system setting/);
+  });
+
+  it("register REFUSES a near-duplicate (D-0060 gap fix): normalized-key + label-overlap", async () => {
+    const r = new SettingsRegistry(pool!, audit, catalog);
+    await r.init();
+    await r.register({ key: "quiet_hours_start", label: "Quiet Hours Start", type: "number", default: 22 }, "jarvis");
+    // normalized-key collision (quiet_hours_start ~ quietHoursStart)
+    await expect(r.register({ key: "quietHoursStart", label: "QH Start", type: "number", default: 22 }, "jarvis"))
+      .rejects.toThrow(/similar setting already exists/);
+    // high label-token overlap ("Quiet Hours Start" vs "Quiet Hours Start Time" = 0.75)
+    await expect(r.register({ key: "quietHours.startTime", label: "Quiet Hours Start Time", type: "number", default: 1380 }, "jarvis"))
+      .rejects.toThrow(/similar setting already exists/);
+    // a genuinely different knob (Start vs End = 0.5 overlap) is still allowed
+    await expect(r.register({ key: "quiet_hours_end", label: "Quiet Hours End", type: "number", default: 7 }, "jarvis"))
+      .resolves.toBeTruthy();
+    // re-registering the SAME key is an update, not a duplicate
+    await expect(r.register({ key: "quiet_hours_start", label: "Quiet Hours Start", type: "number", default: 23 }, "jarvis"))
+      .resolves.toBeTruthy();
+  });
+
+  it("settings.list (READ_ONLY) surfaces current keys so the agent can discover them (gap 5 fix)", async () => {
+    const r = new SettingsRegistry(pool!, audit, catalog);
+    await r.init();
+    await r.register({ key: "my_dynamic_knob", label: "My Knob", type: "boolean", default: false }, "jarvis");
+    const list = settingsTools(r).find((t) => t.name === "settings.list")!;
+    const res = await list.run({});
+    expect(res.ok).toBe(true);
+    const keys = (res.data as { key: string }[]).map((s) => s.key);
+    expect(keys).toContain("my_dynamic_knob"); // the newly-discovered key is findable
+    expect(keys).toContain("t.num");           // system keys too
   });
 });
 
