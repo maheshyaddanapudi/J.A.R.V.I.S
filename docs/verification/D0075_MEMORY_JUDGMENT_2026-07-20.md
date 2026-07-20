@@ -79,3 +79,33 @@ self-built skills/code reusable).
   single-user use is sequential.
 
 Key was env-only and scrubbed (0 hits in repo + scratchpad); scratch DB dropped.
+
+## Refinement (2026-07-20, same day) — prefer fuller name + advisory-lock residual
+Per the user's follow-up:
+- **Prefer the fuller name as canonical.** When a variant resolves to an existing
+  entity, the more complete name now wins and the shorter one is demoted to an
+  alias — regardless of arrival order ('Pepper' before OR after 'Pepper Potts'
+  both settle on 'Pepper Potts'). Also fixed a latent bug where re-mentioning an
+  entity by one of its aliases could rename it to the short variant. Unit tests
+  (both orders + alias-no-rename) + live real-brain: short name first, then the
+  fuller name → canonical promoted to 'Pepper Potts', alias `pepper`, fact
+  preserved, recall by either name.
+- **Advisory-lock residual — corrected understanding.** Migration **0010 already
+  created** a partial UNIQUE index `(lower(name), kind) WHERE active`, so
+  same-(name,kind) active duplicates are structurally impossible at the DB level.
+  The residual was not missing structure but concurrent writes hitting
+  unique-VIOLATION failures; the advisory lock (D-0075) serializes them into clean
+  supersede+inserts, so no write is lost. A proposed redundant index migration
+  (0026) was therefore **dropped**. Remaining open case: cross-variant
+  simultaneous creation (two brand-new spellings at the same instant → different
+  locks), which is **self-healing** via next-mention resolution + quiet-hours
+  consolidation and does not arise at single-user sequential scale. A test now
+  guards the structural backstop (a raw duplicate active insert is rejected).
+- **Related honest finding:** the real-world "duplicate" the observation run saw
+  was most likely same-name across DIFFERENT KINDS (the model assigning `thing`
+  vs `project` to 'arc reactor' across stateless sessions), which the per-(name,
+  kind) index and the same-kind judge candidate query both leave untouched.
+  Merging cross-kind variants is a candidate next step (broaden the resolution
+  candidate set beyond same-kind) — not implemented here.
+
+379 kernel tests. Key env-only, scrubbed (0 hits); scratch DBs dropped.

@@ -89,6 +89,33 @@ function mergeAttrs(oldA: string, newA: string): string {
   if (n.toLowerCase().includes(o.toLowerCase())) return n;
   return `${o}; ${n}`;
 }
+/** Which of two names is the "fuller" (more complete) form — used to pick the
+ *  CANONICAL name when a variant is merged into an existing entity (D-0075):
+ *  a name that CONTAINS the other wins ('Pepper' ⊂ 'Pepper Potts'); else the one
+ *  with more word tokens ('Mark 42' vs 'Mark 42 suit'); else the longer string;
+ *  final tie keeps `existing` for stability. */
+function preferFuller(existing: string, incoming: string): string {
+  const e = existing.trim();
+  const i = incoming.trim();
+  if (!i) return e;
+  if (!e) return i;
+  const el = e.toLowerCase();
+  const il = i.toLowerCase();
+  if (el === il) return e;
+  const eInI = il.includes(el);
+  const iInE = el.includes(il);
+  if (eInI && !iInE) return i;
+  if (iInE && !eInI) return e;
+  const ew = e.split(/\s+/).length;
+  const iw = i.split(/\s+/).length;
+  if (iw !== ew) return iw > ew ? i : e;
+  if (i.length !== e.length) return i.length > e.length ? i : e;
+  return e;
+}
+/** The fullest name across a set (input + all matched entity names). */
+function fullestName(names: string[]): string {
+  return names.reduce((best, n) => preferFuller(best, n));
+}
 /** Cheap gate before spending a model call on consolidation: do any two facts
  *  share a content word at all? If not, there is nothing plausibly duplicated. */
 function anyPairShareWord(decoded: { words: Set<string> }[]): boolean {
@@ -327,25 +354,39 @@ export class EntityMemory {
     resolvedFrom?: string;
   }> {
     // 1. exact name OR existing alias, same kind
-    const { rows: exact } = await this.pool.query<{ id: string; attributes: string; aliases: string[] }>(
-      `SELECT id, attributes, aliases FROM memory_entities
+    const { rows: exact } = await this.pool.query<{ id: string; name: string; attributes: string; aliases: string[] }>(
+      `SELECT id, name, attributes, aliases FROM memory_entities
        WHERE kind = $2 AND status NOT IN ('deleted','superseded')
          AND ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
        ORDER BY updated_at DESC`,
       [input.name, input.kind],
     );
     if (exact.length) {
-      // Exact same-name re-mention keeps the established contract (D-0038): the
-      // new attributes REPLACE the entity's; the old value survives as history on
-      // the superseded row. Only carry the accumulated ALIASES forward.
+      // Prefer the FULLER name as canonical (D-0075): matching by an ALIAS (e.g.
+      // the mention 'Pepper' hitting canonical 'Pepper Potts') must NOT rename the
+      // entity to the shorter variant — every non-canonical name becomes an alias.
+      const names = [input.name, ...exact.map((r) => r.name)];
+      const canonicalName = fullestName(names);
+      const canonLower = canonicalName.toLowerCase();
       const aliases = new Set<string>();
       for (const r of exact) for (const a of r.aliases ?? []) aliases.add(a.toLowerCase());
+      for (const n of names) if (n.toLowerCase() !== canonLower) aliases.add(n.toLowerCase());
+      // Attributes: an EXACT same-name re-mention keeps the D-0038 replace contract
+      // (new value wins; old survives as history on the superseded row); an
+      // alias/variant hit keeps the canonical entity's attributes and merges in
+      // anything new (never loses the fuller entity's notes).
+      const exactSameName = input.name.toLowerCase() === canonLower && exact.some((r) => r.name.toLowerCase() === canonLower);
+      const canonRow = exact.find((r) => r.name.toLowerCase() === canonLower);
+      const attributes = exactSameName
+        ? input.attributes ?? ""
+        : mergeAttrs(this.dec(canonRow?.attributes ?? exact[0]!.attributes ?? ""), input.attributes ?? "");
       return {
-        canonicalName: input.name,
+        canonicalName,
         canonicalKind: input.kind,
-        attributes: input.attributes ?? "",
+        attributes,
         aliases: [...aliases],
         supersedeIds: exact.map((r) => r.id),
+        ...(canonLower === input.name.toLowerCase() ? {} : { resolvedFrom: input.name }),
       };
     }
 
@@ -364,10 +405,15 @@ export class EntityMemory {
           ? cands.find((c) => c.name.toLowerCase() === verdict.sameAs!.toLowerCase())
           : undefined;
         if (C) {
+          // Prefer the FULLER name as canonical (D-0075): if the incoming mention
+          // is the more complete form ('Pepper Potts' resolving to existing
+          // 'Pepper'), promote it and demote the shorter one to an alias.
+          const canonicalName = preferFuller(C.name, input.name);
+          const canonLower = canonicalName.toLowerCase();
           const aliases = new Set<string>((C.aliases ?? []).map((a) => a.toLowerCase()));
-          if (input.name.toLowerCase() !== C.name.toLowerCase()) aliases.add(input.name.toLowerCase());
+          for (const n of [C.name, input.name]) if (n.toLowerCase() !== canonLower) aliases.add(n.toLowerCase());
           return {
-            canonicalName: C.name,
+            canonicalName,
             canonicalKind: C.kind,
             attributes: mergeAttrs(C.attributes ?? "", input.attributes ?? ""),
             aliases: [...aliases],

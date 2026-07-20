@@ -354,4 +354,66 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     );
     expect(active.rows[0]!.n).toBe(1);
   });
+
+  it("promotes the FULLER name to canonical when the short variant arrived first (D-0075)", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async (subject, candidates) => {
+        const hit = candidates.find(
+          (c) => c.name.toLowerCase().includes(subject.name.toLowerCase()) || subject.name.toLowerCase().includes(c.name.toLowerCase()),
+        );
+        return hit ? { sameAs: hit.name, reason: "same person" } : { sameAs: null, reason: "new" };
+      },
+      mergeFacts: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    // the SHORT name is seen first...
+    await mem.rememberEntity({ kind: "person", name: "Pepper", provenance: "test" });
+    await mem.rememberFact({ entityName: "Pepper", statement: "is CEO of Stark Industries", provenance: "test" });
+    // ...then the FULLER name arrives — canonical should PROMOTE to 'Pepper Potts'
+    await mem.rememberEntity({ kind: "person", name: "Pepper Potts", provenance: "test" });
+
+    const active = await pool!.query<{ name: string; aliases: string[] }>(
+      "SELECT name, aliases FROM memory_entities WHERE kind='person' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows.length).toBe(1);
+    expect(active.rows[0]!.name).toBe("Pepper Potts"); // fuller name won
+    expect(active.rows[0]!.aliases).toContain("pepper"); // short name demoted to alias
+    for (const q of ["Pepper", "Pepper Potts"]) {
+      const r = await mem.recall(q);
+      expect(r!.facts.map((f) => f.statement)).toContain("is CEO of Stark Industries");
+    }
+  });
+
+  it("re-mentioning via an ALIAS does NOT rename the entity to the short variant (D-0075)", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async (subject, candidates) => {
+        const hit = candidates.find((c) => c.name.toLowerCase().includes(subject.name.toLowerCase()));
+        return hit ? { sameAs: hit.name, reason: "same" } : { sameAs: null, reason: "new" };
+      },
+      mergeFacts: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    await mem.rememberEntity({ kind: "person", name: "Pepper Potts", provenance: "test" });
+    await mem.rememberEntity({ kind: "person", name: "Pepper", provenance: "test" }); // resolves + aliases 'pepper'
+    // now re-mention by the alias 'Pepper' — must stay 'Pepper Potts', not rename
+    await mem.rememberEntity({ kind: "person", name: "Pepper", provenance: "test" });
+    const active = await pool!.query<{ name: string }>(
+      "SELECT name FROM memory_entities WHERE kind='person' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows.length).toBe(1);
+    expect(active.rows[0]!.name).toBe("Pepper Potts");
+  });
+
+  it("a partial unique index structurally forbids two active (name, kind) rows (bug 5 backstop, from migration 0010)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberEntity({ kind: "thing", name: "Reactor", provenance: "test" });
+    // a raw second active insert (bypassing the lock/supersede path) must be REJECTED
+    // case-insensitively ('reactor' collides with 'Reactor') — the DB-level guarantee
+    // behind which the advisory lock serializes to avoid these violations entirely.
+    await expect(
+      pool!.query("INSERT INTO memory_entities (kind, name, status, provenance) VALUES ('thing','reactor','user_statement','test')"),
+    ).rejects.toThrow(/duplicate key|unique/i);
+  });
 });
