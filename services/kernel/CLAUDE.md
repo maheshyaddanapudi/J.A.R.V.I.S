@@ -406,6 +406,16 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   distinct). 383 kernel tests; live real-brain (Haiku) verified all judgments, the
   skill loop, fuller-name promotion, and cross-kind merge/keep-distinct/heal.
   Record: `docs/verification/D0075_MEMORY_JUDGMENT_2026-07-20.md`.
+- Fresh full 70/30 observation, un-seeded (D-0076, 2026-07-20): `ops/ops.ts`
+  `health()`'s episode count fixed — it filtered `status = 'active'`, but
+  `memory_episodes.status` uses the shared `epistemic_status` enum (no
+  `'active'` value exists anywhere), so the reported count was silently always
+  0; now `status NOT IN ('deleted','superseded')`, matching entities/facts.
+  Also flagged (not yet fixed): a consequential step inside a re-invoked
+  skill/agent run can block its HTTP caller indefinitely if nothing resolves
+  the resulting pending approval (`ApprovalBroker.create()` has no timeout) —
+  fine for the Command Center's human-in-the-loop UI, a trap for non-interactive
+  callers. 384 kernel tests. Record: `docs/verification/FRESH_OBSERVATION_2026-07-20.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

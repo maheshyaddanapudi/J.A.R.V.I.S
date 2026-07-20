@@ -59,7 +59,7 @@ export class Ops {
     const memory = {
       entities: await this.count("SELECT count(*) FROM memory_entities WHERE status NOT IN ('deleted','superseded')"),
       facts: await this.count("SELECT count(*) FROM memory_facts WHERE status NOT IN ('deleted','superseded')"),
-      episodes: await this.count("SELECT count(*) FROM memory_episodes WHERE status = 'active'"),
+      episodes: await this.count("SELECT count(*) FROM memory_episodes WHERE status NOT IN ('deleted','superseded')"),
       embeddings: await this.count("SELECT count(*) FROM memory_embeddings"),
       conversationTurns: await this.count("SELECT count(*) FROM conversation_memory"),
     };

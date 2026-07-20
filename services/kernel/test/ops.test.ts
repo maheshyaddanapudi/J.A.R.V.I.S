@@ -35,6 +35,19 @@ describe.skipIf(!pool)("Ops (D-0071) — longevity", () => {
     expect(h.ok).toBe(true);
   });
 
+  it("health() counts real episodes (regression: episodes use epistemic_status, never 'active')", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "jarvis-ops-"));
+    const audit = new AuditLog(pool!);
+    await pool!.query("INSERT INTO heartbeats (at, summary) VALUES (now(), 'fresh beat')");
+    await pool!.query(
+      "INSERT INTO memory_episodes (kind, summary, provenance) VALUES ('note','test episode','test'), ('note','deleted episode','test')",
+    );
+    await pool!.query("UPDATE memory_episodes SET status = 'deleted' WHERE summary = 'deleted episode'");
+    const ops = new Ops(pool!, audit, settings(true, 30), dir);
+    const h = await ops.health();
+    expect(h.memory.episodes).toBe(1); // the active one only — was always 0 before the fix
+  });
+
   it("WATCHDOG: flags stale when autonomy is on but the last beat is way overdue", async () => {
     const dir = await mkdtemp(join(tmpdir(), "jarvis-ops-"));
     const audit = new AuditLog(pool!);
