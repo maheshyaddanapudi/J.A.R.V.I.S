@@ -290,6 +290,46 @@ export class GatewayMemoryJudge implements MemoryJudge {
     return groups;
   }
 
+  /**
+   * Agenda freshness (D-0077): a heartbeat is about to act on to-do items that
+   * were written EARLIER — decide whether anything that happened SINCE each item
+   * was written (episodes, updates, corrections) makes it stale: already done,
+   * contradicted, or overtaken by events. NOT on the MemoryJudge interface —
+   * only the scheduler uses it (via a closure), so entity-memory fakes stay
+   * untouched. Best-effort → null on any failure (caller proceeds as today).
+   * Returns ONLY the stale items; [] = all still valid.
+   */
+  async assessAgendaFreshness(
+    items: { idx: number; what: string; why?: string; createdAt: string }[],
+    changes: { at: string; text: string }[],
+    privacy: PrivacyClass,
+  ): Promise<{ idx: number; reason: string }[] | null> {
+    if (items.length === 0) return [];
+    if (changes.length === 0) return []; // nothing happened since — nothing can be stale
+    const system =
+      "You are J.A.R.V.I.S.'s agenda-freshness check, run just before autonomous time. Each agenda item " +
+      "below was written at its createdAt; the CHANGES list is what actually happened since (memory " +
+      "updates, actions, decisions — newest context wins over older intent). Mark an item STALE only " +
+      "when the changes show it is already satisfied, explicitly contradicted, or clearly overtaken by " +
+      "events. When unsure, it is NOT stale (acting on a valid item matters more than skipping a " +
+      'doubtful one). Reply with ONLY JSON: {"stale": [{"idx": <index>, "reason": "<short>"}, ...]} — empty list if all items remain valid.';
+    const user = JSON.stringify({
+      agendaItems: items.map((i) => ({ index: i.idx, what: i.what, why: i.why ?? "", createdAt: i.createdAt })),
+      changesSince: changes.slice(0, 15),
+    });
+    const out = await this.ask<{ stale?: { idx: number; reason?: string }[] }>(
+      system,
+      user,
+      privacy,
+      "agenda-freshness",
+    );
+    if (!out) return null;
+    const valid = new Set(items.map((i) => i.idx));
+    return (out.stale ?? [])
+      .filter((s) => valid.has(s.idx))
+      .map((s) => ({ idx: s.idx, reason: (s.reason ?? "may be outdated").slice(0, 200) }));
+  }
+
   async extractTopics(text: string, privacy: PrivacyClass): Promise<string[] | null> {
     const system =
       "The user just asked J.A.R.V.I.S. to think more deeply about their message. Extract the SPECIFIC " +

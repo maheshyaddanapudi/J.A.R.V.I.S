@@ -235,3 +235,83 @@ describe("runConversation — deep-reasoning escalation (D-0048)", () => {
     expect(decisions[0]!.why).toContain("no eligible deep_reasoning provider");
   });
 });
+
+// ---- D-0077: chat delivery of announcements — the conversation is the channel ----
+
+describe("runConversation — announcement relay (D-0077)", () => {
+  function announceLoop(pending: { id: string; kind: string; urgency: string; text: string; recommendation: string }[]) {
+    const calls: ChatRequest[] = [];
+    const delivered: string[] = [];
+    const gw = {
+      eligibleTargets: () => [{ provider: "p", model: "m" }],
+      chatStream: async function* (req: ChatRequest) {
+        calls.push(req);
+        yield { type: "text_delta", text: "While you were away, sir — noted. Now, your question." };
+        yield { type: "done", finishReason: "stop", usage: { inputTokens: 1, outputTokens: 1 } };
+        return {
+          text: "x", toolCalls: [], finishReason: "stop",
+          usage: { inputTokens: 1, outputTokens: 1 }, provider: "p", model: "m", latencyMs: 1,
+        };
+      },
+    } as unknown as GatewayRouter;
+    const loop = new CoreLoop({
+      gateway: gw, policy: new PolicyEngine(audit, estop), tools: new ToolRegistry(), audit, estop,
+      approvals: new ApprovalBroker(audit), activity: new ActivityBus(),
+      memory: {} as unknown as MemoryService, toolCtx: { workspaceRoot: "/tmp" },
+      announcer: {
+        pending: async () => pending,
+        markDelivered: async (id: string) => { delivered.push(id); return true; },
+      },
+    });
+    return { loop, calls, delivered };
+  }
+
+  it("pending announcements are handed to the model for relay and marked delivered after the turn", async () => {
+    const { loop, calls, delivered } = announceLoop([
+      { id: "a1", kind: "say", urgency: "advisory", text: "Embeddings provider failing", recommendation: "check ollama" },
+      { id: "a2", kind: "concern", urgency: "urgent", text: "Reactor coolant low", recommendation: "" },
+    ]);
+    const out = await drain(loop.runConversation({ text: "morning", source: "test" }));
+    expect(out).toContain("While you were away");
+    // the model saw an UNDELIVERED ANNOUNCEMENTS system message with both items
+    const sys = calls[0]!.messages.filter((m) => m.role === "system").map((m) => (m as { content: string }).content).join("\n");
+    expect(sys).toContain("UNDELIVERED ANNOUNCEMENTS");
+    expect(sys).toContain("Embeddings provider failing");
+    expect(sys).toContain("Reactor coolant low");
+    expect(sys).toContain("concern, urgent");
+    // both marked delivered exactly once, after the turn completed
+    expect(delivered.sort()).toEqual(["a1", "a2"]);
+  });
+
+  it("no pending announcements → no extra system message, nothing marked", async () => {
+    const { loop, calls, delivered } = announceLoop([]);
+    await drain(loop.runConversation({ text: "morning", source: "test" }));
+    const sys = calls[0]!.messages.filter((m) => m.role === "system").map((m) => (m as { content: string }).content).join("\n");
+    expect(sys).not.toContain("UNDELIVERED ANNOUNCEMENTS");
+    expect(delivered).toEqual([]);
+  });
+
+  it("a failing announcer never blocks the conversation", async () => {
+    const calls: ChatRequest[] = [];
+    const gw = {
+      eligibleTargets: () => [{ provider: "p", model: "m" }],
+      chatStream: async function* (req: ChatRequest) {
+        calls.push(req);
+        yield { type: "text_delta", text: "Very well, sir." };
+        yield { type: "done", finishReason: "stop", usage: { inputTokens: 1, outputTokens: 1 } };
+        return { text: "x", toolCalls: [], finishReason: "stop", usage: { inputTokens: 1, outputTokens: 1 }, provider: "p", model: "m", latencyMs: 1 };
+      },
+    } as unknown as GatewayRouter;
+    const loop = new CoreLoop({
+      gateway: gw, policy: new PolicyEngine(audit, estop), tools: new ToolRegistry(), audit, estop,
+      approvals: new ApprovalBroker(audit), activity: new ActivityBus(),
+      memory: {} as unknown as MemoryService, toolCtx: { workspaceRoot: "/tmp" },
+      announcer: {
+        pending: async () => { throw new Error("db down"); },
+        markDelivered: async () => true,
+      },
+    });
+    const out = await drain(loop.runConversation({ text: "hello", source: "test" }));
+    expect(out).toBe("Very well, sir.");
+  });
+});

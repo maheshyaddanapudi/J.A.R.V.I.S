@@ -416,6 +416,25 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   the resulting pending approval (`ApprovalBroker.create()` has no timeout) —
   fine for the Command Center's human-in-the-loop UI, a trap for non-interactive
   callers. 384 kernel tests. Record: `docs/verification/FRESH_OBSERVATION_2026-07-20.md`.
+- Rhythm sync ✅ (D-0077, 2026-07-20): (1) **agenda freshness gate** —
+  `GatewayMemoryJudge.assessAgendaFreshness` (fast model, one call per beat)
+  reviews due agenda items against the episodic record SINCE each was written;
+  stale ones are ANNOTATED in the beat objective (advisory — the beat's brain
+  reconciles, nothing silently dropped); scheduler dep `agendaFreshness`
+  closure, setting `heartbeat.freshnessCheck` (default on). (2) **chat delivery
+  of announcements** — `runConversation` injects `announcer.pending()`
+  (quiet-hours-aware) as an UNDELIVERED ANNOUNCEMENTS system message so the
+  model relays them at the start of its next reply, then marks delivered on
+  turn completion (not on e-stop interrupt) — the conversation is the
+  zero-extra-I/O delivery channel; SSE stays for live UIs, Mac toasts are an
+  add-on. 392 kernel tests; live-verified (stale palladium reminder dropped by
+  the beat with reason; queued diagnostics note relayed in-voice + delivered).
+  Also: the model-tier A/B observation record (same 70/30 inputs, Opus-4.8
+  deep / Sonnet-5 planning / Sonnet-5-medium fast vs the Haiku tier):
+  `docs/verification/AB_OBSERVATION_2026-07-20.md` — butler 93% vs 47%, zero
+  duplicates, first live D-0051 autotune self-adjustment (2→1), self-created
+  agenda items + a durable project, skill self-UPDATE (fibonacci v2 fast
+  doubling), autonomy budget cap engaging naturally.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

@@ -91,6 +91,38 @@ describe("GatewayMemoryJudge (D-0075 fast-model memory judgments)", () => {
     expect(await j.extractTopics("t", "STANDARD")).toBeNull();
   });
 
+  it("assessAgendaFreshness flags stale items with reasons, validating indices (D-0077)", async () => {
+    const j = new GatewayMemoryJudge(stubGateway('{"stale":[{"idx":0,"reason":"already handled yesterday"},{"idx":9,"reason":"bogus"}]}'));
+    const out = await j.assessAgendaFreshness(
+      [
+        { idx: 0, what: "remind about palladium", createdAt: "2026-07-18T00:00:00Z" },
+        { idx: 1, what: "water plants", createdAt: "2026-07-19T00:00:00Z" },
+      ],
+      [{ at: "2026-07-19T12:00:00Z", text: "reactor went palladium-free" }],
+      "STANDARD",
+    );
+    expect(out).toEqual([{ idx: 0, reason: "already handled yesterday" }]); // idx 9 dropped
+  });
+
+  it("assessAgendaFreshness short-circuits without a model call when nothing changed since", async () => {
+    const j = new GatewayMemoryJudge(stubGateway(() => { throw new Error("must not call the model"); }));
+    expect(await j.assessAgendaFreshness(
+      [{ idx: 0, what: "x", createdAt: "2026-07-18T00:00:00Z" }],
+      [],
+      "STANDARD",
+    )).toEqual([]);
+    expect(await j.assessAgendaFreshness([], [{ at: "t", text: "c" }], "STANDARD")).toEqual([]);
+  });
+
+  it("assessAgendaFreshness is best-effort — provider error yields null (beat proceeds)", async () => {
+    const j = new GatewayMemoryJudge(stubGateway(() => { throw new Error("no eligible provider"); }));
+    expect(await j.assessAgendaFreshness(
+      [{ idx: 0, what: "x", createdAt: "t" }],
+      [{ at: "t", text: "c" }],
+      "LOCAL_ONLY",
+    )).toBeNull();
+  });
+
   it("privacyForSensitivities: private/secret → LOCAL_ONLY, else STANDARD", () => {
     expect(privacyForSensitivities(["personal", "public"])).toBe("STANDARD");
     expect(privacyForSensitivities(["personal", "private"])).toBe("LOCAL_ONLY");

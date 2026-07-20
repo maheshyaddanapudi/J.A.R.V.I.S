@@ -350,6 +350,10 @@ export async function buildCore(opts: {
     reasoningTuner,
     decisions,
     durableGrants,
+    // Chat delivery of announcements (D-0077): pending items are relayed at the
+    // start of the next conversation turn and marked delivered — the chat is
+    // the zero-extra-I/O notification channel (Mac toasts are an add-on).
+    announcer,
     toolCtx: { workspaceRoot: opts.workspaceRoot },
   });
   // Hydrate standing consent so durable grants survive restart (D-0059).
@@ -407,6 +411,31 @@ export async function buildCore(opts: {
   // cycles (proactivity + sleep-cycle). Config is persisted D-0058 settings,
   // default OFF; the scheduler reconciles its timer whenever they change.
   const budget = new Budget(opts.pool, settings);
+  // Agenda freshness gate (D-0077): before a beat acts on frozen intent, a fast-
+  // model review compares each due item against the episodic record SINCE it was
+  // written (live conversations and actions land there) and flags stale ones.
+  // Best-effort end to end: any failure returns [] and the beat proceeds as today.
+  const agendaFreshness = async (items: import("../autonomy/agenda.js").AgendaItem[]) => {
+    try {
+      const oldest = items.reduce(
+        (min, it) => (new Date(it.createdAt) < min ? new Date(it.createdAt) : min),
+        new Date(),
+      );
+      const episodes = await episodicMemory.recall({ since: oldest, limit: 15 });
+      if (episodes.length === 0) return [];
+      const changes = episodes.map((e) => ({ at: String(e.occurred_at ?? ""), text: e.summary }));
+      const privacy = (await settings.str("heartbeat.privacy", "LOCAL_ONLY")) as "LOCAL_ONLY" | "STANDARD";
+      const verdicts = await memoryJudge.assessAgendaFreshness(
+        items.map((it, idx) => ({ idx, what: it.what, ...(it.why ? { why: it.why } : {}), createdAt: it.createdAt })),
+        changes,
+        privacy,
+      );
+      if (!verdicts) return [];
+      return verdicts.map((v) => ({ id: items[v.idx]!.id, reason: v.reason }));
+    } catch {
+      return [];
+    }
+  };
   const autonomy = new BackgroundScheduler({
     settings, proactive, sleepCycle, estop, audit, activity,
     // the living heartbeat (D-0064): agenda + bounded brain pass + journal
@@ -417,6 +446,8 @@ export async function buildCore(opts: {
     budget,
     // durable projects (D-0069): the heartbeat advances active goals
     projects,
+    // frozen intent vs current truth (D-0077): stale agenda items are flagged
+    agendaFreshness,
   });
   settings.onChange((key) => { if (key.startsWith("autonomy.")) void autonomy.reconcile(); });
   void autonomy.reconcile();

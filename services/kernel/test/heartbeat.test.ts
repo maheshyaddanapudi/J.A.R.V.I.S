@@ -84,6 +84,64 @@ describe.skipIf(!pool)("Agenda (D-0064) — J.A.R.V.I.S.'s own intention ledger"
     void settings;
   });
 
+  it("freshness gate (D-0077): a stale verdict ANNOTATES the item in the objective — never drops it", async () => {
+    const agenda = new Agenda(pool!, audit);
+    const stale = await agenda.add({ what: "remind the user to buy palladium", provenance: "jarvis" });
+    await agenda.add({ what: "water the plants", provenance: "jarvis" });
+    const seen: { objective?: string } = {};
+    const agent: AgentRuntime = {
+      async run(objective) {
+        seen.objective = objective;
+        return { objective, answer: "ok", steps: [], stepsUsed: 0, budgetExhausted: false, halted: false };
+      },
+    };
+    const sched = new BackgroundScheduler({
+      settings: {
+        bool: async (k: string, f: boolean) => (k === "autonomy.enabled" ? true : f), // freshnessCheck falls back to its default (true)
+        num: async (_k: string, f: number) => f,
+        str: async (_k: string, f: string) => f,
+      } as unknown as SettingsRegistry,
+      proactive, sleepCycle, estop, audit, activity, agenda, agent, pool: pool!,
+      agendaFreshness: async (items) => [
+        { id: stale.id, reason: "the reactor went palladium-free two days after this was written" },
+      ].filter((n) => items.some((i) => i.id === n.id)),
+    });
+    const r = await sched.tick();
+    expect(r.brainUsed).toBe(true);
+    // stale item still LISTED (never silently dropped) but carries the warning
+    expect(seen.objective).toMatch(/buy palladium/);
+    expect(seen.objective).toMatch(/FRESHNESS CHECK: possibly stale — the reactor went palladium-free/);
+    // the non-stale item is listed WITHOUT a warning on its line
+    const plantsLine = seen.objective!.split("\n").find((l) => l.includes("water the plants"));
+    expect(plantsLine).toBeDefined();
+    expect(plantsLine).not.toMatch(/FRESHNESS/);
+  });
+
+  it("freshness gate failure is invisible: a throwing checker changes nothing", async () => {
+    const agenda = new Agenda(pool!, audit);
+    await agenda.add({ what: "check the telemetry", provenance: "jarvis" });
+    const seen: { objective?: string } = {};
+    const agent: AgentRuntime = {
+      async run(objective) {
+        seen.objective = objective;
+        return { objective, answer: "ok", steps: [], stepsUsed: 0, budgetExhausted: false, halted: false };
+      },
+    };
+    const sched = new BackgroundScheduler({
+      settings: {
+        bool: async (k: string, f: boolean) => (k === "autonomy.enabled" ? true : f),
+        num: async (_k: string, f: number) => f,
+        str: async (_k: string, f: string) => f,
+      } as unknown as SettingsRegistry,
+      proactive, sleepCycle, estop, audit, activity, agenda, agent, pool: pool!,
+      agendaFreshness: async () => { throw new Error("judge offline"); },
+    });
+    const r = await sched.tick();
+    expect(r.brainUsed).toBe(true);
+    expect(seen.objective).toMatch(/check the telemetry/);
+    expect(seen.objective).not.toMatch(/FRESHNESS/);
+  });
+
   it("heartbeat.brain=off → no thinking, but the beat is still journaled", async () => {
     const agenda = new Agenda(pool!, audit);
     await agenda.add({ what: "anything", provenance: "jarvis" });

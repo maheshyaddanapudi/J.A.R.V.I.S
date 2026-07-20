@@ -208,6 +208,14 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     description: "Skip the heartbeat's thinking pass if you interacted within this many minutes (0 = never defer). Keeps beats from competing with a live session.",
   },
   {
+    key: "heartbeat.freshnessCheck",
+    label: "Freshness-check agenda before acting",
+    category: "Autonomy",
+    type: "boolean",
+    default: () => true,
+    description: "Before a heartbeat works its agenda, a fast-model review compares each item against what happened since it was written (newer conversations, corrected facts) and flags stale ones so J.A.R.V.I.S. reconciles with current truth instead of acting on old instructions. Advisory — nothing is silently dropped.",
+  },
+  {
     key: "sleep.useQuietHours",
     label: "Deep consolidation only in quiet hours",
     category: "Autonomy",

@@ -68,6 +68,15 @@ export class BackgroundScheduler {
       pool?: pg.Pool;
       /** last USER-driven activity (heartbeat excluded) — for defer-while-active */
       lastUserActivity?: () => string | null;
+      /**
+       * Agenda freshness gate (D-0077): given the due items, return the ones a
+       * fast-model review judges STALE (already satisfied / contradicted /
+       * overtaken by what happened since they were written), with reasons.
+       * Best-effort — [] or a throw means "annotate nothing, proceed as today".
+       * The verdict only ANNOTATES the beat's objective; nothing is silently
+       * dropped — the beat's own brain reconciles and completes/drops items.
+       */
+      agendaFreshness?: (items: import("./agenda.js").AgendaItem[]) => Promise<{ id: string; reason: string }[]>;
       /** spend governance (D-0066): autonomy pauses when its token cap is hit */
       budget?: import("../core/budget.js").Budget;
       /** durable projects (D-0069): active goals the heartbeat advances */
@@ -178,7 +187,19 @@ export class BackgroundScheduler {
           if (shouldThink || shouldThinkForProjects) {
             const maxSteps = await s.num("heartbeat.maxSteps", 6);
             const privacy = (await s.str("heartbeat.privacy", "LOCAL_ONLY")) as "LOCAL_ONLY" | "STANDARD";
-            const list = due.map((d) => `- (id ${d.id}) ${d.what}${d.why ? ` — ${d.why}` : ""}`).join("\n");
+            // Freshness gate (D-0077): an agenda item is FROZEN INTENT — the world
+            // may have moved since it was written (a later conversation, a
+            // corrected fact). A fast-model review flags stale items so the beat
+            // reconciles against CURRENT truth instead of acting on old
+            // instructions. Advisory only: the item stays listed; the beat decides.
+            let staleNotes: { id: string; reason: string }[] = [];
+            if (due.length > 0 && this.deps.agendaFreshness && (await s.bool("heartbeat.freshnessCheck", true))) {
+              try { staleNotes = await this.deps.agendaFreshness(due); } catch { /* advisory only */ }
+            }
+            const staleById = new Map(staleNotes.map((n) => [n.id, n.reason]));
+            const list = due
+              .map((d) => `- (id ${d.id}) ${d.what}${d.why ? ` — ${d.why}` : ""}${staleById.has(d.id) ? `\n  ⚠ FRESHNESS CHECK: possibly stale — ${staleById.get(d.id)}. Re-verify against memory before acting; agenda.complete or drop it if truly obsolete.` : ""}`)
+              .join("\n");
             const projList = projects.map((p) => `- (id ${p.id}) "${p.title}" — next: ${p.nextAction || "decide the next step"}`).join("\n");
             const objective =
               `HEARTBEAT (nobody is talking to you; this is your own time). Your pending agenda:\n` +

@@ -57,6 +57,17 @@ export class CoreLoop {
       decisions?: import("./consolidation.js").DecisionLog;
       /** durable consent store (D-0059): "always-allow-in-scope" persists */
       durableGrants?: import("./grants.js").DurableGrants;
+      /**
+       * Chat-delivery of announcements (D-0077): the conversation itself is the
+       * zero-extra-I/O delivery channel. On each turn, pending (non-deferred)
+       * announcements are handed to the model to RELAY at the start of its
+       * reply, then marked delivered. Narrow structural type (testable with a
+       * fake; no dependency on the Announcer class).
+       */
+      announcer?: {
+        pending(now?: Date): Promise<{ id: string; kind: string; urgency: string; text: string; recommendation: string }[]>;
+        markDelivered(id: string): Promise<boolean>;
+      };
     },
   ) {}
 
@@ -358,6 +369,30 @@ export class CoreLoop {
         /* context is best-effort */
       }
     }
+    // Chat delivery of announcements (D-0077): whatever J.A.R.V.I.S. queued to
+    // tell the user (heartbeat findings, milestones, concerns) is relayed the
+    // next time they talk — the conversation IS the delivery channel, no extra
+    // I/O or native notifier required. pending() is already quiet-hours-aware
+    // (deferred items stay queued; urgent breaks through). Best-effort: a
+    // failure here must never block the turn.
+    let announcementsToDeliver: { id: string }[] = [];
+    if (this.deps.announcer) {
+      try {
+        const pending = await this.deps.announcer.pending(new Date());
+        if (pending.length > 0) {
+          announcementsToDeliver = pending.map((p) => ({ id: p.id }));
+          const lines = pending
+            .map((p) => `- [${p.kind === "concern" ? "concern" : "note"}, ${p.urgency}] ${p.text}${p.recommendation ? ` (recommendation: ${p.recommendation})` : ""}`)
+            .join("\n");
+          messages.push({
+            role: "system",
+            content:
+              `UNDELIVERED ANNOUNCEMENTS: while the user was away you queued the following to tell them. ` +
+              `Begin your reply by relaying these briefly and naturally (in your own voice), then address their message:\n${lines}`,
+          });
+        }
+      } catch { /* announcements are best-effort */ }
+    }
     if (input.sessionId) {
       const history = await this.deps.memory.conversation(input.sessionId, 20);
       for (const turn of history) {
@@ -396,6 +431,19 @@ export class CoreLoop {
         });
         if (input.sessionId && answer)
           await this.deps.memory.addTurn(input.sessionId, "assistant", answer);
+        // The turn completed with the announcements in-model — they were
+        // presented for relay, so mark them delivered (best-effort). An e-stop
+        // interrupt above deliberately does NOT mark them (never delivered).
+        if (announcementsToDeliver.length && this.deps.announcer) {
+          for (const a of announcementsToDeliver) {
+            try { await this.deps.announcer.markDelivered(a.id); } catch { /* best-effort */ }
+          }
+          this.deps.activity.emit({
+            kind: "decision",
+            summary: `relayed ${announcementsToDeliver.length} queued announcement(s) in conversation`,
+            at: now(),
+          });
+        }
         return;
       }
       if (step.value.type === "text_delta") {
