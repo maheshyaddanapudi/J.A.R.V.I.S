@@ -19,24 +19,34 @@ function stubGateway(reply: string | (() => Promise<string>)) {
 }
 
 describe("GatewayMemoryJudge (D-0075 fast-model memory judgments)", () => {
-  it("resolveEntity returns the matched candidate (tolerates code fences)", async () => {
-    const j = new GatewayMemoryJudge(stubGateway('```json\n{"sameAs":"Pepper Potts","reason":"same person"}\n```'));
+  it("resolveEntity returns the matched candidate index (tolerates code fences)", async () => {
+    const j = new GatewayMemoryJudge(stubGateway('```json\n{"sameAs":0,"reason":"same person"}\n```'));
     const out = await j.resolveEntity(
       { name: "Pepper", kind: "person" },
       [{ name: "Pepper Potts", kind: "person" }],
       "STANDARD",
     );
-    expect(out).toEqual({ sameAs: "Pepper Potts", reason: "same person" });
+    expect(out).toEqual({ sameAs: 0, reason: "same person" });
   });
 
-  it("resolveEntity rejects a hallucinated name not in the candidate list", async () => {
-    const j = new GatewayMemoryJudge(stubGateway('{"sameAs":"Someone Else","reason":"x"}'));
+  it("resolveEntity rejects an out-of-range candidate index", async () => {
+    const j = new GatewayMemoryJudge(stubGateway('{"sameAs":9,"reason":"x"}'));
     const out = await j.resolveEntity(
       { name: "Pepper", kind: "person" },
       [{ name: "Pepper Potts", kind: "person" }],
       "STANDARD",
     );
     expect(out).toEqual({ sameAs: null, reason: "no candidate matched" });
+  });
+
+  it("mergeEntities validates indices, dropping out-of-range (cross-kind)", async () => {
+    const j = new GatewayMemoryJudge(stubGateway('{"merges":[{"keep":0,"merge":[1,7]}]}'));
+    const out = await j.mergeEntities(
+      "arc reactor",
+      [{ idx: 0, kind: "thing", facts: [] }, { idx: 1, kind: "project", facts: [] }],
+      "STANDARD",
+    );
+    expect(out).toEqual([{ keep: 0, merge: [1] }]); // index 7 dropped
   });
 
   it("resolveEntity short-circuits (no model call) when there are no candidates", async () => {

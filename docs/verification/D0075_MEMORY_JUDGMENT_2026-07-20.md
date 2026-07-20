@@ -109,3 +109,25 @@ Per the user's follow-up:
   candidate set beyond same-kind) — not implemented here.
 
 379 kernel tests. Key env-only, scrubbed (0 hits); scratch DBs dropped.
+
+## Cross-kind resolution (2026-07-20) — the real duplication source, closed
+The "related honest finding" above (same-name across different KINDS) is now
+handled, both directions, via the fast model — never automatic:
+- **Prevention on write.** `fuzzyCandidates` surfaces similar/exact-named active
+  entities of ANY kind (exact-name first); with no same-kind exact match, the
+  judge sees the cross-kind candidate and a positive match accretes the mention
+  into the existing entity (its kind kept). `resolveEntity` now returns the
+  matched candidate INDEX (unambiguous when candidates share a name across kinds).
+- **Healing in consolidation.** A new `mergeEntities` judgment + `mergeEntityInto`
+  fold pre-existing same-name-different-kind actives into one during the
+  quiet-hours pass (facts/relations/aliases migrated forward,
+  supersede-with-history, live-collision-safe, `FOR UPDATE` re-check). Surfaced in
+  the sleep-cycle report (`entitiesMerged`, `entityMerges`).
+- **Live real-brain (Haiku):** 'arc reactor' as `thing` then `project` → merged to
+  ONE entity (kind `thing`), fact preserved; 'Mercury' as `place` (planet) vs
+  `thing` (element) → kept as TWO distinct entities; a seeded 'Repulsor'
+  thing/project duplicate → healed by consolidation into one with BOTH facts. All
+  judgments served by `claude-haiku-4-5` (`memory-entity-resolution` +
+  `memory-entity-consolidation` in `/gateway/calls`).
+- 383 kernel tests (+4: cross-kind prevent / keep-distinct / heal + judge
+  `mergeEntities`). Key env-only, scrubbed (0 hits); scratch DB dropped.

@@ -47,17 +47,32 @@ export interface MergeGroup {
   supersede: number[];
 }
 
+export interface EntityForMerge {
+  idx: number;
+  kind: string;
+  facts: string[];
+}
+
+export interface EntityMergeGroup {
+  /** index of the entity to KEEP (best-described) */
+  keep: number;
+  /** indices of same-named entities that are the SAME real-world thing to fold in */
+  merge: number[];
+}
+
 export interface MemoryJudge {
   /**
    * Does the newly-mentioned entity denote the SAME real-world thing as one of the
-   * (similarly-named) candidates? Returns the matched candidate's name, or null for
-   * "new / none / unsure". Best-effort → null on any failure.
+   * candidates? Candidates may span DIFFERENT kinds (across stateless sessions the
+   * model sometimes labels the same thing inconsistently). Returns the matched
+   * candidate's INDEX (unambiguous even when candidates share a name across kinds),
+   * or null for "new / none / unsure". Best-effort → null on any failure.
    */
   resolveEntity(
     subject: { name: string; kind: string; attributes?: string },
     candidates: EntityCandidate[],
     privacy: PrivacyClass,
-  ): Promise<{ sameAs: string | null; reason: string } | null>;
+  ): Promise<{ sameAs: number | null; reason: string } | null>;
 
   /**
    * Which of an entity's active facts RESTATE the same information and should be
@@ -70,6 +85,19 @@ export interface MemoryJudge {
     facts: FactForMerge[],
     privacy: PrivacyClass,
   ): Promise<MergeGroup[] | null>;
+
+  /**
+   * Given several entities that share a NAME but were stored under different KINDS,
+   * which refer to the SAME real-world thing and should be merged (keeping the
+   * best-described)? Genuinely different things that merely share a name (Mercury
+   * the planet vs the element) must NOT be merged. Returns groups by index, or null
+   * on failure; empty array = "considered, nothing to merge".
+   */
+  mergeEntities(
+    name: string,
+    entities: EntityForMerge[],
+    privacy: PrivacyClass,
+  ): Promise<EntityMergeGroup[] | null>;
 
   /**
    * The specific subject-matter the user wants deep reasoning on, from a turn they
@@ -166,35 +194,71 @@ export class GatewayMemoryJudge implements MemoryJudge {
     subject: { name: string; kind: string; attributes?: string },
     candidates: EntityCandidate[],
     privacy: PrivacyClass,
-  ): Promise<{ sameAs: string | null; reason: string } | null> {
+  ): Promise<{ sameAs: number | null; reason: string } | null> {
     if (candidates.length === 0) return { sameAs: null, reason: "no similar entity known" };
     const system =
       "You are J.A.R.V.I.S.'s memory entity-resolution subsystem. A new mention has arrived; " +
       "decide whether it denotes the SAME real-world thing as one already known. Be CONSERVATIVE: " +
       "say SAME only when you are confident they are the identical real-world entity — e.g. a short " +
       "name vs its full name ('Pepper' ⇄ 'Pepper Potts'), or the same object described two ways " +
-      "('Mark 42' ⇄ 'the Mark 42 suit'). Two DIFFERENT specific things that merely share a category " +
-      'are NOT the same. Reply with ONLY JSON: {"sameAs": <exact candidate name or null>, "reason": "<short>"}.';
+      "('Mark 42' ⇄ 'the Mark 42 suit'). Candidates may carry a DIFFERENT kind than the new mention: " +
+      "the same real-world thing is sometimes labelled inconsistently ('arc reactor' as a 'thing' or a " +
+      "'project') — that is still the SAME. But a shared NAME across genuinely different things " +
+      "('Mercury' the planet vs the element vs the Roman god) is NOT the same. Reply with ONLY JSON: " +
+      '{"sameAs": <candidate index (integer) or null>, "reason": "<short>"}.';
     const user = JSON.stringify({
       newMention: { name: subject.name, kind: subject.kind, attributes: subject.attributes ?? "" },
-      knownCandidates: candidates.map((c) => ({
+      knownCandidates: candidates.map((c, i) => ({
+        index: i,
         name: c.name,
         kind: c.kind,
         attributes: c.attributes ?? "",
         facts: (c.facts ?? []).slice(0, 4),
       })),
     });
-    const out = await this.ask<{ sameAs: string | null; reason?: string }>(
+    const out = await this.ask<{ sameAs: number | null; reason?: string }>(
       system,
       user,
       privacy,
       "memory-entity-resolution",
     );
     if (!out) return null;
-    if (out.sameAs == null) return { sameAs: null, reason: out.reason ?? "distinct entity" };
-    // the model must pick an EXACT candidate name (case-insensitive); otherwise treat as no-match
-    const match = candidates.find((c) => c.name.toLowerCase() === String(out.sameAs).toLowerCase());
-    return match ? { sameAs: match.name, reason: out.reason ?? "same entity" } : { sameAs: null, reason: "no candidate matched" };
+    const idx = typeof out.sameAs === "number" ? out.sameAs : null;
+    if (idx == null) return { sameAs: null, reason: out.reason ?? "distinct entity" };
+    // must be a valid candidate index, else treat as no-match
+    return idx >= 0 && idx < candidates.length
+      ? { sameAs: idx, reason: out.reason ?? "same entity" }
+      : { sameAs: null, reason: "no candidate matched" };
+  }
+
+  async mergeEntities(
+    name: string,
+    entities: EntityForMerge[],
+    privacy: PrivacyClass,
+  ): Promise<EntityMergeGroup[] | null> {
+    if (entities.length < 2) return [];
+    const system =
+      "You consolidate a person's memory during sleep. These entities all share the NAME below but " +
+      "were stored under DIFFERENT kinds — across stateless sessions the model sometimes labels the " +
+      "same real-world thing inconsistently (e.g. 'arc reactor' as both a 'thing' and a 'project'). " +
+      "Decide which refer to the SAME real-world thing and should be merged, keeping the best-described " +
+      "one. Do NOT merge entities that are genuinely DIFFERENT things merely sharing a name ('Mercury' " +
+      "the planet vs the element vs the Roman god). When unsure, do not merge. Reply with ONLY JSON: " +
+      '{"merges": [{"keep": <index>, "merge": [<index>, ...]}, ...]} — empty if nothing to merge.';
+    const user = JSON.stringify({
+      name,
+      entities: entities.map((e) => ({ index: e.idx, kind: e.kind, facts: e.facts.slice(0, 5) })),
+    });
+    const out = await this.ask<{ merges?: EntityMergeGroup[] }>(system, user, privacy, "memory-entity-consolidation");
+    if (!out) return null;
+    const valid = new Set(entities.map((e) => e.idx));
+    const groups: EntityMergeGroup[] = [];
+    for (const g of out.merges ?? []) {
+      if (!valid.has(g.keep)) continue;
+      const merge = (g.merge ?? []).filter((i) => valid.has(i) && i !== g.keep);
+      if (merge.length) groups.push({ keep: g.keep, merge: [...new Set(merge)] });
+    }
+    return groups;
   }
 
   async mergeFacts(

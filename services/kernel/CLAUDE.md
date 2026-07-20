@@ -394,8 +394,17 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   (LOW_REVERSIBLE, `createdBy:jarvis`) / `skill.list` (READ_ONLY) / `skill.run`
   (CONSEQUENTIAL, recursion-guarded, privacy-first LOCAL_ONLY default) so
   J.A.R.V.I.S. self-authors + reuses no-code skills (code capabilities were
-  already reusable via `capability:<name>` + `selfext.listActive`). 376 kernel
-  tests; live real-brain (Haiku) verified all judgments + the skill loop.
+  already reusable via `capability:<name>` + `selfext.listActive`). **Follow-ups
+  (2026-07-20):** prefer the FULLER name as canonical (variant → alias, order-
+  independent); advisory-lock residual — the structural backstop already exists
+  (migration 0010 partial unique index), the lock just serializes to avoid
+  unique-violation write failures; **CROSS-KIND resolution** — the judge now
+  considers similar/exact-named candidates of ANY kind (`resolveEntity` returns a
+  candidate INDEX), preventing same-name-different-kind duplicates on write, and a
+  `mergeEntities` judgment + `mergeEntityInto` heal pre-existing ones in the
+  quiet-hours consolidation (never automatic — 'Mercury' planet vs element stay
+  distinct). 383 kernel tests; live real-brain (Haiku) verified all judgments, the
+  skill loop, fuller-name promotion, and cross-kind merge/keep-distinct/heal.
   Record: `docs/verification/D0075_MEMORY_JUDGMENT_2026-07-20.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and

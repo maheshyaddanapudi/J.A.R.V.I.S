@@ -390,10 +390,11 @@ export class EntityMemory {
       };
     }
 
-    // 2. no exact/alias hit — ask the judge whether a similarly-named entity is
-    //    the same real-world thing (D-0075). Best-effort.
+    // 2. no same-kind exact/alias hit — ask the judge whether a similarly-named
+    //    entity (of ANY kind — the model labels the same thing inconsistently
+    //    across sessions) is the same real-world thing (D-0075). Best-effort.
     if (this.judge) {
-      const cands = await this.fuzzyCandidates(input.name, input.kind);
+      const cands = await this.fuzzyCandidates(input.name);
       if (cands.length) {
         const privacy = privacyForSensitivities([input.sensitivity, ...cands.map((c) => c.sensitivity)]);
         const verdict = await this.judge.resolveEntity(
@@ -401,9 +402,7 @@ export class EntityMemory {
           cands.map<EntityCandidate>((c) => ({ name: c.name, kind: c.kind, attributes: c.attributes, facts: c.facts })),
           privacy,
         );
-        const C = verdict?.sameAs
-          ? cands.find((c) => c.name.toLowerCase() === verdict.sameAs!.toLowerCase())
-          : undefined;
+        const C = verdict?.sameAs != null ? cands[verdict.sameAs] : undefined;
         if (C) {
           // Prefer the FULLER name as canonical (D-0075): if the incoming mention
           // is the more complete form ('Pepper Potts' resolving to existing
@@ -434,18 +433,18 @@ export class EntityMemory {
     };
   }
 
-  /** Same-kind active entities whose name is lexically similar to `name` (a loose
-   *  PRE-FILTER — the judge makes the real same/different call), each with a few
-   *  decrypted facts for context. Bounded. */
+  /** Active entities (ANY kind) whose name is lexically similar to `name` — a
+   *  loose PRE-FILTER; the judge makes the real same/different call, INCLUDING
+   *  cross-kind ('arc reactor' stored as both 'thing' and 'project'). Exact-name
+   *  matches of any kind are surfaced first. Each carries a few decrypted facts. */
   private async fuzzyCandidates(
     name: string,
-    kind: string,
   ): Promise<{ id: string; name: string; kind: string; attributes: string; facts: string[]; aliases: string[]; sensitivity: string }[]> {
     const { rows } = await this.pool.query<{ id: string; name: string; kind: string; attributes: string; aliases: string[]; sensitivity: string }>(
       `SELECT id, name, kind, attributes, aliases, sensitivity FROM memory_entities
-       WHERE kind = $1 AND status NOT IN ('deleted','superseded')
-       ORDER BY updated_at DESC LIMIT 100`,
-      [kind],
+       WHERE status NOT IN ('deleted','superseded')
+       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 200`,
+      [name],
     );
     const similar = rows
       .filter((r) => nameSimilar(name, r.name) || (r.aliases ?? []).some((a) => nameSimilar(name, a)))
@@ -764,6 +763,8 @@ export class EntityMemory {
     entitiesScanned: number;
     duplicatesMerged: number;
     merged: string[];         // "entity: kept 'x' ⊃ superseded 'y'"
+    entitiesMerged: number;   // cross-kind same-name entities folded together
+    entityMerges: string[];   // "name: merged 'thing' into 'project'"
     staleProposals: string[]; // entity names proposed for review
   }> {
     const overlap = Math.min(0.95, Math.max(0.5, opts?.overlap ?? 0.7));
@@ -854,6 +855,58 @@ export class EntityMemory {
       }
     }
 
+    // Cross-kind entity de-duplication (D-0075 cross-kind): entities sharing a
+    // NAME across different KINDS (the model labelled the same real-world thing
+    // inconsistently across stateless sessions — 'arc reactor' as both a 'thing'
+    // and a 'project') are merged via the judge — best-effort, NEVER automatic:
+    // genuinely different things that merely share a name ('Mercury' the planet vs
+    // the element) are left distinct. Bounded; supersede-with-history; facts +
+    // relations migrated forward; live-collision-safe.
+    let entitiesMerged = 0;
+    const entityMerges: string[] = [];
+    if (this.judge) {
+      const { rows: nameGroups } = await this.pool.query<{ lname: string }>(
+        `SELECT lower(name) AS lname FROM memory_entities WHERE status NOT IN ('deleted','superseded')
+         GROUP BY lower(name) HAVING count(DISTINCT kind) > 1 LIMIT 50`,
+      );
+      for (const grp of nameGroups) {
+        const { rows: ents } = await this.pool.query<{ id: string; name: string; kind: string }>(
+          `SELECT id, name, kind FROM memory_entities
+           WHERE lower(name) = $1 AND status NOT IN ('deleted','superseded')
+           ORDER BY created_at ASC LIMIT 10`,
+          [grp.lname],
+        );
+        if (ents.length < 2) continue;
+        const forJudge: { idx: number; kind: string; facts: string[] }[] = [];
+        const sens: string[] = [];
+        for (let i = 0; i < ents.length; i++) {
+          const { rows: fr } = await this.pool.query<{ statement: string; sensitivity: string }>(
+            `SELECT statement, sensitivity FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+             ORDER BY created_at DESC LIMIT 3`,
+            [ents[i]!.id],
+          );
+          forJudge.push({ idx: i, kind: ents[i]!.kind, facts: fr.map((f) => this.dec(f.statement)) });
+          for (const f of fr) sens.push(f.sensitivity);
+        }
+        const mgroups = await this.judge.mergeEntities(ents[0]!.name, forJudge, privacyForSensitivities(sens));
+        if (!mgroups) continue;
+        const gone = new Set<string>();
+        for (const g of mgroups) {
+          const keep = ents[g.keep];
+          if (!keep || gone.has(keep.id)) continue;
+          for (const mi of g.merge) {
+            const victim = ents[mi];
+            if (!victim || victim.id === keep.id || gone.has(victim.id)) continue;
+            if (await this.mergeEntityInto(victim.id, keep.id)) {
+              gone.add(victim.id);
+              entitiesMerged++;
+              entityMerges.push(`${keep.name}: merged '${victim.kind}' into '${keep.kind}' (model)`);
+            }
+          }
+        }
+      }
+    }
+
     const { rows: stale } = await this.pool.query<{ name: string }>(
       `SELECT name FROM memory_entities
        WHERE status NOT IN ('deleted','superseded')
@@ -861,19 +914,80 @@ export class EntityMemory {
        ORDER BY updated_at ASC LIMIT 10`,
       [staleDays],
     );
-    if (duplicatesMerged || stale.length) {
+    if (duplicatesMerged || entitiesMerged || stale.length) {
       await this.audit.append({
         actor: "kernel",
         event: "memory_consolidated",
-        payload: { entitiesScanned: entities.length, duplicatesMerged, staleProposed: stale.length },
+        payload: { entitiesScanned: entities.length, duplicatesMerged, entitiesMerged, staleProposed: stale.length },
       });
     }
     return {
       entitiesScanned: entities.length,
       duplicatesMerged,
       merged,
+      entitiesMerged,
+      entityMerges,
       staleProposals: stale.map((s) => s.name),
     };
+  }
+
+  /** Fold one entity into another (cross-kind de-dup, D-0075): migrate the
+   *  victim's still-active facts + relations + aliases onto the keeper, then
+   *  supersede the victim forward-linked. Live-collision-safe (re-checks both are
+   *  active under the transaction). Returns false if it became a no-op. */
+  private async mergeEntityInto(victimId: string, keepId: string): Promise<boolean> {
+    if (victimId === keepId) return false;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows: activeRows } = await client.query<{ id: string }>(
+        `SELECT id FROM memory_entities WHERE id = ANY($1::uuid[]) AND status NOT IN ('deleted','superseded') FOR UPDATE`,
+        [[victimId, keepId]],
+      );
+      const active = new Set(activeRows.map((r) => r.id));
+      if (!active.has(victimId) || !active.has(keepId)) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+      // absorb the victim's aliases (its NAME equals the keeper's here, so no new
+      // name alias is needed) — stored lowercased, deduped.
+      await client.query(
+        `UPDATE memory_entities k SET aliases = ARRAY(SELECT DISTINCT lower(a) FROM unnest(k.aliases || v.aliases) a)
+         FROM memory_entities v WHERE k.id = $1 AND v.id = $2`,
+        [keepId, victimId],
+      );
+      await client.query(
+        `UPDATE memory_facts SET entity_id = $1 WHERE entity_id = $2 AND status NOT IN ('deleted','superseded')`,
+        [keepId, victimId],
+      );
+      await client.query(
+        `UPDATE memory_relations r SET from_entity = $1
+         WHERE r.from_entity = $2 AND r.to_entity <> $1
+           AND NOT EXISTS (SELECT 1 FROM memory_relations x
+             WHERE x.from_entity = $1 AND x.to_entity = r.to_entity AND x.relation = r.relation)`,
+        [keepId, victimId],
+      );
+      await client.query(
+        `UPDATE memory_relations r SET to_entity = $1
+         WHERE r.to_entity = $2 AND r.from_entity <> $1
+           AND NOT EXISTS (SELECT 1 FROM memory_relations x
+             WHERE x.to_entity = $1 AND x.from_entity = r.from_entity AND x.relation = r.relation)`,
+        [keepId, victimId],
+      );
+      await client.query(
+        `UPDATE memory_entities SET status = 'superseded', superseded_by = $1, updated_at = now() WHERE id = $2`,
+        [keepId, victimId],
+      );
+      await client.query("COMMIT");
+      if (this.semantic) void this.semantic.remove("entity", victimId);
+      await this.audit.append({ actor: "kernel", event: "entities_merged", payload: { keptId: keepId } });
+      return true;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   /** Soft-delete ONE fact by id (from a prior recall) — for "that's no longer

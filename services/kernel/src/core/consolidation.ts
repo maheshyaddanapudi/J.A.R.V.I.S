@@ -50,7 +50,7 @@ export interface ConsolidationReport {
   notes: string[];
   autotune: Autotune;
   /** quiet-hours MEMORY consolidation (D-0063): dupes merged + stale proposals */
-  memory?: { entitiesScanned: number; duplicatesMerged: number; staleProposals: number };
+  memory?: { entitiesScanned: number; duplicatesMerged: number; entitiesMerged: number; staleProposals: number };
 }
 
 export const CONSOLIDATION_KEY = "reasoning_last_consolidation";
@@ -242,11 +242,16 @@ export class SleepCycle {
         memorySection = {
           entitiesScanned: m.entitiesScanned,
           duplicatesMerged: m.duplicatesMerged,
+          entitiesMerged: m.entitiesMerged,
           staleProposals: m.staleProposals.length,
         };
         if (m.duplicatesMerged) {
           findings.push(`memory: merged ${m.duplicatesMerged} duplicate fact(s) across ${m.entitiesScanned} entities`);
           for (const d of m.merged.slice(0, 5)) notes.push(`memory merge — ${d}`);
+        }
+        if (m.entitiesMerged) {
+          findings.push(`memory: merged ${m.entitiesMerged} cross-kind same-name entity(ies) into one`);
+          for (const d of m.entityMerges.slice(0, 5)) notes.push(`entity merge — ${d}`);
         }
         for (const name of m.staleProposals) {
           proposals.push(`memory: '${name}' hasn't come up in a long while — forget it, or keep it? (never auto-forgotten)`);

@@ -281,12 +281,13 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
   it("resolves a name-variant to the SAME entity via the judge — no duplicate, alias recorded (bug 2)", async () => {
     const judge: MemoryJudge = {
       resolveEntity: async (subject, candidates) => {
-        const hit = candidates.find(
+        const idx = candidates.findIndex(
           (c) => c.name.toLowerCase().includes(subject.name.toLowerCase()) || subject.name.toLowerCase().includes(c.name.toLowerCase()),
         );
-        return hit ? { sameAs: hit.name, reason: "same person" } : { sameAs: null, reason: "new" };
+        return idx >= 0 ? { sameAs: idx, reason: "same person" } : { sameAs: null, reason: "new" };
       },
       mergeFacts: async () => [],
+      mergeEntities: async () => [],
       extractTopics: async () => [],
     };
     const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
@@ -319,6 +320,7 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
       resolveEntity: async () => ({ sameAs: null, reason: "n/a" }),
       // model says the two facts restate the same thing; keep the newer (idx 1)
       mergeFacts: async (_entity, facts) => (facts.length >= 2 ? [{ keep: 1, supersede: [0] }] : []),
+      mergeEntities: async () => [],
       extractTopics: async () => [],
     };
     const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
@@ -358,12 +360,13 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
   it("promotes the FULLER name to canonical when the short variant arrived first (D-0075)", async () => {
     const judge: MemoryJudge = {
       resolveEntity: async (subject, candidates) => {
-        const hit = candidates.find(
+        const idx = candidates.findIndex(
           (c) => c.name.toLowerCase().includes(subject.name.toLowerCase()) || subject.name.toLowerCase().includes(c.name.toLowerCase()),
         );
-        return hit ? { sameAs: hit.name, reason: "same person" } : { sameAs: null, reason: "new" };
+        return idx >= 0 ? { sameAs: idx, reason: "same person" } : { sameAs: null, reason: "new" };
       },
       mergeFacts: async () => [],
+      mergeEntities: async () => [],
       extractTopics: async () => [],
     };
     const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
@@ -388,10 +391,11 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
   it("re-mentioning via an ALIAS does NOT rename the entity to the short variant (D-0075)", async () => {
     const judge: MemoryJudge = {
       resolveEntity: async (subject, candidates) => {
-        const hit = candidates.find((c) => c.name.toLowerCase().includes(subject.name.toLowerCase()));
-        return hit ? { sameAs: hit.name, reason: "same" } : { sameAs: null, reason: "new" };
+        const idx = candidates.findIndex((c) => c.name.toLowerCase().includes(subject.name.toLowerCase()));
+        return idx >= 0 ? { sameAs: idx, reason: "same" } : { sameAs: null, reason: "new" };
       },
       mergeFacts: async () => [],
+      mergeEntities: async () => [],
       extractTopics: async () => [],
     };
     const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
@@ -415,5 +419,74 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     await expect(
       pool!.query("INSERT INTO memory_entities (kind, name, status, provenance) VALUES ('thing','reactor','user_statement','test')"),
     ).rejects.toThrow(/duplicate key|unique/i);
+  });
+
+  // ---- D-0075 cross-kind resolution ----
+
+  it("prevents a cross-kind duplicate: same name, different kind, judge says same → ONE entity", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async (subject, candidates) => {
+        const idx = candidates.findIndex((c) => c.name.toLowerCase() === subject.name.toLowerCase());
+        return idx >= 0 ? { sameAs: idx, reason: "same thing, inconsistent kind" } : { sameAs: null, reason: "new" };
+      },
+      mergeFacts: async () => [],
+      mergeEntities: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    await mem.rememberEntity({ kind: "thing", name: "arc reactor", provenance: "test" });
+    await mem.rememberFact({ entityName: "arc reactor", statement: "runs on palladium", provenance: "test" });
+    // a later session labels the SAME thing as a 'project'
+    await mem.rememberEntity({ kind: "project", name: "arc reactor", provenance: "test" });
+    const active = await pool!.query<{ kind: string }>(
+      "SELECT kind FROM memory_entities WHERE lower(name)='arc reactor' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows.length).toBe(1); // NOT two (thing + project)
+    expect(active.rows[0]!.kind).toBe("thing"); // merged into the existing entity's kind
+    expect((await mem.recall("arc reactor"))!.facts.map((f) => f.statement)).toContain("runs on palladium");
+  });
+
+  it("keeps genuinely-different same-name entities distinct when the judge says NOT same", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async () => ({ sameAs: null, reason: "planet vs element — different" }),
+      mergeFacts: async () => [],
+      mergeEntities: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    await mem.rememberEntity({ kind: "place", name: "Mercury", provenance: "test" }); // the planet
+    await mem.rememberEntity({ kind: "thing", name: "Mercury", provenance: "test" }); // the element
+    const active = await pool!.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM memory_entities WHERE lower(name)='mercury' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows[0]!.n).toBe(2); // both kept — genuinely different real-world things
+  });
+
+  it("consolidate() HEALS a pre-existing cross-kind duplicate via the judge", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async () => ({ sameAs: null, reason: "n/a" }),
+      mergeFacts: async () => [],
+      mergeEntities: async (_name, entities) => (entities.length >= 2 ? [{ keep: 0, merge: entities.slice(1).map((e) => e.idx) }] : []),
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    // seed two same-name entities of DIFFERENT kinds (a pre-existing duplicate), a fact each
+    await pool!.query(
+      "INSERT INTO memory_entities (kind, name, status, provenance) VALUES ('thing','Reactor','user_statement','seed'),('project','Reactor','user_statement','seed')",
+    );
+    const ids = await pool!.query<{ id: string; kind: string }>(
+      "SELECT id, kind FROM memory_entities WHERE lower(name)='reactor' AND status NOT IN ('deleted','superseded') ORDER BY kind",
+    );
+    for (const row of ids.rows) {
+      await pool!.query("INSERT INTO memory_facts (entity_id, statement, status, provenance) VALUES ($1,$2,'user_statement','seed')", [row.id, `fact for ${row.kind}`]);
+    }
+    const r = await mem.consolidate();
+    expect(r.entitiesMerged).toBe(1);
+    expect(r.entityMerges[0]).toContain("(model)");
+    const active = await pool!.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM memory_entities WHERE lower(name)='reactor' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows[0]!.n).toBe(1); // merged to one
+    expect((await mem.recall("Reactor"))!.facts.length).toBe(2); // both facts on the survivor
   });
 });
