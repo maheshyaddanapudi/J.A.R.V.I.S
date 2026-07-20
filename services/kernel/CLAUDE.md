@@ -377,6 +377,26 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   (100% encrypted), audit chain intact, ~$0.95 spend, key scrubbed (0 hits).
   Records: `docs/verification/FULL_REVERIFICATION_2026-07-19.md` +
   `LIVING_WITH_JARVIS_2026-07-19.md`.
+- Fast-model memory judgments + self-authored/reusable skills ✅ (D-0075,
+  2026-07-20): `src/memory/judge.ts` (`GatewayMemoryJudge`, `fast_conversation`
+  role) makes three judgments the string heuristics did poorly — **entity
+  resolution** ('Pepper' ⇄ 'Pepper Potts' → one canonical entity + `aliases`
+  column, migration 0025; `rememberEntity` also takes a `pg_advisory_xact_lock`
+  on the canonical key so parallel same-name writes serialize), **fact-merge
+  consolidation** (replaces the jaccard/stem loop in `consolidate()`), and
+  **deep-topic extraction** (`ReasoningTuner.recordCorrection`, replaces the
+  filler-grabbing `salientTerms`). NON-NEGOTIABLE contract: BEST-EFFORT →
+  `null` on any failure → caller runs the DETERMINISTIC path (never blocks a
+  write); privacy-class from row sensitivity (private/secret → LOCAL_ONLY);
+  off-switch `memory.llmJudgment` (default on). Merges supersede-with-history
+  (reversible). `assessDepth` stays deterministic + zero-latency (judge is
+  learning-path only). Skills: `src/skills/tools.ts` — `skill.save`
+  (LOW_REVERSIBLE, `createdBy:jarvis`) / `skill.list` (READ_ONLY) / `skill.run`
+  (CONSEQUENTIAL, recursion-guarded, privacy-first LOCAL_ONLY default) so
+  J.A.R.V.I.S. self-authors + reuses no-code skills (code capabilities were
+  already reusable via `capability:<name>` + `selfext.listActive`). 376 kernel
+  tests; live real-brain (Haiku) verified all judgments + the skill loop.
+  Record: `docs/verification/D0075_MEMORY_JUDGMENT_2026-07-20.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

@@ -92,6 +92,25 @@ describe("ReasoningTuner", () => {
     expect(await tuner.topics()).toContain("vibranium");
   });
 
+  it("uses the judge's extracted topic instead of noisy heuristic terms (D-0075)", async () => {
+    // raw text is full of filler ('quick','one-line','intuition'); the judge
+    // returns only the real subject.
+    const judge = { extractTopics: async () => ["palladium"] };
+    const tuner = new ReasoningTuner(fakeStore(), judge);
+    await tuner.recordCorrection("Quick one-line intuition about palladium please");
+    const promoted = await tuner.recordCorrection("Quick one-line intuition about palladium please");
+    expect(promoted).toEqual(["palladium"]);
+    expect(await tuner.topics()).toEqual(["palladium"]); // ONLY the topic, no filler
+  });
+
+  it("falls back to heuristic terms when the judge returns null (offline)", async () => {
+    const judge = { extractTopics: async () => null };
+    const tuner = new ReasoningTuner(fakeStore(), judge);
+    await tuner.recordCorrection("check the vibranium shield tolerances");
+    const promoted = await tuner.recordCorrection("vibranium alloy stress numbers again");
+    expect(promoted).toContain("vibranium"); // heuristic path still works
+  });
+
   it("a failing store never throws out of topics()", async () => {
     const tuner = new ReasoningTuner({
       get: async () => { throw new Error("db down"); },

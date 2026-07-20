@@ -163,7 +163,14 @@ export interface TunerStore {
 }
 
 export class ReasoningTuner {
-  constructor(private readonly store: TunerStore) {}
+  constructor(
+    private readonly store: TunerStore,
+    /** optional fast-model topic extractor (D-0075) — best-effort; a null result
+     *  (no judge / no eligible provider / failure) falls back to `salientTerms`.
+     *  Only used off the hot path (learning-by-correction), never in `assessDepth`,
+     *  which stays deterministic + zero-latency by design. */
+    private readonly judge?: { extractTopics(text: string, privacy: "STANDARD" | "LOCAL_ONLY"): Promise<string[] | null> },
+  ) {}
 
   private async readJson<T>(key: string, fallback: T): Promise<T> {
     try {
@@ -268,7 +275,14 @@ export class ReasoningTuner {
     const counts = await this.readJson<Record<string, number>>(DEEP_CANDIDATES_KEY, {});
     const topics = await this.topics();
     const promoted: string[] = [];
-    for (const term of salientTerms(text)) {
+    // Prefer a fast-model extraction of the SPECIFIC topic (D-0075). The heuristic
+    // `salientTerms` grabbed filler words ('quick','one-line','intuition') from
+    // prompt phrasing; the model returns the real subject ('palladium'). A null
+    // result (no judge / no eligible provider / failure) falls back to the
+    // heuristic; an empty list is a valid "no substantive topic" (no fallback).
+    const extracted = this.judge ? await this.judge.extractTopics(text, "STANDARD") : null;
+    const terms = extracted ?? salientTerms(text);
+    for (const term of terms) {
       if (topics.includes(term)) continue;
       counts[term] = (counts[term] ?? 0) + 1;
       if (counts[term] >= PROMOTE_AT) {

@@ -239,6 +239,14 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     default: () => 90,
     description: "Entities unused for this many days are PROPOSED for review during the sleep cycle — never auto-forgotten.",
   },
+  {
+    key: "memory.llmJudgment",
+    label: "Use the fast model for memory judgments",
+    category: "Memory",
+    type: "boolean",
+    default: () => true,
+    description: "When on, J.A.R.V.I.S. asks the fast model whether a similarly-named mention is the SAME entity ('Pepper' ⇄ 'Pepper Potts') and which facts restate each other, instead of relying on string heuristics. Best-effort: private/secret memory stays local, and it always falls back to the deterministic logic when no local model is available (offline).",
+  },
 
   {
     key: "reasoning.defaultEffort",

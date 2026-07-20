@@ -4,6 +4,8 @@ import type { AuditLog } from "../core/audit.js";
 import type { Vault } from "../crypto/vault.js";
 import type { SemanticMemory } from "./semantic.js";
 import type { EpistemicStatus, Sensitivity } from "./memory.js";
+import type { EntityCandidate, MemoryJudge } from "./judge.js";
+import { privacyForSensitivities } from "./judge.js";
 
 /**
  * Semantic knowledge store (Phase 2 — the "full memory store set"; parity H).
@@ -38,6 +40,64 @@ function contentWords(s: string): Set<string> {
   return new Set(
     (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)).map(stem),
   );
+}
+
+/** Loose name-similarity PRE-FILTER for entity resolution (D-0075). Deliberately
+ *  permissive — it only selects CANDIDATES for the fast-model judge, which makes
+ *  the real same/different decision. Catches substring ('Pepper' ⊂ 'Pepper
+ *  Potts'), shared token ('Mark 42' / 'Mark 42 suit'), and near-spelling. */
+function nameSimilar(a: string, b: string): boolean {
+  const x = a.toLowerCase().trim();
+  const y = b.toLowerCase().trim();
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.length >= 3 && y.length >= 3 && (x.includes(y) || y.includes(x))) return true;
+  const tx = new Set(x.split(/\s+/).filter((w) => w.length >= 3));
+  const ty = new Set(y.split(/\s+/).filter((w) => w.length >= 3));
+  for (const w of tx) if (ty.has(w)) return true;
+  return diceCoefficient(x, y) >= 0.5;
+}
+function diceCoefficient(a: string, b: string): number {
+  const bigrams = (s: string): Map<string, number> => {
+    const t = s.replace(/\s+/g, "");
+    const m = new Map<string, number>();
+    for (let i = 0; i < t.length - 1; i++) {
+      const g = t.slice(i, i + 2);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+  };
+  const A = bigrams(a);
+  const B = bigrams(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const [g, c] of A) if (B.has(g)) inter += Math.min(c, B.get(g)!);
+  let total = 0;
+  for (const c of A.values()) total += c;
+  for (const c of B.values()) total += c;
+  return (2 * inter) / total;
+}
+/** Combine an existing entity's attributes with a new mention's, without losing
+ *  either (containment-deduped). Old value is also preserved as history on the
+ *  superseded row. */
+function mergeAttrs(oldA: string, newA: string): string {
+  const o = (oldA ?? "").trim();
+  const n = (newA ?? "").trim();
+  if (!n) return o;
+  if (!o) return n;
+  if (o.toLowerCase().includes(n.toLowerCase())) return o;
+  if (n.toLowerCase().includes(o.toLowerCase())) return n;
+  return `${o}; ${n}`;
+}
+/** Cheap gate before spending a model call on consolidation: do any two facts
+ *  share a content word at all? If not, there is nothing plausibly duplicated. */
+function anyPairShareWord(decoded: { words: Set<string> }[]): boolean {
+  for (let i = 0; i < decoded.length; i++) {
+    for (let j = i + 1; j < decoded.length; j++) {
+      for (const w of decoded[i]!.words) if (decoded[j]!.words.has(w)) return true;
+    }
+  }
+  return false;
 }
 
 export type EntityKind = string; // person | project | place | org | thing | topic | …
@@ -111,6 +171,9 @@ export class EntityMemory {
     private readonly vault?: Vault,
     /** optional vector index — enables hybrid graph recall (D-0045); best-effort */
     private readonly semantic?: SemanticMemory,
+    /** optional fast-model judge for entity resolution + fact merge (D-0075);
+     *  best-effort — every method falls back to deterministic logic on null */
+    private readonly judge?: MemoryJudge,
   ) {}
 
   private enc(plaintext: string): string {
@@ -120,7 +183,19 @@ export class EntityMemory {
     return this.vault && stored.startsWith("v1.gcm.") ? this.vault.decrypt(stored) : stored;
   }
 
-  /** Create or supersede an entity by (name, kind). */
+  /**
+   * Create or supersede an entity. Resolution order:
+   *   1. EXACT / ALIAS match on (name, kind) → supersede + accrue (the normal path).
+   *   2. otherwise, if a fast-model judge is available, ask whether a
+   *      similarly-named existing entity is the SAME real-world thing (D-0075):
+   *      a positive match accrues this mention to the CANONICAL entity and records
+   *      the variant spelling as an alias, so 'Pepper' and 'Pepper Potts' stop
+   *      becoming two separate entities. Best-effort — no judge / no similar
+   *      candidate / no eligible provider → a plain new entity (previous behavior).
+   * Still-active facts + relations migrate forward on every supersede so knowledge
+   * accumulates on the live entity (the fragmentation fix); attribute history is
+   * kept on the superseded rows.
+   */
   async rememberEntity(input: {
     kind: string;
     name: string;
@@ -132,26 +207,42 @@ export class EntityMemory {
   }): Promise<Entity> {
     if (!input.kind.trim() || !input.name.trim()) throw new Error("refused: entity needs a kind and a name");
     if (input.attributes) assertNotSecret(input.attributes);
+
+    // Phase A (no transaction): decide the CANONICAL target. Any model call
+    // happens HERE — outside the write transaction — so we never hold a row lock
+    // across a network round-trip.
+    const plan = await this.resolveCanonical(input);
+
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      // Supersede any active entity with the same (name, kind), capturing their
-      // ids so we can link them FORWARD to the replacement (superseded_by) — the
-      // history chain is walkable, not just a dangling 'superseded' status.
+      // Serialize concurrent writes that target the SAME canonical (name, kind):
+      // a transaction-scoped advisory lock fixes the parallel-insert race that
+      // could leave duplicate active rows (bug 5). Auto-released on COMMIT/ROLLBACK.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1), 0)", [
+        `entity:${plan.canonicalName.toLowerCase()}|${plan.canonicalKind}`,
+      ]);
+      // Supersede exact/alias/canonical matches — re-evaluated UNDER the lock so a
+      // row created between phase A and here is still caught. Captured ids are
+      // linked FORWARD (superseded_by) and migrated FROM.
       const { rows: superseded } = await client.query<{ id: string }>(
         `UPDATE memory_entities SET status = 'superseded', updated_at = now()
-         WHERE lower(name) = lower($1) AND kind = $2 AND status NOT IN ('deleted','superseded')
+         WHERE kind = $2 AND status NOT IN ('deleted','superseded')
+           AND ( lower(name) = lower($1)
+                 OR id = ANY($3::uuid[])
+                 OR ($4::text[] <> '{}' AND aliases && $4::text[]) )
          RETURNING id`,
-        [input.name, input.kind],
+        [plan.canonicalName, plan.canonicalKind, plan.supersedeIds, plan.aliases],
       );
       const { rows } = await client.query(
-        `INSERT INTO memory_entities (kind, name, attributes, status, provenance, confidence, sensitivity)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+        `INSERT INTO memory_entities (kind, name, attributes, aliases, status, provenance, confidence, sensitivity)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING id, kind, name, attributes, status, provenance, confidence, sensitivity, created_at, updated_at`,
         [
-          input.kind,
-          input.name,
-          this.enc(input.attributes ?? ""),
+          plan.canonicalKind,
+          plan.canonicalName,
+          this.enc(plan.attributes),
+          plan.aliases,
           input.status ?? "user_statement",
           input.provenance,
           input.confidence ?? 1.0,
@@ -159,49 +250,56 @@ export class EntityMemory {
         ],
       );
       if (superseded.length) {
-        const oldIds = superseded.map((r) => r.id);
-        await client.query(
-          `UPDATE memory_entities SET superseded_by = $1 WHERE id = ANY($2::uuid[])`,
-          [rows[0].id, oldIds],
-        );
-        // MIGRATE knowledge forward (fixes fact fragmentation): re-mentioning an
-        // entity supersedes the old row, but its still-active FACTS must move to
-        // the new active entity — otherwise recall of the current entity loses
-        // everything learned in earlier mentions. History of the ENTITY
-        // (attributes) is preserved on the superseded rows; the KNOWLEDGE
-        // accumulates on the live entity. Relations are migrated conflict-safely
-        // (skip any that would duplicate an existing edge on the new entity).
-        await client.query(
-          `UPDATE memory_facts SET entity_id = $1
-           WHERE entity_id = ANY($2::uuid[]) AND status NOT IN ('deleted','superseded')`,
-          [rows[0].id, oldIds],
-        );
-        await client.query(
-          `UPDATE memory_relations r SET from_entity = $1
-           WHERE r.from_entity = ANY($2::uuid[])
-             AND NOT EXISTS (SELECT 1 FROM memory_relations x
-               WHERE x.from_entity = $1 AND x.to_entity = r.to_entity AND x.relation = r.relation)`,
-          [rows[0].id, oldIds],
-        );
-        await client.query(
-          `UPDATE memory_relations r SET to_entity = $1
-           WHERE r.to_entity = ANY($2::uuid[])
-             AND NOT EXISTS (SELECT 1 FROM memory_relations x
-               WHERE x.to_entity = $1 AND x.from_entity = r.from_entity AND x.relation = r.relation)`,
-          [rows[0].id, oldIds],
-        );
+        const oldIds = superseded.map((r) => r.id).filter((id) => id !== rows[0].id);
+        if (oldIds.length) {
+          await client.query(
+            `UPDATE memory_entities SET superseded_by = $1 WHERE id = ANY($2::uuid[])`,
+            [rows[0].id, oldIds],
+          );
+          // MIGRATE knowledge forward (fixes fact fragmentation): re-mentioning an
+          // entity supersedes the old row, but its still-active FACTS must move to
+          // the new active entity — otherwise recall of the current entity loses
+          // everything learned in earlier mentions. History of the ENTITY
+          // (attributes) is preserved on the superseded rows; the KNOWLEDGE
+          // accumulates on the live entity. Relations are migrated conflict-safely
+          // (skip any that would duplicate an existing edge on the new entity).
+          await client.query(
+            `UPDATE memory_facts SET entity_id = $1
+             WHERE entity_id = ANY($2::uuid[]) AND status NOT IN ('deleted','superseded')`,
+            [rows[0].id, oldIds],
+          );
+          await client.query(
+            `UPDATE memory_relations r SET from_entity = $1
+             WHERE r.from_entity = ANY($2::uuid[])
+               AND NOT EXISTS (SELECT 1 FROM memory_relations x
+                 WHERE x.from_entity = $1 AND x.to_entity = r.to_entity AND x.relation = r.relation)`,
+            [rows[0].id, oldIds],
+          );
+          await client.query(
+            `UPDATE memory_relations r SET to_entity = $1
+             WHERE r.to_entity = ANY($2::uuid[])
+               AND NOT EXISTS (SELECT 1 FROM memory_relations x
+                 WHERE x.to_entity = $1 AND x.from_entity = r.from_entity AND x.relation = r.relation)`,
+            [rows[0].id, oldIds],
+          );
+        }
       }
       await client.query("COMMIT");
       await this.audit.append({
         actor: "kernel",
         event: "entity_remembered",
-        payload: { kind: input.kind, name: input.name, provenance: input.provenance },
+        payload: {
+          kind: plan.canonicalKind,
+          name: plan.canonicalName,
+          provenance: input.provenance,
+          ...(plan.resolvedFrom ? { resolvedFrom: plan.resolvedFrom } : {}),
+        },
       });
       const entity = this.hydrateEntity(rows[0]);
       // Best-effort vector indexing (hybrid graph recall, D-0045) — embedded from
       // the plaintext (never ciphertext); a missing embedder is a no-op.
       if (this.semantic) {
-        void this.semantic.index("entity", entity.id, [input.name, input.kind, input.attributes ?? ""].join(". "));
+        void this.semantic.index("entity", entity.id, [entity.name, entity.kind, plan.attributes].join(". "));
       }
       return entity;
     } catch (err) {
@@ -212,14 +310,131 @@ export class EntityMemory {
     }
   }
 
-  /** Look up an active entity by name (case-insensitive), optionally by kind. */
+  /** Decide the canonical (name, kind, attributes, aliases) an incoming mention
+   *  should accrue to, and which existing rows it supersedes. Phase-A read; any
+   *  fast-model resolution happens here (outside the write transaction). */
+  private async resolveCanonical(input: {
+    kind: string;
+    name: string;
+    attributes?: string;
+    sensitivity?: Sensitivity;
+  }): Promise<{
+    canonicalName: string;
+    canonicalKind: string;
+    attributes: string;
+    aliases: string[];
+    supersedeIds: string[];
+    resolvedFrom?: string;
+  }> {
+    // 1. exact name OR existing alias, same kind
+    const { rows: exact } = await this.pool.query<{ id: string; attributes: string; aliases: string[] }>(
+      `SELECT id, attributes, aliases FROM memory_entities
+       WHERE kind = $2 AND status NOT IN ('deleted','superseded')
+         AND ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
+       ORDER BY updated_at DESC`,
+      [input.name, input.kind],
+    );
+    if (exact.length) {
+      // Exact same-name re-mention keeps the established contract (D-0038): the
+      // new attributes REPLACE the entity's; the old value survives as history on
+      // the superseded row. Only carry the accumulated ALIASES forward.
+      const aliases = new Set<string>();
+      for (const r of exact) for (const a of r.aliases ?? []) aliases.add(a.toLowerCase());
+      return {
+        canonicalName: input.name,
+        canonicalKind: input.kind,
+        attributes: input.attributes ?? "",
+        aliases: [...aliases],
+        supersedeIds: exact.map((r) => r.id),
+      };
+    }
+
+    // 2. no exact/alias hit — ask the judge whether a similarly-named entity is
+    //    the same real-world thing (D-0075). Best-effort.
+    if (this.judge) {
+      const cands = await this.fuzzyCandidates(input.name, input.kind);
+      if (cands.length) {
+        const privacy = privacyForSensitivities([input.sensitivity, ...cands.map((c) => c.sensitivity)]);
+        const verdict = await this.judge.resolveEntity(
+          { name: input.name, kind: input.kind, ...(input.attributes ? { attributes: input.attributes } : {}) },
+          cands.map<EntityCandidate>((c) => ({ name: c.name, kind: c.kind, attributes: c.attributes, facts: c.facts })),
+          privacy,
+        );
+        const C = verdict?.sameAs
+          ? cands.find((c) => c.name.toLowerCase() === verdict.sameAs!.toLowerCase())
+          : undefined;
+        if (C) {
+          const aliases = new Set<string>((C.aliases ?? []).map((a) => a.toLowerCase()));
+          if (input.name.toLowerCase() !== C.name.toLowerCase()) aliases.add(input.name.toLowerCase());
+          return {
+            canonicalName: C.name,
+            canonicalKind: C.kind,
+            attributes: mergeAttrs(C.attributes ?? "", input.attributes ?? ""),
+            aliases: [...aliases],
+            supersedeIds: [C.id],
+            resolvedFrom: input.name,
+          };
+        }
+      }
+    }
+
+    // 3. brand-new entity
+    return {
+      canonicalName: input.name,
+      canonicalKind: input.kind,
+      attributes: input.attributes ?? "",
+      aliases: [],
+      supersedeIds: [],
+    };
+  }
+
+  /** Same-kind active entities whose name is lexically similar to `name` (a loose
+   *  PRE-FILTER — the judge makes the real same/different call), each with a few
+   *  decrypted facts for context. Bounded. */
+  private async fuzzyCandidates(
+    name: string,
+    kind: string,
+  ): Promise<{ id: string; name: string; kind: string; attributes: string; facts: string[]; aliases: string[]; sensitivity: string }[]> {
+    const { rows } = await this.pool.query<{ id: string; name: string; kind: string; attributes: string; aliases: string[]; sensitivity: string }>(
+      `SELECT id, name, kind, attributes, aliases, sensitivity FROM memory_entities
+       WHERE kind = $1 AND status NOT IN ('deleted','superseded')
+       ORDER BY updated_at DESC LIMIT 100`,
+      [kind],
+    );
+    const similar = rows
+      .filter((r) => nameSimilar(name, r.name) || (r.aliases ?? []).some((a) => nameSimilar(name, a)))
+      .slice(0, 8);
+    const out: { id: string; name: string; kind: string; attributes: string; facts: string[]; aliases: string[]; sensitivity: string }[] = [];
+    for (const r of similar) {
+      const { rows: facts } = await this.pool.query<{ statement: string }>(
+        `SELECT statement FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+         ORDER BY created_at DESC LIMIT 3`,
+        [r.id],
+      );
+      out.push({
+        id: r.id,
+        name: r.name,
+        kind: r.kind,
+        attributes: this.dec(r.attributes ?? ""),
+        facts: facts.map((f) => this.dec(f.statement)),
+        aliases: r.aliases ?? [],
+        sensitivity: r.sensitivity,
+      });
+    }
+    return out;
+  }
+
+  /** Look up an active entity by name (case-insensitive) OR by a recorded alias
+   *  (D-0075 — so 'Pepper' resolves to canonical 'Pepper Potts'), optionally by
+   *  kind. An exact-name match is preferred over an alias-only match. */
   private async findEntity(name: string, kind?: string): Promise<Entity | null> {
     const { rows } = await this.pool.query(
       `SELECT id, kind, name, attributes, status, provenance, confidence, sensitivity, created_at, updated_at
        FROM memory_entities
-       WHERE lower(name) = lower($1) AND status NOT IN ('deleted','superseded')
+       WHERE ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
+         AND status NOT IN ('deleted','superseded')
          ${kind ? "AND kind = $2" : ""}
-       ORDER BY updated_at DESC LIMIT 1`,
+       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 1`,
       kind ? [name, kind] : [name],
     );
     return rows[0] ? this.hydrateEntity(rows[0]) : null;
@@ -515,8 +730,8 @@ export class EntityMemory {
        ORDER BY updated_at DESC LIMIT 200`,
     );
     for (const e of entities) {
-      const { rows: facts } = await this.pool.query<{ id: string; statement: string; created_at: string }>(
-        `SELECT id, statement, created_at::text FROM memory_facts
+      const { rows: facts } = await this.pool.query<{ id: string; statement: string; created_at: string; sensitivity: string }>(
+        `SELECT id, statement, created_at::text, sensitivity FROM memory_facts
          WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
          ORDER BY created_at ASC LIMIT 30`,
         [e.id],
@@ -524,7 +739,46 @@ export class EntityMemory {
       if (facts.length < 2) continue;
       const decoded = facts.map((f) => ({ ...f, text: this.dec(f.statement), words: contentWords(this.dec(f.statement)) }));
       const gone = new Set<string>();
-      // newer fact wins; compare each older fact against every newer one
+
+      // Prefer a fast-model MERGE JUDGMENT over string heuristics (D-0075): the
+      // model reads the entity's facts and decides which RESTATE the same thing.
+      // Attempted only when at least one pair shares a content word (a cheap gate
+      // — no plausible dupes, no call) and a judge is present. Any failure or
+      // ineligibility → null → the deterministic path below runs instead.
+      let handledByJudge = false;
+      if (this.judge && anyPairShareWord(decoded)) {
+        const privacy = privacyForSensitivities(decoded.map((d) => d.sensitivity));
+        const groups = await this.judge.mergeFacts(
+          e.name,
+          decoded.map((d, idx) => ({ idx, text: d.text })),
+          privacy,
+        );
+        if (groups) {
+          handledByJudge = true; // judged — trust the model's call (even if empty)
+          for (const g of groups) {
+            const keep = decoded[g.keep];
+            if (!keep || gone.has(keep.id)) continue;
+            for (const si of g.supersede) {
+              const old = decoded[si];
+              if (!old || gone.has(old.id) || old.id === keep.id) continue;
+              // status re-check: skip if a LIVE write changed it since we read it
+              const { rowCount } = await this.pool.query(
+                `UPDATE memory_facts SET status = 'superseded', superseded_by = $1
+                 WHERE id = $2 AND status NOT IN ('deleted','superseded')`,
+                [keep.id, old.id],
+              );
+              if (!rowCount) continue;
+              if (this.semantic) void this.semantic.remove("fact", old.id);
+              gone.add(old.id);
+              duplicatesMerged++;
+              merged.push(`${e.name}: kept "${keep.text}" ⊇ superseded "${old.text}" (model)`);
+            }
+          }
+        }
+      }
+      if (handledByJudge) continue;
+
+      // Deterministic fallback: newer fact wins; compare each older fact against every newer one
       for (let i = 0; i < decoded.length; i++) {
         if (gone.has(decoded[i]!.id)) continue;
         for (let j = i + 1; j < decoded.length; j++) {

@@ -49,6 +49,8 @@ import { ContextService } from "../context/service.js";
 import { LocalAgentRuntime } from "../agent/runtime.js";
 import type { AgentRuntime } from "../agent/contract.js";
 import { SkillRegistry } from "../skills/registry.js";
+import { skillTools } from "../skills/tools.js";
+import { GatewayMemoryJudge } from "../memory/judge.js";
 import { PromptRegistry } from "../prompts/registry.js";
 import { ReasoningTuner } from "./reasoning.js";
 import { DecisionLog, SleepCycle } from "./consolidation.js";
@@ -195,10 +197,23 @@ export async function buildCore(opts: {
     opts.pool,
     (texts) => opts.gateway.embed(texts, "LOCAL_ONLY", "memory").then((r) => r.embeddings),
   );
+  // General runtime settings registry (D-0058): any catalogued knob is editable
+  // at runtime (UI + J.A.R.V.I.S.), effective = override ?? current default.
+  // init() loads dynamically-registered settings (D-0060). Built here (before the
+  // memory judge + stores) so the judge's on/off gate can read its setting live.
+  const settings = new SettingsRegistry(opts.pool, audit, SETTINGS_CATALOG);
+  await settings.init();
+  // Fast-model memory judge (D-0075): entity resolution + fact-merge + deep-topic
+  // extraction via the `fast_conversation` role. BEST-EFFORT — every method falls
+  // back to deterministic logic when the gate is off, offline, or no provider is
+  // eligible (private/secret memory stays LOCAL_ONLY). It never blocks a write.
+  const memoryJudge = new GatewayMemoryJudge(opts.gateway, {
+    enabled: () => settings.bool("memory.llmJudgment", true),
+  });
   // Semantic knowledge store (entities/facts/relations) — encrypted at rest; the
   // vector index enables hybrid graph recall (entry points by meaning → one-hop
   // expansion, D-0045).
-  const entityMemory = new EntityMemory(opts.pool, audit, opts.vault, semanticMemory);
+  const entityMemory = new EntityMemory(opts.pool, audit, opts.vault, semanticMemory, memoryJudge);
   // Episodic memory — the recallable timeline of notable events, encrypted at rest.
   const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault, semanticMemory);
 
@@ -227,13 +242,9 @@ export async function buildCore(opts: {
   // Deep-reasoning learning (D-0050): learned topics live as ordinary
   // preferences (history-preserving, visible/deletable in the memory panel).
   // Created before the tool registry so its conversational tools can register.
-  const reasoningTuner = new ReasoningTuner(memory);
-  // General runtime settings registry (D-0058): any catalogued knob is editable
-  // at runtime (UI + J.A.R.V.I.S.), effective = override ?? current default.
-  // init() loads dynamically-registered settings (D-0060) so knobs J.A.R.V.I.S.
-  // discovered on a prior run are present again.
-  const settings = new SettingsRegistry(opts.pool, audit, SETTINGS_CATALOG);
-  await settings.init();
+  // The memory judge (D-0075) extracts the SPECIFIC deep-topic from a correction
+  // (replacing the noisy heuristic); best-effort with the same fallback.
+  const reasoningTuner = new ReasoningTuner(memory, memoryJudge);
 
   const tools = new ToolRegistry();
   tools.register(systemInfoTool);
@@ -351,6 +362,11 @@ export async function buildCore(opts: {
   const agent = new LocalAgentRuntime({ gateway: opts.gateway, loop, tools, audit, activity, estop });
   // Skills registry — saved named objectives, run via the agent (still gated).
   const skills = new SkillRegistry(opts.pool, audit, agent);
+  // Self-authoring + reuse of skills (D-0075): J.A.R.V.I.S. can now save a
+  // reusable skill itself (skill.save), discover its saved skills (skill.list),
+  // and re-run one (skill.run) — the no-code counterpart to code capabilities
+  // (which are already reusable as `capability:<name>` tools + selfext.listActive).
+  for (const t of skillTools(skills)) tools.register(t);
   // Prompts registry — user-editable persona/system prompts (R-CAP-01). The
   // conversation loop reads the active persona; default seeded by migration 0013.
   const prompts = new PromptRegistry(opts.pool, audit);

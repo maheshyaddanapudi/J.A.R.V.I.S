@@ -44,7 +44,14 @@ export class SkillRegistry {
     private readonly agent: AgentRuntime,
   ) {}
 
-  async create(input: { name: string; objective: string; description?: string; maxSteps?: number }): Promise<Skill> {
+  async create(input: {
+    name: string;
+    objective: string;
+    description?: string;
+    maxSteps?: number;
+    /** who authored it — J.A.R.V.I.S. can now self-author a reusable skill (D-0075) */
+    createdBy?: "user" | "jarvis";
+  }): Promise<Skill> {
     const name = input.name.trim();
     if (!name) throw new Error("skill name required");
     if (!input.objective.trim()) throw new Error("skill objective required");
@@ -57,8 +64,20 @@ export class SkillRegistry {
        RETURNING id, name, description, objective, max_steps, enabled, created_at::text, last_run_at::text`,
       [name, input.description ?? "", input.objective.trim(), input.maxSteps ?? 6],
     );
-    await this.audit.append({ actor: "user", event: "skill_created", payload: { name } });
+    const actor = input.createdBy === "jarvis" ? "jarvis" : "user";
+    await this.audit.append({ actor, event: "skill_created", payload: { name, by: actor } });
     return toSkill(rows[0]!);
+  }
+
+  /** Resolve an active skill by name (case-insensitive) — so J.A.R.V.I.S. can
+   *  re-run a skill it knows by name, not only by id. */
+  async getByName(name: string): Promise<Skill | null> {
+    const { rows } = await this.pool.query<SkillRow>(
+      `SELECT id, name, description, objective, max_steps, enabled, created_at::text, last_run_at::text
+         FROM skills WHERE lower(name) = lower($1) AND enabled = true ORDER BY created_at DESC LIMIT 1`,
+      [name.trim()],
+    );
+    return rows[0] ? toSkill(rows[0]) : null;
   }
 
   async list(): Promise<Skill[]> {

@@ -111,3 +111,19 @@ confirmed in the DB.
    artifact (single-user is sequential); a partial unique index would harden it.
 
 Key was env-only and scrubbed (0 hits in repo + scratch).
+
+## Follow-up — bugs 2–5 fixed (D-0075, 2026-07-20)
+All four open bugs above were closed the next day per the user's steer ("let
+Jarvis look at the records and decide with the fast model rather than code fuzzy
+logic"), plus the two asks (author MD skills; make self-built skills/code
+reusable):
+- **Bug 2 (name-variant duplicates)** — FIXED: a fast-model entity-resolution
+  judgment merges 'Pepper' into canonical 'Pepper Potts' (aliased); deterministic
+  fallback offline.
+- **Bug 3 (no self-created no-code skill)** — FIXED: gated `skill.save`/`skill.list`/
+  `skill.run` (self-author, discover, reuse).
+- **Bug 4 (noisy learned-topic extraction)** — FIXED: fast-model topic extraction
+  ('palladium', not 'quick'/'one-line'/'intuition').
+- **Bug 5 (concurrency race)** — FIXED: `pg_advisory_xact_lock` on the canonical
+  (name, kind).
+Record: `docs/verification/D0075_MEMORY_JUDGMENT_2026-07-20.md`.

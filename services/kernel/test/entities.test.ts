@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EntityMemory } from "../src/memory/entities.js";
+import type { MemoryJudge } from "../src/memory/judge.js";
 import { Vault } from "../src/crypto/vault.js";
 import type { AuditLog } from "../src/core/audit.js";
 
@@ -273,5 +274,84 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     const people = await mem.listEntities("person");
     expect(people.map((e) => e.name)).toContain("Rhodey");
     expect(people.every((e) => e.kind === "person")).toBe(true);
+  });
+
+  // ---- D-0075: fast-model memory judgments (with a stub judge) ----
+
+  it("resolves a name-variant to the SAME entity via the judge — no duplicate, alias recorded (bug 2)", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async (subject, candidates) => {
+        const hit = candidates.find(
+          (c) => c.name.toLowerCase().includes(subject.name.toLowerCase()) || subject.name.toLowerCase().includes(c.name.toLowerCase()),
+        );
+        return hit ? { sameAs: hit.name, reason: "same person" } : { sameAs: null, reason: "new" };
+      },
+      mergeFacts: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    await mem.rememberEntity({ kind: "person", name: "Pepper Potts", provenance: "test" });
+    await mem.rememberFact({ entityName: "Pepper Potts", statement: "is CEO of Stark Industries", provenance: "test" });
+    // a later, SHORT-name mention resolves to the same real person
+    await mem.rememberEntity({ kind: "person", name: "Pepper", provenance: "test" });
+    await mem.rememberFact({ entityName: "Pepper", statement: "prefers morning meetings", provenance: "test" });
+
+    // exactly ONE active person entity — not two variant duplicates
+    const active = await pool!.query<{ name: string; aliases: string[] }>(
+      "SELECT name, aliases FROM memory_entities WHERE kind='person' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows.length).toBe(1);
+    expect(active.rows[0]!.name).toBe("Pepper Potts");
+    expect(active.rows[0]!.aliases).toContain("pepper");
+
+    // recall by EITHER name returns the one entity with BOTH facts
+    for (const q of ["Pepper", "Pepper Potts"]) {
+      const r = await mem.recall(q);
+      expect(r, `recall('${q}')`).not.toBeNull();
+      const s = r!.facts.map((f) => f.statement);
+      expect(s).toContain("is CEO of Stark Industries");
+      expect(s).toContain("prefers morning meetings");
+    }
+  });
+
+  it("consolidate() honors the judge's merge decision, merging facts the heuristic keeps apart (dim 5)", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async () => ({ sameAs: null, reason: "n/a" }),
+      // model says the two facts restate the same thing; keep the newer (idx 1)
+      mergeFacts: async (_entity, facts) => (facts.length >= 2 ? [{ keep: 1, supersede: [0] }] : []),
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    await mem.rememberEntity({ kind: "thing", name: "Suit", provenance: "test" });
+    await mem.rememberFact({ entityName: "Suit", statement: "can fly at high altitude", provenance: "test" });
+    await mem.rememberFact({ entityName: "Suit", statement: "reaches high altitudes in flight", provenance: "test" });
+    const r = await mem.consolidate();
+    expect(r.duplicatesMerged).toBe(1);
+    expect(r.merged[0]).toContain("(model)");
+    const rec = await mem.recall("Suit");
+    expect(rec!.facts.length).toBe(1);
+    expect(rec!.facts[0]!.statement).toBe("reaches high altitudes in flight");
+  });
+
+  it("falls back to deterministic logic when the judge is absent (offline honesty)", async () => {
+    // no judge injected → the string-heuristic path still merges obvious dupes
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberEntity({ kind: "thing", name: "Core", provenance: "test" });
+    await mem.rememberFact({ entityName: "Core", statement: "runs on a palladium core", provenance: "test" });
+    await mem.rememberFact({ entityName: "Core", statement: "the core runs on palladium", provenance: "test" });
+    const r = await mem.consolidate({ overlap: 0.6 });
+    expect(r.duplicatesMerged).toBe(1);
+    expect(r.merged[0]).not.toContain("(model)"); // deterministic path, no model tag
+  });
+
+  it("serializes concurrent same-name writes — no duplicate active rows (advisory lock, bug 5)", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await Promise.all(
+      Array.from({ length: 6 }, () => mem.rememberEntity({ kind: "thing", name: "arc reactor", provenance: "test" })),
+    );
+    const active = await pool!.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM memory_entities WHERE lower(name)='arc reactor' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(active.rows[0]!.n).toBe(1);
   });
 });

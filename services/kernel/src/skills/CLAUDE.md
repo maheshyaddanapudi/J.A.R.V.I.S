@@ -22,6 +22,17 @@ again later.
 `GET /skills` · `POST /skills {name, objective, description?, maxSteps?}` ·
 `DELETE /skills/:id` · `POST /skills/:id/run` → the agent result.
 
+## Self-authoring + reuse (D-0075)
+`tools.ts` exposes the registry to J.A.R.V.I.S. itself (previously HTTP-only):
+`skill.save` (LOW_REVERSIBLE — author a reusable named objective, `createdBy:
+"jarvis"`, reversible via delete), `skill.list` (READ_ONLY — discover saved
+skills so it can reuse instead of redoing work), `skill.run` (CONSEQUENTIAL —
+reuse via the gated agent; recursion-guarded against nested `skill.run` via
+`ctx.callSource`; privacy-first LOCAL_ONLY default, opt-in STANDARD). This is
+the no-code half of "everything J.A.R.V.I.S. builds is reusable" — code
+capabilities were already reusable as `capability:<name>` tools +
+`selfext.listActive`. `create({createdBy})` + `getByName` added.
+
 ## Verified (2026-07-17)
 5 tests (create/list/run-through-agent; unique-name supersede; delete disables +
 run-absent → null; autoApprove passthrough; empty name/objective rejected). Live:

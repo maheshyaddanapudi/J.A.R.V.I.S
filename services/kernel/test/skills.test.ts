@@ -1,8 +1,10 @@
 import { describe, expect, it, beforeEach, afterAll, vi } from "vitest";
 import pg from "pg";
 import { SkillRegistry } from "../src/skills/registry.js";
+import { skillTools } from "../src/skills/tools.js";
 import type { AuditLog } from "../src/core/audit.js";
 import type { AgentRuntime, AgentResult } from "../src/agent/contract.js";
+import type { ToolContext } from "../src/core/tools.js";
 
 const dbUrl =
   process.env.JARVIS_TEST_DATABASE_URL ??
@@ -89,5 +91,56 @@ describe.skipIf(!pool)("SkillRegistry (saved named objectives run via the agent)
     const reg = new SkillRegistry(pool!, audit, agent);
     await expect(reg.create({ name: "  ", objective: "x" })).rejects.toThrow(/name/);
     await expect(reg.create({ name: "ok", objective: "  " })).rejects.toThrow(/objective/);
+  });
+});
+
+describe.skipIf(!pool)("skill tools (self-authoring + reuse, D-0075)", () => {
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE skills");
+  });
+  const ctx: ToolContext = { workspaceRoot: "/tmp" };
+
+  it("skill.save authors a reusable skill; skill.list discovers it", async () => {
+    const { agent } = fakeAgent();
+    const reg = new SkillRegistry(pool!, audit, agent);
+    const [save, list] = skillTools(reg);
+    const r = await save!.run(
+      { name: "fire check", objective: "check the workshop for fire hazards", description: "safety sweep" },
+      ctx,
+    );
+    expect(r.ok).toBe(true);
+    const listed = await list!.run({}, ctx);
+    expect(listed.detail).toContain("fire check");
+    expect(listed.detail).toContain("safety sweep");
+    // authored by J.A.R.V.I.S. → audited as actor 'jarvis'
+    expect(audit.append).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: "jarvis", event: "skill_created" }),
+    );
+  });
+
+  it("skill.run reuses a saved skill through the gated agent", async () => {
+    const { agent, ran } = fakeAgent();
+    const reg = new SkillRegistry(pool!, audit, agent);
+    const run = skillTools(reg).find((t) => t.name === "skill.run")!;
+    await reg.create({ name: "brief", objective: "summarize the day" });
+    const r = await run.run({ name: "brief" }, ctx);
+    expect(r.ok).toBe(true);
+    expect(ran.map((x) => x.objective)).toContain("summarize the day");
+  });
+
+  it("skill.run refuses when nested inside another skill (recursion guard)", async () => {
+    const { agent } = fakeAgent();
+    const reg = new SkillRegistry(pool!, audit, agent);
+    const run = skillTools(reg).find((t) => t.name === "skill.run")!;
+    await reg.create({ name: "x", objective: "y" });
+    const r = await run.run({ name: "x" }, { workspaceRoot: "/tmp", callSource: "skill:outer" });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toMatch(/nested|cannot invoke another skill/i);
+  });
+
+  it("skill.save is LOW_REVERSIBLE, skill.run is CONSEQUENTIAL (gated)", () => {
+    const tools = skillTools(new SkillRegistry(pool!, audit, fakeAgent().agent));
+    expect(tools.find((t) => t.name === "skill.save")!.riskClass).toBe("LOW_REVERSIBLE");
+    expect(tools.find((t) => t.name === "skill.run")!.riskClass).toBe("CONSEQUENTIAL");
   });
 });
