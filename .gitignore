@@ -13,3 +13,7 @@ coverage/
 # local runtime state (never commit user data — R-LOC-01)
 .jarvis/
 var/
+
+# graphify (dev-tool code-graph cache; graph.json/graph.html/report are committed, the AST cache is not)
+graphify-out/cache/
+.claude/settings.local.json
