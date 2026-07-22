@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v graphify >/dev/null 2>&1 && graphify update . >/dev/null 2>&1 || true"
+            "command": "[ -f .claude/graphify.env ] && command -v graphify >/dev/null 2>&1 && command -v setsid >/dev/null 2>&1 && setsid bash -c 'set -a; . ./.claude/graphify.env; set +a; graphify . --mode deep && graphify cluster-only . && graphify label .' > graphify-out/.hook-deep-update.log 2>&1 < /dev/null &"
           }
         ]
       }
