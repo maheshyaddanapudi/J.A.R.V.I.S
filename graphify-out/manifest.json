@@ -1497,12 +1497,12 @@
   "services/kernel/src/terminal/CLAUDE.md": {
     "mtime": 1784268479.4324296,
     "ast_hash": "8c34cd53501092ac4eb7964c2325deac",
-    "semantic_hash": ""
+    "semantic_hash": "8c34cd53501092ac4eb7964c2325deac"
   },
   "services/kernel/src/web/CLAUDE.md": {
     "mtime": 1784271187.0004141,
     "ast_hash": "40fd8f99ccf5b61145f9d97457789b69",
-    "semantic_hash": ""
+    "semantic_hash": "40fd8f99ccf5b61145f9d97457789b69"
   },
   "docs/screenshots/a2ui.png": {
     "mtime": 1784345952.7914824,
