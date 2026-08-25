@@ -86,20 +86,71 @@ if [ "$SKIP_KEY" = 0 ]; then
   if [ -f "$ENV_FILE" ]; then
     ok "already present (delete it to re-enter a key)"
   else
+    MODEL="${ANTHROPIC_MODEL:-$MODEL_DEFAULT}"
     KEY="${ANTHROPIC_API_KEY:-}"
-    if [ -z "$KEY" ] && [ -t 0 ]; then
-      printf '  Anthropic API key (input hidden, blank to skip): '
-      read -rs KEY; echo
+    [ -n "$KEY" ] && ok "using ANTHROPIC_API_KEY from the environment"
+
+    # Prompt on the CONTROLLING TERMINAL (/dev/tty), not stdin. This script is
+    # frequently run where stdin is not a tty — from an agent, behind a pipe,
+    # `bash setup.sh < file` — and the previous `[ -t 0 ]` guard silently
+    # skipped the prompt in every one of those cases, leaving the user with no
+    # key and only a warning. /dev/tty prompts correctly whenever a terminal is
+    # attached at all, regardless of what stdin points at.
+    # `[ -r /dev/tty ]` is NOT a sufficient guard: with no controlling terminal
+    # the node still passes the readability test but OPENING it fails with
+    # "No such device or address", which under `set -e` kills the script in
+    # precisely the non-interactive case this is meant to degrade gracefully
+    # in. Probing with a real open in a subshell is the only reliable check.
+    HAVE_TTY=0
+    if ( : < /dev/tty ) 2>/dev/null; then HAVE_TTY=1; fi
+
+    if [ -z "$KEY" ] && [ "$HAVE_TTY" = 1 ]; then
+      for attempt in 1 2 3; do
+        printf '  Anthropic API key (input hidden, blank to skip): ' > /dev/tty
+        IFS= read -rs KEY < /dev/tty || KEY=""
+        printf '\n' > /dev/tty
+        [ -z "$KEY" ] && break                      # blank = deliberate skip
+        case "$KEY" in
+          sk-ant-*) break ;;
+          *) KEY=""
+             if [ "$attempt" -lt 3 ]; then
+               printf '  that does not look like an Anthropic key (expected sk-ant-…) — try again\n' > /dev/tty
+             else
+               printf '  three malformed attempts; continuing without a key\n' > /dev/tty
+             fi ;;
+        esac
+      done
     fi
+
     if [ -z "$KEY" ]; then
-      warn "no key given — LLM passes will be skipped (AST-only graphs still work)"
+      warn "no key configured — LLM passes will be skipped (AST-only graphs still work)"
+      [ "$HAVE_TTY" = 1 ] || warn "no terminal available to prompt; pass ANTHROPIC_API_KEY=... to set one non-interactively"
     else
+      # Verify BEFORE writing: a bad key stored here surfaces much later as a
+      # failed (and already paid-for) refresh, which is a miserable way to find
+      # out. One max_tokens=1 call costs effectively nothing.
+      if command -v curl >/dev/null 2>&1; then
+        HTTP=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 \
+          https://api.anthropic.com/v1/messages \
+          -H "x-api-key: $KEY" -H "anthropic-version: 2023-06-01" \
+          -H "content-type: application/json" \
+          -d "{\"model\":\"$MODEL\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
+          2>/dev/null || echo 000)
+        case "$HTTP" in
+          200)     ok "key verified against the Anthropic API (model $MODEL)" ;;
+          401|403) bad "key rejected by the API (HTTP $HTTP) — NOT written"; unset KEY; exit 1 ;;
+          404)     warn "model '$MODEL' not found (HTTP 404) — key looks usable; check ANTHROPIC_MODEL" ;;
+          400)     warn "API returned HTTP 400 (often a billing/credit issue, not a bad key) — writing anyway" ;;
+          000)     warn "could not reach the API to verify (offline / proxy?) — writing unverified" ;;
+          *)       warn "unexpected HTTP $HTTP while verifying — writing anyway" ;;
+        esac
+      fi
       mkdir -p .claude
       umask 077
       printf 'ANTHROPIC_API_KEY=%s\nANTHROPIC_MODEL=%s\nGRAPHIFY_MAX_OUTPUT_TOKENS=32000\n' \
-        "$KEY" "${ANTHROPIC_MODEL:-$MODEL_DEFAULT}" > "$ENV_FILE"
+        "$KEY" "$MODEL" > "$ENV_FILE"
       chmod 600 "$ENV_FILE"
-      ok "written (chmod 600, gitignored), model=${ANTHROPIC_MODEL:-$MODEL_DEFAULT}"
+      ok "written (chmod 600, gitignored), model=$MODEL"
     fi
     unset KEY
   fi

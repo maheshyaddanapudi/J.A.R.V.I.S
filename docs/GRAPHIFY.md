@@ -20,6 +20,15 @@ not part of the kernel, is not in the parity matrix, and nothing in
 ./scripts/graphify-refresh.sh        # build/refresh the graph now
 ```
 
+If no key is on disk, setup **prompts for one** — on the controlling terminal
+(`/dev/tty`), so it still works when stdin is redirected or the script is
+driven by an agent. Malformed input is re-prompted (3 tries). The key is
+**verified against the API before being written**, so a typo fails in seconds
+instead of surfacing later as a failed, already-paid-for refresh; a rejected
+key (HTTP 401/403) exits non-zero and writes nothing. With no terminal
+attached and no `ANTHROPIC_API_KEY` in the environment, setup degrades
+gracefully to AST-only rather than failing.
+
 Then query it:
 
 ```bash
