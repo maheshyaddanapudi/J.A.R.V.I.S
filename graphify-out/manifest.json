@@ -570,129 +570,154 @@
     "semantic_hash": "491cca7ac7d182e898b356fa65dd2884"
   },
   "services/kernel/src/db/migrations/0001_init.sql": {
-    "mtime": 1784247470.4285479,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0281549,
+    "seen": 1787692978.2794676,
+    "ast_hash": "9ebbb4327e973e4c67c131894d0e5264",
+    "semantic_hash": "9ebbb4327e973e4c67c131894d0e5264"
   },
   "services/kernel/src/db/migrations/0002_model_calls.sql": {
-    "mtime": 1784248199.2845438,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279469,
+    "ast_hash": "8db4457b765df11cde2c77ba47e309ba",
+    "semantic_hash": "8db4457b765df11cde2c77ba47e309ba"
   },
   "services/kernel/src/db/migrations/0003_audit_and_estop.sql": {
-    "mtime": 1784249987.3885336,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.27947,
+    "ast_hash": "c7993ac2e08205ee22dd28ea2e71a38c",
+    "semantic_hash": "c7993ac2e08205ee22dd28ea2e71a38c"
   },
   "services/kernel/src/db/migrations/0004_memory.sql": {
-    "mtime": 1784251165.004527,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794712,
+    "ast_hash": "2aa7633673a480cc4709cc0402347585",
+    "semantic_hash": "2aa7633673a480cc4709cc0402347585"
   },
   "services/kernel/src/db/migrations/0005_selfext.sql": {
-    "mtime": 1784253930.7205114,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279472,
+    "ast_hash": "acf10993b0e23ea535a9cd2126149e9a",
+    "semantic_hash": "acf10993b0e23ea535a9cd2126149e9a"
   },
   "services/kernel/src/db/migrations/0006_proactive.sql": {
-    "mtime": 1784254367.556509,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279473,
+    "ast_hash": "23aaf6359e971ca1bfb6ded44448093c",
+    "semantic_hash": "23aaf6359e971ca1bfb6ded44448093c"
   },
   "services/kernel/src/db/migrations/0007_mcp.sql": {
-    "mtime": 1784256998.8324943,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279474,
+    "ast_hash": "9e027c8bfe114d251e0b744c8fac6cb6",
+    "semantic_hash": "9e027c8bfe114d251e0b744c8fac6cb6"
   },
   "services/kernel/src/db/migrations/0008_secrets.sql": {
-    "mtime": 1784257461.1924915,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279475,
+    "ast_hash": "3aec5b27433f1d41dd023696e29ba5ad",
+    "semantic_hash": "3aec5b27433f1d41dd023696e29ba5ad"
   },
   "services/kernel/src/db/migrations/0009_skills.sql": {
-    "mtime": 1784263687.0724564,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279476,
+    "ast_hash": "50375563fa4c6cc3bdf43749f9b1b823",
+    "semantic_hash": "50375563fa4c6cc3bdf43749f9b1b823"
   },
   "services/kernel/src/db/migrations/0010_entities.sql": {
-    "mtime": 1784269899.6644216,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279477,
+    "ast_hash": "be4eaf681edafe20189b48f00b2b7e56",
+    "semantic_hash": "be4eaf681edafe20189b48f00b2b7e56"
   },
   "services/kernel/src/db/migrations/0011_episodes.sql": {
-    "mtime": 1784272438.2484071,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794778,
+    "ast_hash": "99516af0f09bce6cea34056ece29c6cb",
+    "semantic_hash": "99516af0f09bce6cea34056ece29c6cb"
   },
   "services/kernel/src/db/migrations/0012_semantic.sql": {
-    "mtime": 1784275285.756391,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794788,
+    "ast_hash": "e579997a268f6679a6ea5399fb68165e",
+    "semantic_hash": "e579997a268f6679a6ea5399fb68165e"
   },
   "services/kernel/src/db/migrations/0013_prompts.sql": {
-    "mtime": 1784276191.240386,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794797,
+    "ast_hash": "a79439b06fbf12a885aef97412fe4195",
+    "semantic_hash": "a79439b06fbf12a885aef97412fe4195"
   },
   "services/kernel/src/db/migrations/0014_proactive_rules.sql": {
-    "mtime": 1784277192.5723803,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279481,
+    "ast_hash": "9afcca6cfbe369c74174e5efa2b4d0dc",
+    "semantic_hash": "9afcca6cfbe369c74174e5efa2b4d0dc"
   },
   "services/kernel/src/db/migrations/0015_reasoning_decisions.sql": {
-    "mtime": 1784336193.8632889,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279482,
+    "ast_hash": "75ecb63466ac70d302ae63859d5ad517",
+    "semantic_hash": "75ecb63466ac70d302ae63859d5ad517"
   },
   "services/kernel/src/db/migrations/0016_embeddings_hnsw.sql": {
-    "mtime": 1784340564.4046957,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794824,
+    "ast_hash": "651d47e264b16cd6f1c3fc5ea96a837c",
+    "semantic_hash": "651d47e264b16cd6f1c3fc5ea96a837c"
   },
   "services/kernel/src/db/migrations/0017_runtime_settings.sql": {
-    "mtime": 1784342085.655455,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794833,
+    "ast_hash": "727a8fa9d28682ce8e5bf84f93fdcce0",
+    "semantic_hash": "727a8fa9d28682ce8e5bf84f93fdcce0"
   },
   "services/kernel/src/db/migrations/0018_durable_grants.sql": {
-    "mtime": 1784342935.3515058,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794845,
+    "ast_hash": "f65ec0f682de9529a4cf8f137f97b398",
+    "semantic_hash": "f65ec0f682de9529a4cf8f137f97b398"
   },
   "services/kernel/src/db/migrations/0019_setting_specs.sql": {
-    "mtime": 1784345139.695501,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794852,
+    "ast_hash": "3a422da8134a0e16cb5e3a1eae838501",
+    "semantic_hash": "3a422da8134a0e16cb5e3a1eae838501"
   },
   "services/kernel/src/db/migrations/0020_ui_panels.sql": {
-    "mtime": 1784345639.4834895,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794862,
+    "ast_hash": "23e35435d3c59df1758b8785cf06bf2e",
+    "semantic_hash": "23e35435d3c59df1758b8785cf06bf2e"
   },
   "services/kernel/src/db/migrations/0021_heartbeat.sql": {
-    "mtime": 1784423428.7787495,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794871,
+    "ast_hash": "c84232c7bad5c5edc7212dcc8fe0a516",
+    "semantic_hash": "c84232c7bad5c5edc7212dcc8fe0a516"
   },
   "services/kernel/src/db/migrations/0022_announcements.sql": {
-    "mtime": 1784427276.1069782,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794883,
+    "ast_hash": "efb199ff53c64a57b58ce15f64ce2a8b",
+    "semantic_hash": "efb199ff53c64a57b58ce15f64ce2a8b"
   },
   "services/kernel/src/db/migrations/0023_projects.sql": {
-    "mtime": 1784427449.5069885,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.279489,
+    "ast_hash": "d3eafd276f305ecbddc8d41e9ca5c3e2",
+    "semantic_hash": "d3eafd276f305ecbddc8d41e9ca5c3e2"
   },
   "services/kernel/src/db/migrations/0024_capability_activation.sql": {
-    "mtime": 1784428923.3425121,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794898,
+    "ast_hash": "0717f0aef704c6160eaf1de6b4609ca1",
+    "semantic_hash": "0717f0aef704c6160eaf1de6b4609ca1"
   },
   "services/kernel/src/db/migrations/0025_entity_aliases.sql": {
-    "mtime": 1784505828.24888,
-    "ast_hash": "",
-    "semantic_hash": ""
+    "mtime": 1787690225.0285263,
+    "seen": 1787692978.2794905,
+    "ast_hash": "784e128c29626237aaa691f32a043f17",
+    "semantic_hash": "784e128c29626237aaa691f32a043f17"
   },
   "services/kernel/src/db/pool.ts": {
     "mtime": 1787690225.0285263,
@@ -1373,10 +1398,10 @@
     "semantic_hash": "23236ca5bea31fc1c86b317b42097b00"
   },
   ".claude/settings.json": {
-    "mtime": 1787690224.8679054,
-    "seen": 1787691652.6869137,
-    "ast_hash": "ccfc59fa31356365e253bfc6474a8163",
-    "semantic_hash": "ccfc59fa31356365e253bfc6474a8163"
+    "mtime": 1787691958.4909935,
+    "seen": 1787692960.6005583,
+    "ast_hash": "c2700f3d28a4f84b5025cf44330e1fe1",
+    "semantic_hash": "c2700f3d28a4f84b5025cf44330e1fe1"
   },
   ".claude/CLAUDE.md": {
     "mtime": 1787690224.864197,
@@ -1439,10 +1464,10 @@
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   "CLAUDE.md": {
-    "mtime": 1787690224.869232,
-    "seen": 1787691652.6871104,
-    "ast_hash": "3413517252f24182e9579fa7cf87b7df",
-    "semantic_hash": "3413517252f24182e9579fa7cf87b7df"
+    "mtime": 1787691975.0843012,
+    "seen": 1787692960.6125786,
+    "ast_hash": "bfc05ea306991526eba3ebd9f87f9a74",
+    "semantic_hash": "bfc05ea306991526eba3ebd9f87f9a74"
   },
   "README.md": {
     "mtime": 1787690224.869232,
@@ -1529,10 +1554,10 @@
     "semantic_hash": "328f37bf0b824d9615d73622450ecdcc"
   },
   "docs/DECISION_LOG.md": {
-    "mtime": 1787690224.8882782,
-    "seen": 1787691652.6871233,
-    "ast_hash": "5abdac78a3d409be097bd5325a55a473",
-    "semantic_hash": "5abdac78a3d409be097bd5325a55a473"
+    "mtime": 1787691697.4549527,
+    "seen": 1787692960.6131814,
+    "ast_hash": "f23851a30674cdee051d7bb30a331ec9",
+    "semantic_hash": "f23851a30674cdee051d7bb30a331ec9"
   },
   "docs/DESIGN_SYSTEM.md": {
     "mtime": 1787690224.8882782,
@@ -2085,5 +2110,11 @@
     "seen": 1787691652.6869621,
     "ast_hash": "ee093ae85d4d37428de57c9217c34293",
     "semantic_hash": "ee093ae85d4d37428de57c9217c34293"
+  },
+  "docs/GRAPHIFY.md": {
+    "mtime": 1787690771.4762297,
+    "seen": 1787692960.6132603,
+    "ast_hash": "531e3f4e8b97d1e8681c14606fd26459",
+    "semantic_hash": "531e3f4e8b97d1e8681c14606fd26459"
   }
 }
