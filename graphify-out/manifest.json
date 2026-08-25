@@ -2106,15 +2106,15 @@
     "semantic_hash": "be38b559252f0c877154b58ba15a4584"
   },
   "scripts/graphify-setup.sh": {
-    "mtime": 1787690820.1262212,
-    "seen": 1787691652.6869621,
-    "ast_hash": "ee093ae85d4d37428de57c9217c34293",
-    "semantic_hash": "ee093ae85d4d37428de57c9217c34293"
+    "mtime": 1787694280.6581054,
+    "seen": 1787694388.6256452,
+    "ast_hash": "e29cf565fbe30ae4c8a4060382da68a3",
+    "semantic_hash": "e29cf565fbe30ae4c8a4060382da68a3"
   },
   "docs/GRAPHIFY.md": {
-    "mtime": 1787690771.4762297,
-    "seen": 1787692960.6132603,
-    "ast_hash": "531e3f4e8b97d1e8681c14606fd26459",
-    "semantic_hash": "531e3f4e8b97d1e8681c14606fd26459"
+    "mtime": 1787694330.3901083,
+    "seen": 1787694388.6317909,
+    "ast_hash": "c5a85a599fa92b9e8a0961ea781b8562",
+    "semantic_hash": "c5a85a599fa92b9e8a0961ea781b8562"
   }
 }
