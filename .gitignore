@@ -22,3 +22,4 @@ graphify-out/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 # live Anthropic key for the graphify auto-update hook — never committed
 .claude/graphify.env
 graphify-out/.hook-deep-update.log
+graphify-out/.graphify-pipeline.lock
