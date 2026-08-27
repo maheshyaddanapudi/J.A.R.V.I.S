@@ -50,7 +50,7 @@ import { LocalAgentRuntime } from "../agent/runtime.js";
 import type { AgentRuntime } from "../agent/contract.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { skillTools } from "../skills/tools.js";
-import { GatewayMemoryJudge } from "../memory/judge.js";
+import { GatewayMemoryJudge, seedJudgeTemplates } from "../memory/judge.js";
 import { PromptRegistry } from "../prompts/registry.js";
 import { ReasoningTuner } from "./reasoning.js";
 import { DecisionLog, SleepCycle } from "./consolidation.js";
@@ -207,8 +207,16 @@ export async function buildCore(opts: {
   // extraction via the `fast_conversation` role. BEST-EFFORT — every method falls
   // back to deterministic logic when the gate is off, offline, or no provider is
   // eligible (private/secret memory stays LOCAL_ONLY). It never blocks a write.
+  // Prompts registry — user-editable persona/system/template prompts (R-CAP-01).
+  // Built BEFORE the judge so judge prompt templates resolve from it (D-0079
+  // Slice L1a: the templates are Night-Lab experimentable surface). The five
+  // judge templates are boot-seeded when absent so they are visible/versionable
+  // in /prompts; resolution is best-effort — registry failure → code constant.
+  const prompts = new PromptRegistry(opts.pool, audit);
+  await seedJudgeTemplates(prompts);
   const memoryJudge = new GatewayMemoryJudge(opts.gateway, {
     enabled: () => settings.bool("memory.llmJudgment", true),
+    templates: async (name) => (await prompts.get(name, "template"))?.content ?? null,
   });
   // Semantic knowledge store (entities/facts/relations) — encrypted at rest; the
   // vector index enables hybrid graph recall (entry points by meaning → one-hop
@@ -371,9 +379,7 @@ export async function buildCore(opts: {
   // and re-run one (skill.run) — the no-code counterpart to code capabilities
   // (which are already reusable as `capability:<name>` tools + selfext.listActive).
   for (const t of skillTools(skills)) tools.register(t);
-  // Prompts registry — user-editable persona/system prompts (R-CAP-01). The
-  // conversation loop reads the active persona; default seeded by migration 0013.
-  const prompts = new PromptRegistry(opts.pool, audit);
+  // (prompts registry constructed earlier, before the memory judge — D-0079)
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);

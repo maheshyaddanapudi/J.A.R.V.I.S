@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { GatewayMemoryJudge, privacyForSensitivities } from "../src/memory/judge.js";
-import type { ChatResult } from "../src/gateway/schema.js";
+import {
+  GatewayMemoryJudge,
+  JUDGE_TEMPLATES,
+  privacyForSensitivities,
+  seedJudgeTemplates,
+} from "../src/memory/judge.js";
+import type { ChatRequest, ChatResult } from "../src/gateway/schema.js";
 
 /** A stub gateway whose reply text we control, to test parsing + validation +
  *  the best-effort fallback contract WITHOUT any real provider. */
@@ -121,6 +126,67 @@ describe("GatewayMemoryJudge (D-0075 fast-model memory judgments)", () => {
       [{ at: "t", text: "c" }],
       "LOCAL_ONLY",
     )).toBeNull();
+  });
+
+  it("template resolver override reaches the model as the system prompt (D-0079)", async () => {
+    let seenSystem = "";
+    const gw = {
+      chat: async (req: ChatRequest): Promise<ChatResult> => {
+        const sys = req.messages.find((m) => m.role === "system");
+        seenSystem = typeof sys?.content === "string" ? sys.content : "";
+        return {
+          text: '{"sameAs":0,"reason":"x"}', toolCalls: [], finishReason: "stop" as const,
+          usage: { inputTokens: 0, outputTokens: 0 }, provider: "stub", model: "stub", latencyMs: 1,
+        };
+      },
+    };
+    const j = new GatewayMemoryJudge(gw, {
+      templates: async (name) => (name === "judge-entity-resolution" ? "LAB VARIANT PROMPT" : null),
+    });
+    await j.resolveEntity({ name: "Pepper", kind: "person" }, [{ name: "Pepper Potts", kind: "person" }], "STANDARD");
+    expect(seenSystem).toBe("LAB VARIANT PROMPT");
+  });
+
+  it("template resolver failure or empty → shipped default (never blocks the judgment)", async () => {
+    let seenSystem = "";
+    const gw = {
+      chat: async (req: ChatRequest): Promise<ChatResult> => {
+        const sys = req.messages.find((m) => m.role === "system");
+        seenSystem = typeof sys?.content === "string" ? sys.content : "";
+        return {
+          text: '{"topics":["palladium"]}', toolCalls: [], finishReason: "stop" as const,
+          usage: { inputTokens: 0, outputTokens: 0 }, provider: "stub", model: "stub", latencyMs: 1,
+        };
+      },
+    };
+    const throwing = new GatewayMemoryJudge(gw, { templates: async () => { throw new Error("registry down"); } });
+    expect(await throwing.extractTopics("palladium please", "STANDARD")).toEqual(["palladium"]);
+    expect(seenSystem).toBe(JUDGE_TEMPLATES["judge-topic-extraction"]);
+    const empty = new GatewayMemoryJudge(gw, { templates: async () => "   " });
+    await empty.extractTopics("palladium please", "STANDARD");
+    expect(seenSystem).toBe(JUDGE_TEMPLATES["judge-topic-extraction"]);
+  });
+
+  it("seedJudgeTemplates seeds only absent templates and never overwrites (D-0079)", async () => {
+    const store = new Map<string, string>();
+    store.set("judge-topic-extraction", "USER EDITED — must survive");
+    const sets: string[] = [];
+    const registry = {
+      get: async (name: string) => (store.has(name) ? { content: store.get(name)! } : null),
+      set: async (input: { name: string; kind: "template"; content: string }) => {
+        sets.push(input.name);
+        store.set(input.name, input.content);
+        return {};
+      },
+    };
+    await seedJudgeTemplates(registry);
+    expect(store.get("judge-topic-extraction")).toBe("USER EDITED — must survive");
+    expect(sets).not.toContain("judge-topic-extraction");
+    expect(store.get("judge-entity-resolution")).toBe(JUDGE_TEMPLATES["judge-entity-resolution"]);
+    // second run: nothing new to seed
+    const before = sets.length;
+    await seedJudgeTemplates(registry);
+    expect(sets.length).toBe(before);
   });
 
   it("privacyForSensitivities: private/secret → LOCAL_ONLY, else STANDARD", () => {

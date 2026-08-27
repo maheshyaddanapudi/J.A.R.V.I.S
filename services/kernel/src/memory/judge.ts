@@ -113,6 +113,82 @@ export function privacyForSensitivities(sens: (string | undefined)[]): PrivacyCl
   return sens.some((s) => s === "private" || s === "secret") ? "LOCAL_ONLY" : "STANDARD";
 }
 
+/**
+ * Judge prompt templates (D-0079 Slice L1a): the system prompts below are
+ * EXPERIMENTABLE SURFACE for the Night Lab, so they live as named `template`
+ * prompts in the prompts registry (versioned, user-editable, lab-editable)
+ * with these code constants as the seeded defaults AND the permanent fallback.
+ * Resolution is best-effort at call time: a registry failure, a missing row, or
+ * no resolver at all → the code constant. The registry can therefore never
+ * break a memory write (same non-negotiable contract as the judge itself).
+ */
+export const JUDGE_TEMPLATES = {
+  "judge-entity-resolution":
+    "You are J.A.R.V.I.S.'s memory entity-resolution subsystem. A new mention has arrived; " +
+    "decide whether it denotes the SAME real-world thing as one already known. Be CONSERVATIVE: " +
+    "say SAME only when you are confident they are the identical real-world entity — e.g. a short " +
+    "name vs its full name ('Pepper' ⇄ 'Pepper Potts'), or the same object described two ways " +
+    "('Mark 42' ⇄ 'the Mark 42 suit'). Candidates may carry a DIFFERENT kind than the new mention: " +
+    "the same real-world thing is sometimes labelled inconsistently ('arc reactor' as a 'thing' or a " +
+    "'project') — that is still the SAME. But a shared NAME across genuinely different things " +
+    "('Mercury' the planet vs the element vs the Roman god) is NOT the same. Reply with ONLY JSON: " +
+    '{"sameAs": <candidate index (integer) or null>, "reason": "<short>"}.',
+  "judge-entity-consolidation":
+    "You consolidate a person's memory during sleep. These entities all share the NAME below but " +
+    "were stored under DIFFERENT kinds — across stateless sessions the model sometimes labels the " +
+    "same real-world thing inconsistently (e.g. 'arc reactor' as both a 'thing' and a 'project'). " +
+    "Decide which refer to the SAME real-world thing and should be merged, keeping the best-described " +
+    "one. Do NOT merge entities that are genuinely DIFFERENT things merely sharing a name ('Mercury' " +
+    "the planet vs the element vs the Roman god). When unsure, do not merge. Reply with ONLY JSON: " +
+    '{"merges": [{"keep": <index>, "merge": [<index>, ...]}, ...]} — empty if nothing to merge.',
+  "judge-fact-consolidation":
+    "You consolidate a person's long-term memory during sleep. Given the facts currently known " +
+    "about ONE entity, identify groups that RESTATE the same information (possibly reworded, e.g. " +
+    "'runs on a palladium core' and 'uses a palladium core'), which should be merged by keeping the " +
+    "single clearest/most complete statement. Do NOT merge facts that add DIFFERENT information, " +
+    "even about the same entity (different attributes, numbers, events). When unsure, do not merge. " +
+    'Reply with ONLY JSON: {"merges": [{"keep": <index>, "supersede": [<index>, ...]}, ...]} — empty if nothing to merge.',
+  "judge-agenda-freshness":
+    "You are J.A.R.V.I.S.'s agenda-freshness check, run just before autonomous time. Each agenda item " +
+    "below was written at its createdAt; the CHANGES list is what actually happened since (memory " +
+    "updates, actions, decisions — newest context wins over older intent). Mark an item STALE only " +
+    "when the changes show it is already satisfied, explicitly contradicted, or clearly overtaken by " +
+    "events. When unsure, it is NOT stale (acting on a valid item matters more than skipping a " +
+    'doubtful one). Reply with ONLY JSON: {"stale": [{"idx": <index>, "reason": "<short>"}, ...]} — empty list if all items remain valid.',
+  "judge-topic-extraction":
+    "The user just asked J.A.R.V.I.S. to think more deeply about their message. Extract the SPECIFIC " +
+    "subject-matter they want deep reasoning on, as 1-3 short lowercase topic terms (single distinctive " +
+    "words or two-word phrases, e.g. 'palladium', 'orbital mechanics', 'metallurgy'). IGNORE filler and " +
+    "meta words like 'quick', 'one-line', 'intuition', 'explain', 'give me'. If there is no substantive " +
+    'topic, return an empty list. Reply with ONLY JSON: {"topics": ["...", ...]}.',
+} as const;
+
+export type JudgeTemplateName = keyof typeof JUDGE_TEMPLATES;
+
+/** Resolves the active registry override for a judge template, or null → default. */
+export type JudgeTemplateResolver = (name: JudgeTemplateName) => Promise<string | null>;
+
+/**
+ * Idempotent boot-seed: register each judge template in the prompts registry
+ * when absent, so the templates are visible + versionable (and the Night Lab
+ * can supersede them via the normal `prompts.set` path). Existing rows —
+ * including user or lab edits — are never touched. Best-effort: a registry
+ * failure only means the code-constant fallback keeps serving.
+ */
+export async function seedJudgeTemplates(registry: {
+  get(name: string, kind: "template"): Promise<{ content: string } | null>;
+  set(input: { name: string; kind: "template"; content: string; provenance?: string }): Promise<unknown>;
+}): Promise<void> {
+  for (const [name, content] of Object.entries(JUDGE_TEMPLATES)) {
+    try {
+      const existing = await registry.get(name, "template");
+      if (!existing) await registry.set({ name, kind: "template", content, provenance: "builtin-seed" });
+    } catch {
+      /* best-effort — fallback constants still serve */
+    }
+  }
+}
+
 /** Pull a JSON object/array out of a model reply, tolerating code fences and
  *  surrounding prose. Returns null if nothing parses. */
 function parseJson<T>(text: string): T | null {
@@ -147,6 +223,9 @@ export class GatewayMemoryJudge implements MemoryJudge {
       enabled?: () => Promise<boolean> | boolean;
       /** hard cap so a stuck provider can't stall a memory write (default 15s) */
       timeoutMs?: number;
+      /** optional prompt-template override source (D-0079: the prompts registry).
+       *  Best-effort: null/throw → the JUDGE_TEMPLATES code constant. */
+      templates?: JudgeTemplateResolver;
     } = {},
   ) {}
 
@@ -156,6 +235,19 @@ export class GatewayMemoryJudge implements MemoryJudge {
     } catch {
       return false;
     }
+  }
+
+  /** Active template override, else the shipped default — never throws. */
+  private async template(name: JudgeTemplateName): Promise<string> {
+    if (this.opts.templates) {
+      try {
+        const t = await this.opts.templates(name);
+        if (t && t.trim().length > 0) return t;
+      } catch {
+        /* registry unavailable → default */
+      }
+    }
+    return JUDGE_TEMPLATES[name];
   }
 
   private async ask<T>(
@@ -196,16 +288,7 @@ export class GatewayMemoryJudge implements MemoryJudge {
     privacy: PrivacyClass,
   ): Promise<{ sameAs: number | null; reason: string } | null> {
     if (candidates.length === 0) return { sameAs: null, reason: "no similar entity known" };
-    const system =
-      "You are J.A.R.V.I.S.'s memory entity-resolution subsystem. A new mention has arrived; " +
-      "decide whether it denotes the SAME real-world thing as one already known. Be CONSERVATIVE: " +
-      "say SAME only when you are confident they are the identical real-world entity — e.g. a short " +
-      "name vs its full name ('Pepper' ⇄ 'Pepper Potts'), or the same object described two ways " +
-      "('Mark 42' ⇄ 'the Mark 42 suit'). Candidates may carry a DIFFERENT kind than the new mention: " +
-      "the same real-world thing is sometimes labelled inconsistently ('arc reactor' as a 'thing' or a " +
-      "'project') — that is still the SAME. But a shared NAME across genuinely different things " +
-      "('Mercury' the planet vs the element vs the Roman god) is NOT the same. Reply with ONLY JSON: " +
-      '{"sameAs": <candidate index (integer) or null>, "reason": "<short>"}.';
+    const system = await this.template("judge-entity-resolution");
     const user = JSON.stringify({
       newMention: { name: subject.name, kind: subject.kind, attributes: subject.attributes ?? "" },
       knownCandidates: candidates.map((c, i) => ({
@@ -237,14 +320,7 @@ export class GatewayMemoryJudge implements MemoryJudge {
     privacy: PrivacyClass,
   ): Promise<EntityMergeGroup[] | null> {
     if (entities.length < 2) return [];
-    const system =
-      "You consolidate a person's memory during sleep. These entities all share the NAME below but " +
-      "were stored under DIFFERENT kinds — across stateless sessions the model sometimes labels the " +
-      "same real-world thing inconsistently (e.g. 'arc reactor' as both a 'thing' and a 'project'). " +
-      "Decide which refer to the SAME real-world thing and should be merged, keeping the best-described " +
-      "one. Do NOT merge entities that are genuinely DIFFERENT things merely sharing a name ('Mercury' " +
-      "the planet vs the element vs the Roman god). When unsure, do not merge. Reply with ONLY JSON: " +
-      '{"merges": [{"keep": <index>, "merge": [<index>, ...]}, ...]} — empty if nothing to merge.';
+    const system = await this.template("judge-entity-consolidation");
     const user = JSON.stringify({
       name,
       entities: entities.map((e) => ({ index: e.idx, kind: e.kind, facts: e.facts.slice(0, 5) })),
@@ -267,13 +343,7 @@ export class GatewayMemoryJudge implements MemoryJudge {
     privacy: PrivacyClass,
   ): Promise<MergeGroup[] | null> {
     if (facts.length < 2) return [];
-    const system =
-      "You consolidate a person's long-term memory during sleep. Given the facts currently known " +
-      "about ONE entity, identify groups that RESTATE the same information (possibly reworded, e.g. " +
-      "'runs on a palladium core' and 'uses a palladium core'), which should be merged by keeping the " +
-      "single clearest/most complete statement. Do NOT merge facts that add DIFFERENT information, " +
-      "even about the same entity (different attributes, numbers, events). When unsure, do not merge. " +
-      'Reply with ONLY JSON: {"merges": [{"keep": <index>, "supersede": [<index>, ...]}, ...]} — empty if nothing to merge.';
+    const system = await this.template("judge-fact-consolidation");
     const user = JSON.stringify({
       entity,
       facts: facts.map((f) => ({ index: f.idx, statement: f.text })),
@@ -306,13 +376,7 @@ export class GatewayMemoryJudge implements MemoryJudge {
   ): Promise<{ idx: number; reason: string }[] | null> {
     if (items.length === 0) return [];
     if (changes.length === 0) return []; // nothing happened since — nothing can be stale
-    const system =
-      "You are J.A.R.V.I.S.'s agenda-freshness check, run just before autonomous time. Each agenda item " +
-      "below was written at its createdAt; the CHANGES list is what actually happened since (memory " +
-      "updates, actions, decisions — newest context wins over older intent). Mark an item STALE only " +
-      "when the changes show it is already satisfied, explicitly contradicted, or clearly overtaken by " +
-      "events. When unsure, it is NOT stale (acting on a valid item matters more than skipping a " +
-      'doubtful one). Reply with ONLY JSON: {"stale": [{"idx": <index>, "reason": "<short>"}, ...]} — empty list if all items remain valid.';
+    const system = await this.template("judge-agenda-freshness");
     const user = JSON.stringify({
       agendaItems: items.map((i) => ({ index: i.idx, what: i.what, why: i.why ?? "", createdAt: i.createdAt })),
       changesSince: changes.slice(0, 15),
@@ -331,12 +395,7 @@ export class GatewayMemoryJudge implements MemoryJudge {
   }
 
   async extractTopics(text: string, privacy: PrivacyClass): Promise<string[] | null> {
-    const system =
-      "The user just asked J.A.R.V.I.S. to think more deeply about their message. Extract the SPECIFIC " +
-      "subject-matter they want deep reasoning on, as 1-3 short lowercase topic terms (single distinctive " +
-      "words or two-word phrases, e.g. 'palladium', 'orbital mechanics', 'metallurgy'). IGNORE filler and " +
-      "meta words like 'quick', 'one-line', 'intuition', 'explain', 'give me'. If there is no substantive " +
-      'topic, return an empty list. Reply with ONLY JSON: {"topics": ["...", ...]}.';
+    const system = await this.template("judge-topic-extraction");
     const out = await this.ask<{ topics?: string[] }>(system, text.slice(0, 2000), privacy, "reasoning-topic-extraction");
     if (!out) return null;
     return (out.topics ?? [])
