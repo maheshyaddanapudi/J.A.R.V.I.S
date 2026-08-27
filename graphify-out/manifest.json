@@ -1464,10 +1464,10 @@
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   "CLAUDE.md": {
-    "mtime": 1787691975.0843012,
-    "seen": 1787692960.6125786,
-    "ast_hash": "bfc05ea306991526eba3ebd9f87f9a74",
-    "semantic_hash": "bfc05ea306991526eba3ebd9f87f9a74"
+    "mtime": 1787872292.9138942,
+    "seen": 1787872356.5619812,
+    "ast_hash": "2addf2a49740735f78e7a26e10b6ed35",
+    "semantic_hash": "2addf2a49740735f78e7a26e10b6ed35"
   },
   "README.md": {
     "mtime": 1787690224.869232,
@@ -1554,10 +1554,10 @@
     "semantic_hash": "328f37bf0b824d9615d73622450ecdcc"
   },
   "docs/DECISION_LOG.md": {
-    "mtime": 1787691697.4549527,
-    "seen": 1787692960.6131814,
-    "ast_hash": "f23851a30674cdee051d7bb30a331ec9",
-    "semantic_hash": "f23851a30674cdee051d7bb30a331ec9"
+    "mtime": 1787872287.9498942,
+    "seen": 1787872356.5623436,
+    "ast_hash": "e00fe0d9d012197ded14dbcf058756bb",
+    "semantic_hash": "e00fe0d9d012197ded14dbcf058756bb"
   },
   "docs/DESIGN_SYSTEM.md": {
     "mtime": 1787690224.8882782,
@@ -2116,5 +2116,11 @@
     "seen": 1787694388.6317909,
     "ast_hash": "c5a85a599fa92b9e8a0961ea781b8562",
     "semantic_hash": "c5a85a599fa92b9e8a0961ea781b8562"
+  },
+  "docs/NIGHT_LAB_SPEC.md": {
+    "mtime": 1787872272.5858946,
+    "seen": 1787872356.5624592,
+    "ast_hash": "080fd205ca405c63e979a8b3e92c11e6",
+    "semantic_hash": "080fd205ca405c63e979a8b3e92c11e6"
   }
 }
