@@ -1,0 +1,23 @@
+{
+  "name": "@jarvis/command-center",
+  "private": true,
+  "version": "0.1.0",
+  "description": "J.A.R.V.I.S. Command Center — browser interface",
+  "scripts": {
+    "dev": "next dev -p 4160",
+    "build": "next build",
+    "start": "next start -p 4160",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^16.2.10",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

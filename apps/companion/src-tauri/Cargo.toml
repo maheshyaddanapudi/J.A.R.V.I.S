@@ -1,0 +1,31 @@
+# J.A.R.V.I.S. macOS companion — Tauri 2 app shell.
+#
+# BUILD TARGET: macOS (Apple Silicon). Tauri needs the platform WebView (WKWebView
+# on macOS); it is NOT compiled in the Linux dev container. The kernel-facing logic
+# lives in the sibling `jarvis-companion-core` crate, which IS compiled + tested off
+# the Mac — so the menu-bar EMERGENCY STOP drives the REAL kernel, verified.
+[package]
+name = "jarvis-companion"
+version = "0.1.0"
+edition = "2021"
+description = "J.A.R.V.I.S. macOS companion — menu-bar emergency stop, global push-to-talk, and the Command Center window."
+license = "MIT"
+default-run = "jarvis-companion"
+
+[lib]
+name = "jarvis_companion_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "jarvis-companion"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+jarvis-companion-core = { path = "../core" }

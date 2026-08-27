@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>J.A.R.V.I.S.</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #05070a; color: #58c4e8;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .c { display: grid; place-items: center; height: 100%; text-align: center; }
+      a { color: #58c4e8; }
+    </style>
+  </head>
+  <body>
+    <!--
+      The companion window loads the running Command Center (http://localhost:4160)
+      directly (tauri.conf.json app.windows[].url). This bundled page is only the
+      fallback frontendDist Tauri requires; it redirects to the Command Center, or
+      shows a hint if the stack isn't up yet.
+    -->
+    <div class="c">
+      <div>
+        <p>J.A.R.V.I.S. — connecting to the Command Center…</p>
+        <p><a href="http://localhost:4160">http://localhost:4160</a></p>
+        <p style="color:#6b7684">If this persists, start the stack: <code>make dev</code></p>
+      </div>
+    </div>
+    <script>
+      // Redirect to the live Command Center service.
+      setTimeout(function () { window.location.replace("http://localhost:4160"); }, 400);
+    </script>
+  </body>
+</html>

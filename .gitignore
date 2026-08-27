@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+.env
+.env.local
+.venv/
+__pycache__/
+*.pyc
+.turbo/
+coverage/
+.DS_Store
+# local runtime state (never commit user data — R-LOC-01)
+.jarvis/
+var/
+
+# graphify (dev-tool code-graph cache; graph.json/graph.html/report are committed, the AST cache is not)
+graphify-out/cache/
+# graphify's own pre-overwrite snapshot backups (redundant with git history)
+graphify-out/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+.claude/settings.local.json
+# live Anthropic key for the graphify auto-update hook — never committed
+.claude/graphify.env
+graphify-out/.hook-deep-update.log
+graphify-out/.graphify-pipeline.lock
