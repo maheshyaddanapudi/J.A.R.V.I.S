@@ -31,27 +31,12 @@ infra:
 infra-down:
 	$(COMPOSE) down
 
-# The DB bring-up ladder (CLAUDE.md "Database bring-up"): already up → done;
-# Docker daemon available → compose (canonical); else a native cluster if one
-# exists (the remote dev container, where Docker-in-Docker is impossible);
-# else stop with instructions — never proceed around a missing DB.
+# The DB bring-up ladder (CLAUDE.md "Database bring-up") lives in
+# scripts/db_up.sh: Docker-first (starts the daemon with permission when a
+# human is present, quietly attempts it when not), native-cluster fallback,
+# offered direct install, else fail with instructions — never a silent skip.
 db-up:
-	@if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then \
-	  echo "Postgres: already up"; \
-	elif docker info >/dev/null 2>&1; then \
-	  echo "Postgres: starting via Docker Compose (canonical path)..."; \
-	  $(COMPOSE) up -d --wait db; \
-	elif command -v pg_ctlcluster >/dev/null 2>&1; then \
-	  echo "Postgres: Docker unavailable — starting native cluster (dev-container fallback)..."; \
-	  pg_ctlcluster 16 main start && sleep 1 && pg_isready -h 127.0.0.1 -p 5432; \
-	else \
-	  echo ""; \
-	  echo "ERROR: Postgres is down and nothing here can start it."; \
-	  echo "  canonical: start Docker (Docker Desktop on the Mac), then: make infra"; \
-	  echo "  (no native postgresql cluster found as a fallback either)"; \
-	  echo "Human action needed before tests, migrations, or the kernel can run."; \
-	  exit 1; \
-	fi
+	@bash scripts/db_up.sh
 
 migrate: db-up
 	pnpm --filter @jarvis/kernel migrate
