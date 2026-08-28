@@ -26,6 +26,37 @@ import { generateCandidate } from "./researcher.js";
 import type { LabCandidate } from "./surface.js";
 import { JUDGE_TEMPLATES } from "../memory/judge.js";
 
+/** The live on-surface state a night measures against and experiments on top of. */
+export interface SurfaceSnapshot {
+  prompts: { name: string; kind: "template" | "persona"; content: string }[];
+  settings: Record<string, unknown>;
+}
+
+/**
+ * The null hypothesis is what J.A.R.V.I.S. CURRENTLY does, not the factory
+ * default: the live surface rides under the baseline AND under every trial,
+ * with the candidate's one change overlaid. A user-edited persona (or knob)
+ * is therefore what candidates must beat.
+ */
+export function overlayOnSurface(surface: SurfaceSnapshot, candidate: LabCandidate | null): LabCandidate | null {
+  const hasSurface = surface.prompts.length > 0 || Object.keys(surface.settings).length > 0;
+  if (!candidate) {
+    if (!hasSurface) return null;
+    return { summary: "current live surface (baseline)", prompts: surface.prompts, settings: surface.settings };
+  }
+  // candidate wins on collisions; for kind=persona the bench activates the
+  // candidate LAST either way, so its persona is the active one under test
+  const overridden = new Set((candidate.prompts ?? []).map((p) => `${p.kind}:${p.name}`));
+  return {
+    ...candidate,
+    prompts: [
+      ...surface.prompts.filter((p) => !overridden.has(`${p.kind}:${p.name}`)),
+      ...(candidate.prompts ?? []),
+    ],
+    settings: { ...surface.settings, ...(candidate.settings ?? {}) },
+  };
+}
+
 export interface NightSummary {
   skipped?: string;
   halted?: string;
@@ -73,6 +104,9 @@ export interface LabNightDeps {
   announcer?: AnnouncerLike;
   /** load a campaign contract by name (bench/campaigns/<name>.json) */
   loadCampaign: (name: string) => Promise<CampaignSpec | null>;
+  /** user/jarvis-overridden values of LAB_SETTINGS_SURFACE keys (never defaults) —
+   *  mirrored into the lab so the baseline measures the CURRENT configuration */
+  effectiveLabSettings?: () => Promise<Record<string, unknown>>;
   lastUserActivity?: () => string | null;
   now?: () => Date;
 }
@@ -113,15 +147,16 @@ export class LabNightRun {
     return rows[0].n as number;
   }
 
-  private async currentSurfaceContent(): Promise<{ prompts: { name: string; kind: string; content: string }[] }> {
-    const prompts: { name: string; kind: string; content: string }[] = [];
+  private async currentSurfaceContent(): Promise<SurfaceSnapshot> {
+    const prompts: SurfaceSnapshot["prompts"] = [];
     const persona = await this.deps.prompts.getActive("persona").catch(() => null);
-    if (persona) prompts.push({ name: persona.name, kind: "persona", content: persona.content });
+    if (persona) prompts.push({ name: persona.name, kind: "persona" as const, content: persona.content });
     for (const name of Object.keys(JUDGE_TEMPLATES)) {
       const t = await this.deps.prompts.get(name, "template").catch(() => null);
-      if (t) prompts.push({ name, kind: "template", content: t.content });
+      if (t) prompts.push({ name, kind: "template" as const, content: t.content });
     }
-    return { prompts };
+    const settings = (await this.deps.effectiveLabSettings?.().catch(() => ({}))) ?? {};
+    return { prompts, settings };
   }
 
   /**
@@ -157,11 +192,16 @@ export class LabNightRun {
     try {
       await this.deps.audit.append({ actor: "jarvis-lab", event: "lab_night_started", payload: { campaign: spec.name } });
 
+      // Snapshot the live on-surface state ONCE: it is the night's null
+      // hypothesis (baseline) and the ground every candidate stands on.
+      const surface = await this.currentSurfaceContent();
+      const surfacedRunner: BenchRunner = { run: (c) => this.deps.runner.run(overlayOnSurface(surface, c)) };
+
       // Baseline. A gate failure HERE means the platform itself regressed —
       // that is a wake-the-user finding, not something to experiment on top of.
       let baseline: BenchReport;
       try {
-        baseline = await this.deps.runner.run(null);
+        baseline = await surfacedRunner.run(null);
       } catch (err) {
         summary.halted = `baseline crashed: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200);
         await this.deps.announcer?.raise({
@@ -199,7 +239,7 @@ export class LabNightRun {
         if (summary.tokensSpent >= nightlyCap) { summary.halted = `nightly token cap (${summary.tokensSpent}/${nightlyCap})`; break; }
 
         const candidate: LabCandidate | null = await generateCandidate(
-          this.deps.gateway, spec, await this.deps.engine.history(spec.name, 12), await this.currentSurfaceContent(),
+          this.deps.gateway, spec, await this.deps.engine.history(spec.name, 12), surface,
         );
         if (!candidate) {
           nullCandidates++;
@@ -208,7 +248,7 @@ export class LabNightRun {
         }
         nullCandidates = 0;
 
-        const row = await this.deps.engine.runExperiment(this.deps.runner, spec, candidate, baseline);
+        const row = await this.deps.engine.runExperiment(surfacedRunner, spec, candidate, baseline);
         summary.experiments++;
         summary.tokensSpent += row.tokensSpent;
         if (row.verdict === "keep") {

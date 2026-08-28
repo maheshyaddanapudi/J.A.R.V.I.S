@@ -114,6 +114,42 @@ describe.skipIf(!pool)("LabNightRun envelope + protocol", () => {
     return r;
   }
 
+  it("null hypothesis is the LIVE surface: baseline and every trial carry the current persona + overridden settings; the candidate overlays its one change", async () => {
+    const inputs: (import("../src/lab/surface.js").LabCandidate | null)[] = [];
+    const runner: BenchRunner = {
+      run: async (c) => { inputs.push(c); return report(inputs.length === 1 ? 80 : 86); },
+    };
+    const settings = settingsFake({ "lab.enabled": true });
+    const n = new LabNightRun({
+      pool: pool!,
+      settings,
+      estop: { isEngaged: false },
+      audit,
+      engine: new LabEngine(pool!, audit, null, { trials: 3, delta: 4, epsilon: 3 }),
+      runner,
+      gateway: gatewayFake() as never,
+      prompts: { getActive: async () => ({ name: "user-persona", content: "current persona" }), get: async () => null },
+      announcer,
+      loadCampaign: async () => ({ ...CAMPAIGN, stop: { maxExperiments: 1 } }),
+      effectiveLabSettings: async () => ({ "heartbeat.maxSteps": 9 }), // a user-overridden on-surface knob
+      lastUserActivity: () => null,
+      now: NIGHT,
+    });
+    const s = await n.runNight();
+    expect(s.kept).toBe(1);
+    // baseline = the live surface itself, not the factory default
+    const base = inputs[0]!;
+    expect(base.prompts?.some((p) => p.kind === "persona" && p.content === "current persona")).toBe(true);
+    expect(base.settings?.["heartbeat.maxSteps"]).toBe(9);
+    // every trial = live surface + the candidate's one change (candidate persona active, override wins)
+    for (const trial of inputs.slice(1)) {
+      expect(trial!.prompts?.at(-1)?.content).toBe("You are J.A.R.V.I.S., ...");
+      expect(trial!.prompts?.filter((p) => p.kind === "persona")).toHaveLength(2); // live persona rides along, candidate activates last
+      expect(trial!.settings?.["heartbeat.maxSteps"]).toBe(9);
+    }
+    expect(inputs).toHaveLength(4); // baseline + 3 trials
+  });
+
   it("default OFF: skipped 'disabled', no bench run, nothing announced (R-LAB-08)", async () => {
     const runner = countingRunner(() => report(90));
     const s = await night({ settings: settingsFake({}), runner }).runNight();

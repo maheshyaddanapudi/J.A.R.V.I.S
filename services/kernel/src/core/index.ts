@@ -74,6 +74,7 @@ import { LabEngine } from "../lab/engine.js";
 import { PyBenchRunner } from "../lab/bench.js";
 import { LabNightRun } from "../lab/night.js";
 import { LabApplier } from "../lab/apply.js";
+import { LAB_SETTINGS_SURFACE } from "../lab/surface.js";
 import { resolve as resolvePath } from "node:path";
 import { readFile } from "node:fs/promises";
 
@@ -464,6 +465,15 @@ export async function buildCore(opts: {
   const labNight = new LabNightRun({
     pool: opts.pool, settings, estop, audit,
     engine: labEngine, runner: labRunner, gateway: opts.gateway, prompts, announcer,
+    // the night measures the CURRENT configuration: overridden on-surface
+    // settings ride into the lab under baseline and every trial
+    effectiveLabSettings: async () => {
+      const out: Record<string, unknown> = {};
+      for (const e of await settings.effective()) {
+        if (e.source !== "default" && LAB_SETTINGS_SURFACE.includes(e.key)) out[e.key] = e.value;
+      }
+      return out;
+    },
     loadCampaign: async (name) => {
       try {
         // approved campaigns are the committed contracts under bench/campaigns/

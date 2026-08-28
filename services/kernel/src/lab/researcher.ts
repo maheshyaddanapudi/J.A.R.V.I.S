@@ -41,7 +41,7 @@ export async function generateCandidate(
   gateway: GatewayLike,
   spec: CampaignSpec,
   history: { summary: string; verdict: string; reason: string }[],
-  currentSurface: { prompts: { name: string; kind: string; content: string }[] },
+  currentSurface: { prompts: { name: string; kind: string; content: string }[]; settings?: Record<string, unknown> },
   timeoutMs = 60000,
 ): Promise<LabCandidate | null> {
   const ac = new AbortController();
@@ -56,6 +56,7 @@ export async function generateCandidate(
         surface: spec.surface,
       },
       currentSurfaceContent: currentSurface.prompts,
+      currentSurfaceSettings: currentSurface.settings ?? {},
       previousExperimentsNewestFirst: history.slice(0, 12),
     });
     const res = await gateway.chat(
