@@ -234,10 +234,10 @@
     "semantic_hash": "f20755bac29320105db8ffe696aee346"
   },
   "scripts/acceptance_platform.py": {
-    "mtime": 1787690225.0111458,
-    "seen": 1787691652.6869595,
-    "ast_hash": "f0f4bbbc8080108bf51da523062dad25",
-    "semantic_hash": "f0f4bbbc8080108bf51da523062dad25"
+    "mtime": 1787961371.4240882,
+    "seen": 1787961373.2279222,
+    "ast_hash": "ad3dff286741a350873fc8ed35f94c8f",
+    "semantic_hash": "ad3dff286741a350873fc8ed35f94c8f"
   },
   "scripts/mac_preflight.sh": {
     "mtime": 1787690225.0111458,
