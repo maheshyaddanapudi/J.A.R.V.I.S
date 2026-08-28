@@ -274,4 +274,39 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     default: () => (process.env.JARVIS_THINKING as string) || "on",
     description: "Whether remote reasoning models think by default when a role target does not set its own.",
   },
+
+  // ---- Night Lab (D-0079; default OFF — enabling was the check-in) ----
+  // NOTE: these three are on LAB_FORBIDDEN_SETTING_PREFIXES — the lab can
+  // never edit its own envelope; only the user (UI/API/instruction) can.
+  {
+    key: "lab.enabled",
+    label: "Night Lab enabled",
+    category: "Night Lab",
+    type: "boolean",
+    default: () => false,
+    description: "Evidence-gated self-experimentation during quiet hours: propose one change on the whitelisted surface, measure it on the isolated lab instance, keep or revert on the evidence, report in the morning. The e-stop halts it; every experiment is ledgered.",
+  },
+  {
+    key: "lab.campaign",
+    label: "Active lab campaign",
+    category: "Night Lab",
+    type: "enum",
+    // Options are the APPROVED campaign contracts committed under
+    // bench/campaigns/ — a new campaign becomes selectable only via a commit
+    // (committed = accepted, per the D-0079 check-in).
+    options: ["persona-adherence"] as const,
+    default: () => "persona-adherence",
+    description: "Which approved campaign the Night Lab runs. One campaign per night.",
+  },
+  {
+    key: "budget.lab.nightlyTokenCap",
+    label: "Night Lab nightly token cap",
+    category: "Night Lab",
+    type: "number",
+    min: 0,
+    max: 10000000,
+    step: 50000,
+    default: () => 300000,
+    description: "Max model tokens one lab night may spend (baseline + all trials, measured from bench telemetry). The lab halts between experiments when reached; the overall autonomy cap still applies above this.",
+  },
 ];

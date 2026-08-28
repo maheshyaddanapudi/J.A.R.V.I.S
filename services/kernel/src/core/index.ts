@@ -70,10 +70,18 @@ import { A2uiRegistry } from "../a2ui/registry.js";
 import { a2uiTools } from "../a2ui/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
 import { gatewayTools, reasoningTools } from "../gateway/tools.js";
+import { LabEngine } from "../lab/engine.js";
+import { PyBenchRunner } from "../lab/bench.js";
+import { LabNightRun } from "../lab/night.js";
+import { resolve as resolvePath } from "node:path";
+import { readFile } from "node:fs/promises";
 
 export interface Core {
   audit: AuditLog;
   estop: EmergencyStop;
+  /** Night Lab (D-0079): experiment engine + the quiet-hours night orchestrator */
+  labEngine: import("../lab/engine.js").LabEngine;
+  labNight: import("../lab/night.js").LabNightRun;
   policy: PolicyEngine;
   approvals: ApprovalBroker;
   activity: ActivityBus;
@@ -143,6 +151,9 @@ export async function buildCore(opts: {
   control?: ComputerControl;
   /** vault for field-level encryption at rest; omit to store plaintext (dev). */
   vault?: Vault;
+  /** Night-Lab bench runner override (tests inject a fake; default shells to
+   *  scripts/lab_bench.py against the isolated lab instance, D-0079). */
+  labRunner?: import("../lab/engine.js").BenchRunner;
   /**
    * Shared managed secrets vault. If provided (constructed at the process entry
    * so the model gateway can share it), it is used as-is; otherwise buildCore
@@ -442,8 +453,31 @@ export async function buildCore(opts: {
       return [];
     }
   };
+  // ---- Night Lab (D-0079): evidence-gated self-experimentation. Built here so
+  // the scheduler can offer it a quiet-hours beat. Everything is default-off
+  // (`lab.enabled`); the run itself re-checks its whole envelope. The engine
+  // never applies anything to live — kept winners wait in the ledger (L4).
+  const labEngine = new LabEngine(opts.pool, audit, episodicMemory);
+  const labRunner = opts.labRunner ?? new PyBenchRunner({ repoRoot: resolvePath(process.cwd(), "..", "..") });
+  const labNight = new LabNightRun({
+    pool: opts.pool, settings, estop, audit,
+    engine: labEngine, runner: labRunner, gateway: opts.gateway, prompts, announcer,
+    loadCampaign: async (name) => {
+      try {
+        // approved campaigns are the committed contracts under bench/campaigns/
+        if (!/^[a-z0-9-]+$/.test(name)) return null;
+        const raw = await readFile(resolvePath(process.cwd(), "..", "..", "bench", "campaigns", `${name}.json`), "utf8");
+        return JSON.parse(raw) as import("../lab/engine.js").CampaignSpec;
+      } catch {
+        return null;
+      }
+    },
+    lastUserActivity: () => loop.lastUserActivityAt,
+  });
   const autonomy = new BackgroundScheduler({
     settings, proactive, sleepCycle, estop, audit, activity,
+    // Night Lab (D-0079): offered a beat at the end of a quiet-hours tick
+    labNight: () => labNight.runNight(),
     // the living heartbeat (D-0064): agenda + bounded brain pass + journal
     agenda, agent, pool: opts.pool,
     // no-collide (D-0065): a beat defers its thinking while a live session is on
@@ -479,6 +513,7 @@ export async function buildCore(opts: {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, activation, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
     entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, announcer, projects, perception, ops, a2ui,
+    labEngine, labNight,
     ...(secrets ? { secrets } : {}),
     loop,
   };
