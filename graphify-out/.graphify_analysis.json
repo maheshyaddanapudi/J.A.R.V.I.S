@@ -527,43 +527,6 @@
       "services_kernel_test_web_test_makeloop"
     ],
     "11": [
-      "basemodel",
-      "services_ears_src_jarvis_ears_engines_ttschunk",
-      "services_ears_src_jarvis_ears_server",
-      "services_ears_src_jarvis_ears_server_health",
-      "services_ears_src_jarvis_ears_server_listen",
-      "services_ears_src_jarvis_ears_server_load_engines",
-      "services_ears_src_jarvis_ears_server_py_ndarray",
-      "services_ears_src_jarvis_ears_server_rationale_1",
-      "services_ears_src_jarvis_ears_server_rationale_118",
-      "services_ears_src_jarvis_ears_server_rationale_145",
-      "services_ears_src_jarvis_ears_server_rationale_155",
-      "services_ears_src_jarvis_ears_server_rationale_211",
-      "services_ears_src_jarvis_ears_server_transcribe",
-      "services_ears_src_jarvis_ears_server_transcribe_pcm16",
-      "services_ears_src_jarvis_ears_server_transcriberequest",
-      "services_ears_src_jarvis_ears_server_tts",
-      "services_ears_src_jarvis_ears_server_ttsrequest",
-      "services_ears_src_jarvis_ears_server_voice_turn",
-      "services_ears_src_jarvis_ears_server_voiceturnrequest",
-      "services_ears_src_jarvis_ears_tts_kokoro",
-      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts",
-      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts_init",
-      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts_synthesize",
-      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts_voices",
-      "services_ears_src_jarvis_ears_tts_kokoro_py_path",
-      "services_ears_src_jarvis_ears_tts_kokoro_rationale_1",
-      "services_ears_src_jarvis_ears_tts_kokoro_split_sentences",
-      "services_ears_src_jarvis_ears_tts_openai",
-      "services_ears_src_jarvis_ears_tts_openai_openaitts",
-      "services_ears_src_jarvis_ears_tts_openai_openaitts_configured",
-      "services_ears_src_jarvis_ears_tts_openai_openaitts_init",
-      "services_ears_src_jarvis_ears_tts_openai_openaitts_synthesize",
-      "services_ears_src_jarvis_ears_tts_openai_openaitts_voices",
-      "services_ears_src_jarvis_ears_tts_openai_rationale_1",
-      "websocket"
-    ],
-    "12": [
       "services_kernel_src_agent_contract",
       "services_kernel_src_agent_contract_agentresult",
       "services_kernel_src_agent_contract_agentrunoptions",
@@ -599,7 +562,7 @@
       "services_kernel_test_heartbeat_test_run",
       "services_kernel_test_heartbeat_test_sleepcycle"
     ],
-    "13": [
+    "12": [
       "services_kernel_src_autonomy_agenda_agenda",
       "services_kernel_src_autonomy_agenda_agenda_add",
       "services_kernel_src_autonomy_agenda_agenda_constructor",
@@ -635,7 +598,7 @@
       "services_kernel_src_prompts_registry_promptregistry_remove",
       "services_kernel_src_prompts_registry_promptregistry_set"
     ],
-    "14": [
+    "13": [
       "services_kernel_src_context_contract",
       "services_kernel_src_context_contract_commitmentcontext",
       "services_kernel_src_context_contract_contextprovider",
@@ -670,7 +633,7 @@
       "services_kernel_test_context_test_fakes",
       "services_kernel_test_context_test_now"
     ],
-    "15": [
+    "14": [
       "services_kernel_src_autonomy_announce",
       "services_kernel_src_autonomy_announce_announcement",
       "services_kernel_src_control_tools",
@@ -704,7 +667,7 @@
       "services_kernel_test_skills_test_audit",
       "services_kernel_test_skills_test_fakeagent"
     ],
-    "16": [
+    "15": [
       "services_kernel_src_devices_contract",
       "services_kernel_src_devices_contract_device_risk",
       "services_kernel_src_devices_contract_devicecommand",
@@ -738,7 +701,7 @@
       "services_kernel_test_homeassistant_test_captured",
       "services_kernel_test_homeassistant_test_mockha"
     ],
-    "17": [
+    "16": [
       "services_kernel_src_knowledge_contract",
       "services_kernel_src_knowledge_contract_direntry",
       "services_kernel_src_knowledge_contract_editoutcome",
@@ -771,6 +734,43 @@
       "services_kernel_src_knowledge_workspace_localworkspacefiles_stat",
       "services_kernel_src_knowledge_workspace_looksbinary",
       "services_kernel_src_knowledge_workspace_trimpreview"
+    ],
+    "17": [
+      "basemodel",
+      "services_ears_src_jarvis_ears_engines_ttschunk",
+      "services_ears_src_jarvis_ears_server",
+      "services_ears_src_jarvis_ears_server_health",
+      "services_ears_src_jarvis_ears_server_listen",
+      "services_ears_src_jarvis_ears_server_load_engines",
+      "services_ears_src_jarvis_ears_server_py_ndarray",
+      "services_ears_src_jarvis_ears_server_rationale_1",
+      "services_ears_src_jarvis_ears_server_rationale_118",
+      "services_ears_src_jarvis_ears_server_rationale_145",
+      "services_ears_src_jarvis_ears_server_rationale_155",
+      "services_ears_src_jarvis_ears_server_rationale_211",
+      "services_ears_src_jarvis_ears_server_transcribe",
+      "services_ears_src_jarvis_ears_server_transcribe_pcm16",
+      "services_ears_src_jarvis_ears_server_transcriberequest",
+      "services_ears_src_jarvis_ears_server_tts",
+      "services_ears_src_jarvis_ears_server_ttsrequest",
+      "services_ears_src_jarvis_ears_server_voice_turn",
+      "services_ears_src_jarvis_ears_server_voiceturnrequest",
+      "services_ears_src_jarvis_ears_tts_kokoro",
+      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts",
+      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts_init",
+      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts_synthesize",
+      "services_ears_src_jarvis_ears_tts_kokoro_kokorotts_voices",
+      "services_ears_src_jarvis_ears_tts_kokoro_py_path",
+      "services_ears_src_jarvis_ears_tts_kokoro_rationale_1",
+      "services_ears_src_jarvis_ears_tts_kokoro_split_sentences",
+      "services_ears_src_jarvis_ears_tts_openai",
+      "services_ears_src_jarvis_ears_tts_openai_openaitts",
+      "services_ears_src_jarvis_ears_tts_openai_openaitts_configured",
+      "services_ears_src_jarvis_ears_tts_openai_openaitts_init",
+      "services_ears_src_jarvis_ears_tts_openai_openaitts_synthesize",
+      "services_ears_src_jarvis_ears_tts_openai_openaitts_voices",
+      "services_ears_src_jarvis_ears_tts_openai_rationale_1",
+      "websocket"
     ],
     "18": [
       "services_kernel_src_a2ui_tools",
@@ -1395,24 +1395,24 @@
       "services_kernel_test_semantic_test_hashembed"
     ],
     "42": [
-      "services_ears_src_jarvis_ears_engines_wakeevent",
-      "services_ears_src_jarvis_ears_wake_openwakeword",
-      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword",
-      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword_init",
-      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword_push",
-      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword_reset",
-      "services_ears_src_jarvis_ears_wake_openwakeword_py_ndarray",
-      "services_ears_src_jarvis_ears_wake_openwakeword_py_path",
-      "services_ears_src_jarvis_ears_wake_openwakeword_rationale_1",
-      "services_ears_src_jarvis_ears_wake_sherpa",
-      "services_ears_src_jarvis_ears_wake_sherpa_py_ndarray",
-      "services_ears_src_jarvis_ears_wake_sherpa_py_path",
-      "services_ears_src_jarvis_ears_wake_sherpa_rationale_1",
-      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake",
-      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_init",
-      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_push",
-      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_reset",
-      "services_ears_tests_test_engines_wake"
+      "bench_fixtures",
+      "services_kernel_claude",
+      "services_kernel_src_core",
+      "services_kernel_src_gateway",
+      "services_kernel_src_knowledge",
+      "services_kernel_src_lab_bench",
+      "services_kernel_src_lab_bench_exec",
+      "services_kernel_src_lab_bench_pybenchopts",
+      "services_kernel_src_lab_bench_pybenchrunner",
+      "services_kernel_src_lab_bench_pybenchrunner_constructor",
+      "services_kernel_src_lab_bench_pybenchrunner_run",
+      "services_kernel_src_lab_engine_benchreport",
+      "services_kernel_src_lab_engine_benchrunner",
+      "services_kernel_src_mcp",
+      "services_kernel_src_memory",
+      "services_kernel_src_research",
+      "services_kernel_src_terminal",
+      "services_kernel_src_web"
     ],
     "43": [
       "services_kernel_src_autonomy_projects",
@@ -1455,14 +1455,15 @@
     "45": [
       "services_kernel_src_lab_engine_campaignspec",
       "services_kernel_src_lab_night",
-      "services_kernel_src_lab_night_announcerlike",
-      "services_kernel_src_lab_night_announcerlike_raise",
       "services_kernel_src_lab_night_append",
       "services_kernel_src_lab_night_gatewaylike",
       "services_kernel_src_lab_night_gatewaylike_chat",
       "services_kernel_src_lab_night_labnightdeps",
       "services_kernel_src_lab_night_nightsummary",
       "services_kernel_src_lab_night_overlayonsurface",
+      "services_kernel_src_lab_night_settingslike",
+      "services_kernel_src_lab_night_settingslike_bool",
+      "services_kernel_src_lab_night_settingslike_str",
       "services_kernel_src_lab_night_surfacesnapshot",
       "services_kernel_src_lab_researcher",
       "services_kernel_src_lab_researcher_gatewaylike",
@@ -1471,24 +1472,6 @@
       "services_kernel_src_lab_researcher_parsejson"
     ],
     "46": [
-      "services_kernel_src_lab_night_labnightrun",
-      "services_kernel_src_lab_night_labnightrun_constructor",
-      "services_kernel_src_lab_night_labnightrun_currentsurfacecontent",
-      "services_kernel_src_lab_night_labnightrun_inquiethours",
-      "services_kernel_src_lab_night_labnightrun_morningreport",
-      "services_kernel_src_lab_night_labnightrun_now",
-      "services_kernel_src_lab_night_labnightrun_rowstonight",
-      "services_kernel_src_lab_night_labnightrun_runnight",
-      "services_kernel_src_lab_night_labnightrun_useractive",
-      "services_kernel_src_lab_night_promptslike",
-      "services_kernel_src_lab_night_promptslike_get",
-      "services_kernel_src_lab_night_promptslike_getactive",
-      "services_kernel_src_lab_night_settingslike",
-      "services_kernel_src_lab_night_settingslike_bool",
-      "services_kernel_src_lab_night_settingslike_num",
-      "services_kernel_src_lab_night_settingslike_str"
-    ],
-    "47": [
       "autoresearch_karpathy",
       "concept_night_lab",
       "d_0079",
@@ -1505,7 +1488,7 @@
       "r_lab_09",
       "r_lab_10"
     ],
-    "48": [
+    "47": [
       "ref_es2023",
       "tsconfig_base",
       "tsconfig_base_compileroptions",
@@ -1522,7 +1505,7 @@
       "tsconfig_base_compileroptions_strict",
       "tsconfig_base_compileroptions_target"
     ],
-    "49": [
+    "48": [
       "services_kernel_src_core_grants",
       "services_kernel_src_core_grants_durablegrantrow",
       "services_kernel_src_core_grants_durablegrants",
@@ -1538,6 +1521,23 @@
       "services_kernel_test_autonomy_test_fakesettings",
       "services_kernel_test_autonomy_test_isengaged",
       "services_kernel_test_autonomy_test_makescheduler"
+    ],
+    "49": [
+      "services_kernel_src_lab_night_announcerlike",
+      "services_kernel_src_lab_night_announcerlike_raise",
+      "services_kernel_src_lab_night_labnightrun",
+      "services_kernel_src_lab_night_labnightrun_constructor",
+      "services_kernel_src_lab_night_labnightrun_currentsurfacecontent",
+      "services_kernel_src_lab_night_labnightrun_inquiethours",
+      "services_kernel_src_lab_night_labnightrun_morningreport",
+      "services_kernel_src_lab_night_labnightrun_now",
+      "services_kernel_src_lab_night_labnightrun_rowstonight",
+      "services_kernel_src_lab_night_labnightrun_runnight",
+      "services_kernel_src_lab_night_labnightrun_useractive",
+      "services_kernel_src_lab_night_promptslike",
+      "services_kernel_src_lab_night_promptslike_get",
+      "services_kernel_src_lab_night_promptslike_getactive",
+      "services_kernel_src_lab_night_settingslike_num"
     ],
     "50": [
       "claude",
@@ -1603,6 +1603,25 @@
       "package_version"
     ],
     "54": [
+      "services_ears_src_jarvis_ears_engines_wakeevent",
+      "services_ears_src_jarvis_ears_wake_openwakeword",
+      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword",
+      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword_init",
+      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword_push",
+      "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword_reset",
+      "services_ears_src_jarvis_ears_wake_openwakeword_py_ndarray",
+      "services_ears_src_jarvis_ears_wake_openwakeword_py_path",
+      "services_ears_src_jarvis_ears_wake_openwakeword_rationale_1",
+      "services_ears_src_jarvis_ears_wake_sherpa",
+      "services_ears_src_jarvis_ears_wake_sherpa_py_ndarray",
+      "services_ears_src_jarvis_ears_wake_sherpa_py_path",
+      "services_ears_src_jarvis_ears_wake_sherpa_rationale_1",
+      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake",
+      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_init",
+      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_push",
+      "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_reset"
+    ],
+    "55": [
       "services_ears_tests_test_engines",
       "services_ears_tests_test_engines_kokoro",
       "services_ears_tests_test_engines_py_ndarray",
@@ -1615,9 +1634,10 @@
       "services_ears_tests_test_engines_test_stt_transcribes_synthesized_speech",
       "services_ears_tests_test_engines_test_vad_distinguishes_speech_from_silence",
       "services_ears_tests_test_engines_test_wake_word_detects_spoken_hey_jarvis",
-      "services_ears_tests_test_engines_test_wake_word_ignores_other_speech"
+      "services_ears_tests_test_engines_test_wake_word_ignores_other_speech",
+      "services_ears_tests_test_engines_wake"
     ],
-    "55": [
+    "56": [
       "services_kernel_src_core_budget",
       "services_kernel_src_core_budget_autonomy_sources",
       "services_kernel_src_core_budget_budget",
@@ -1632,7 +1652,7 @@
       "services_kernel_test_budget_test_seed",
       "services_kernel_test_budget_test_settings"
     ],
-    "56": [
+    "57": [
       "ajv",
       "fastify",
       "modelcontextprotocol_sdk",
@@ -1646,7 +1666,7 @@
       "services_kernel_package_dependencies_zod",
       "zod"
     ],
-    "57": [
+    "58": [
       "apps_command_center_app_files_page",
       "apps_command_center_app_files_page_btn",
       "apps_command_center_app_files_page_entry",
@@ -1660,7 +1680,7 @@
       "apps_command_center_app_files_page_pending",
       "apps_command_center_app_files_page_pipecolor"
     ],
-    "58": [
+    "59": [
       "apps_command_center_app_pulse_page",
       "apps_command_center_app_pulse_page_beat",
       "apps_command_center_app_pulse_page_card",
@@ -1674,7 +1694,7 @@
       "apps_command_center_app_pulse_page_pulsepage",
       "apps_command_center_app_pulse_page_status"
     ],
-    "59": [
+    "60": [
       "apps_command_center_app_skills_page",
       "apps_command_center_app_skills_page_agentresult",
       "apps_command_center_app_skills_page_btn",
@@ -1688,7 +1708,7 @@
       "apps_command_center_app_skills_page_skillspage",
       "apps_command_center_app_skills_page_step"
     ],
-    "60": [
+    "61": [
       "apps_companion_package",
       "apps_companion_package_description",
       "apps_companion_package_devdependencies",
@@ -1701,20 +1721,6 @@
       "apps_companion_package_scripts_tauri",
       "apps_companion_package_version",
       "tauri_apps_cli"
-    ],
-    "61": [
-      "bench_fixtures",
-      "services_kernel_src_lab_bench",
-      "services_kernel_src_lab_bench_exec",
-      "services_kernel_src_lab_bench_pybenchopts",
-      "services_kernel_src_lab_bench_pybenchrunner",
-      "services_kernel_src_lab_bench_pybenchrunner_constructor",
-      "services_kernel_src_lab_bench_pybenchrunner_run",
-      "services_kernel_src_lab_engine_benchreport",
-      "services_kernel_src_lab_engine_benchrunner",
-      "services_kernel_src_lab_engine_benchrunner_run",
-      "services_kernel_src_lab_engine_experimentrow",
-      "services_kernel_src_lab_surface_labcandidate"
     ],
     "62": [
       "ref_node",
@@ -1836,7 +1842,20 @@
       "services_ears_src_jarvis_ears_stt_sherpa_sherpastreamingstt_push",
       "services_ears_src_jarvis_ears_stt_sherpa_sherpastreamingstt_reset"
     ],
-    "71": [
+    "72": [
+      "services_kernel_src_lab_engine_auditlike",
+      "services_kernel_src_lab_engine_auditlike_append",
+      "services_kernel_src_lab_engine_benchrunner_run",
+      "services_kernel_src_lab_engine_experimentrow",
+      "services_kernel_src_lab_engine_labengine",
+      "services_kernel_src_lab_engine_labengine_constructor",
+      "services_kernel_src_lab_engine_labengine_guardbreach",
+      "services_kernel_src_lab_engine_labengine_history",
+      "services_kernel_src_lab_engine_labengine_persist",
+      "services_kernel_src_lab_engine_labengine_runexperiment",
+      "services_kernel_src_lab_surface_labcandidate"
+    ],
+    "73": [
       "services_kernel_src_perception_service_fileperceptionsource",
       "services_kernel_src_perception_service_fileperceptionsource_constructor",
       "services_kernel_src_perception_service_fileperceptionsource_observe",
@@ -1849,7 +1868,7 @@
       "services_kernel_test_perception_test",
       "services_kernel_test_perception_test_feed"
     ],
-    "72": [
+    "74": [
       "apps_command_center_app_agent_page",
       "apps_command_center_app_agent_page_agentpage",
       "apps_command_center_app_agent_page_agentresult",
@@ -1861,7 +1880,7 @@
       "apps_command_center_app_agent_page_pipecolor",
       "apps_command_center_app_agent_page_step"
     ],
-    "73": [
+    "75": [
       "apps_command_center_package",
       "apps_command_center_package_description",
       "apps_command_center_package_name",
@@ -1873,7 +1892,7 @@
       "apps_command_center_package_scripts_typecheck",
       "apps_command_center_package_version"
     ],
-    "74": [
+    "76": [
       "apps_command_center_package_devdependencies_types_node",
       "services_kernel_package_devdependencies",
       "services_kernel_package_devdependencies_tsx",
@@ -1885,7 +1904,7 @@
       "types_pg",
       "vitest"
     ],
-    "75": [
+    "77": [
       "concept_core_loop",
       "concept_honesty_rule",
       "concept_option_a_architecture",
@@ -1897,7 +1916,7 @@
       "docs_architecture_doc",
       "readme_doc"
     ],
-    "76": [
+    "78": [
       "concept_five_state_matrix",
       "decision_d0004_voice_stack",
       "decision_d0007_valkey_over_redis",
@@ -1909,7 +1928,7 @@
       "docs_capability_parity_matrix_doc",
       "docs_research_verification_doc"
     ],
-    "77": [
+    "79": [
       "docs_decision_log_d0052_override",
       "docs_decision_log_d0053",
       "docs_decision_log_d0054",
@@ -1921,7 +1940,7 @@
       "docs_decision_log_d0061",
       "docs_decision_log_d0062"
     ],
-    "78": [
+    "80": [
       "scripts_mac_preflight",
       "scripts_mac_preflight_bad",
       "scripts_mac_preflight_have",
@@ -1933,7 +1952,7 @@
       "scripts_mac_preflight_sh__entry",
       "scripts_mac_preflight_skip"
     ],
-    "79": [
+    "81": [
       "services_kernel_src_autonomy_announce_announcer",
       "services_kernel_src_autonomy_announce_announcer_constructor",
       "services_kernel_src_autonomy_announce_announcer_dismiss",
@@ -1945,7 +1964,7 @@
       "services_kernel_src_autonomy_announce_announcer_raise",
       "services_kernel_src_core_activity_activitybus_emit"
     ],
-    "80": [
+    "82": [
       "apps_command_center_app_devices_page",
       "apps_command_center_app_devices_page_btn",
       "apps_command_center_app_devices_page_devicespage",
@@ -1956,7 +1975,7 @@
       "apps_command_center_app_devices_page_pipecolor",
       "apps_command_center_app_devices_page_runoutcome"
     ],
-    "81": [
+    "83": [
       "apps_command_center_app_models_page",
       "apps_command_center_app_models_page_callrow",
       "apps_command_center_app_models_page_h2",
@@ -1967,7 +1986,7 @@
       "apps_command_center_app_models_page_sec",
       "apps_command_center_app_models_page_td"
     ],
-    "82": [
+    "84": [
       "apps_command_center_app_proactive_page",
       "apps_command_center_app_proactive_page_btn",
       "apps_command_center_app_proactive_page_panel",
@@ -1978,7 +1997,7 @@
       "apps_command_center_app_proactive_page_suppression",
       "apps_command_center_app_proactive_page_surfaced"
     ],
-    "83": [
+    "85": [
       "bench_rubrics_grading",
       "docs_decision_log_d0052",
       "docs_decision_log_d0071",
@@ -1989,7 +2008,7 @@
       "docs_decision_log_d0077",
       "docs_decision_log_d0079"
     ],
-    "84": [
+    "86": [
       "decision_d0022",
       "decision_d0024",
       "decision_d0025",
@@ -2000,7 +2019,7 @@
       "req_r_mem_06",
       "req_r_model_04"
     ],
-    "85": [
+    "87": [
       "docs_decision_log_d0024",
       "docs_decision_log_d0044",
       "docs_decision_log_d0051",
@@ -2011,18 +2030,7 @@
       "docs_decision_log_d0068",
       "docs_decision_log_d0069"
     ],
-    "86": [
-      "services_kernel_claude",
-      "services_kernel_src_core",
-      "services_kernel_src_gateway",
-      "services_kernel_src_knowledge",
-      "services_kernel_src_mcp",
-      "services_kernel_src_memory",
-      "services_kernel_src_research",
-      "services_kernel_src_terminal",
-      "services_kernel_src_web"
-    ],
-    "87": [
+    "88": [
       "apps_command_center_app_a2ui_page",
       "apps_command_center_app_a2ui_page_a2uipage",
       "apps_command_center_app_a2ui_page_chip",
@@ -2032,7 +2040,7 @@
       "apps_command_center_app_a2ui_page_panel",
       "apps_command_center_app_a2ui_page_setting"
     ],
-    "88": [
+    "89": [
       "apps_command_center_app_control_page",
       "apps_command_center_app_control_page_btn",
       "apps_command_center_app_control_page_controlpage",
@@ -2042,7 +2050,7 @@
       "apps_command_center_app_control_page_pipecolor",
       "apps_command_center_app_control_page_runoutcome"
     ],
-    "89": [
+    "90": [
       "apps_command_center_app_graph_page",
       "apps_command_center_app_graph_page_bundle",
       "apps_command_center_app_graph_page_chip",
@@ -2052,7 +2060,7 @@
       "apps_command_center_app_graph_page_graphpage",
       "apps_command_center_app_graph_page_input"
     ],
-    "90": [
+    "91": [
       "apps_command_center_app_reasoning_page",
       "apps_command_center_app_reasoning_page_autotune",
       "apps_command_center_app_reasoning_page_chip",
@@ -2062,7 +2070,7 @@
       "apps_command_center_app_reasoning_page_report",
       "apps_command_center_app_reasoning_page_sec"
     ],
-    "91": [
+    "92": [
       "apps_command_center_app_terminal_page",
       "apps_command_center_app_terminal_page_btn",
       "apps_command_center_app_terminal_page_ev",
@@ -2072,7 +2080,7 @@
       "apps_command_center_app_terminal_page_runoutcome",
       "apps_command_center_app_terminal_page_terminalpage"
     ],
-    "92": [
+    "93": [
       "apps_command_center_app_web_page",
       "apps_command_center_app_web_page_btn",
       "apps_command_center_app_web_page_ev",
@@ -2082,7 +2090,7 @@
       "apps_command_center_app_web_page_runoutcome",
       "apps_command_center_app_web_page_webpage"
     ],
-    "93": [
+    "94": [
       "apps_command_center_package_devdependencies",
       "apps_command_center_package_devdependencies_types_react",
       "apps_command_center_package_devdependencies_types_react_dom",
@@ -2092,7 +2100,7 @@
       "types_react",
       "types_react_dom"
     ],
-    "94": [
+    "95": [
       "docs_threat_model",
       "r_cap_08",
       "t_lab_1",
@@ -2102,7 +2110,7 @@
       "t_lab_5",
       "t_lab_6"
     ],
-    "95": [
+    "96": [
       "services_ears_src_jarvis_ears_vad_silero_py_ndarray",
       "services_ears_src_jarvis_ears_vad_silero_py_path",
       "services_ears_src_jarvis_ears_vad_silero_silerovad",
@@ -2111,16 +2119,6 @@
       "services_ears_src_jarvis_ears_vad_silero_silerovad_reset",
       "services_ears_src_jarvis_ears_vad_silero_silerovad_run",
       "services_ears_tests_test_engines_vad"
-    ],
-    "96": [
-      "services_kernel_src_lab_engine_auditlike",
-      "services_kernel_src_lab_engine_auditlike_append",
-      "services_kernel_src_lab_engine_labengine",
-      "services_kernel_src_lab_engine_labengine_constructor",
-      "services_kernel_src_lab_engine_labengine_guardbreach",
-      "services_kernel_src_lab_engine_labengine_history",
-      "services_kernel_src_lab_engine_labengine_persist",
-      "services_kernel_src_lab_engine_labengine_runexperiment"
     ],
     "97": [
       "apps_command_center_app_lab_page",
@@ -2803,13 +2801,13 @@
     "8": 0.07112375533428165,
     "9": 0.07823613086770982,
     "10": 0.09682539682539683,
-    "11": 0.0957983193277311,
-    "12": 0.11051693404634581,
-    "13": 0.09982174688057041,
-    "14": 0.12310606060606061,
-    "15": 0.13709677419354838,
-    "16": 0.12903225806451613,
-    "17": 0.13709677419354838,
+    "11": 0.11051693404634581,
+    "12": 0.09982174688057041,
+    "13": 0.12310606060606061,
+    "14": 0.13709677419354838,
+    "15": 0.12903225806451613,
+    "16": 0.13709677419354838,
+    "17": 0.0957983193277311,
     "18": 0.12561576354679804,
     "19": 0.08994708994708994,
     "20": 0.07142857142857142,
@@ -2834,26 +2832,26 @@
     "39": 0.12280701754385964,
     "40": 0.14035087719298245,
     "41": 0.13450292397660818,
-    "42": 0.13725490196078433,
+    "42": 0.1568627450980392,
     "43": 0.20588235294117646,
     "44": 0.2647058823529412,
-    "45": 0.15833333333333333,
-    "46": 0.23333333333333334,
-    "47": 0.22857142857142856,
-    "48": 0.13333333333333333,
-    "49": 0.18095238095238095,
+    "45": 0.14705882352941177,
+    "46": 0.22857142857142856,
+    "47": 0.13333333333333333,
+    "48": 0.18095238095238095,
+    "49": 0.2571428571428571,
     "50": 0.16483516483516483,
     "51": 0.18681318681318682,
     "52": 0.1978021978021978,
     "53": 0.15384615384615385,
-    "54": 0.20512820512820512,
-    "55": 0.19230769230769232,
-    "56": 0.16666666666666666,
-    "57": 0.21212121212121213,
-    "58": 0.18181818181818182,
-    "59": 0.21212121212121213,
-    "60": 0.16666666666666666,
-    "61": 0.24242424242424243,
+    "54": 0.14705882352941177,
+    "55": 0.18681318681318682,
+    "56": 0.19230769230769232,
+    "57": 0.16666666666666666,
+    "58": 0.21212121212121213,
+    "59": 0.18181818181818182,
+    "60": 0.21212121212121213,
+    "61": 0.16666666666666666,
     "62": 0.16666666666666666,
     "63": 0.16666666666666666,
     "64": 0.19696969696969696,
@@ -2863,31 +2861,30 @@
     "68": 0.2,
     "69": 0.18181818181818182,
     "70": 0.2727272727272727,
-    "71": 0.21818181818181817,
-    "72": 0.26666666666666666,
-    "73": 0.2,
-    "74": 0.2,
-    "75": 0.2222222222222222,
+    "72": 0.23636363636363636,
+    "73": 0.21818181818181817,
+    "74": 0.26666666666666666,
+    "75": 0.2,
     "76": 0.2,
-    "77": 0.24444444444444444,
-    "78": 0.35555555555555557,
-    "79": 0.3111111111111111,
-    "80": 0.3055555555555556,
-    "81": 0.2777777777777778,
-    "82": 0.25,
-    "83": 0.25,
-    "84": 0.2222222222222222,
-    "85": 0.3055555555555556,
-    "86": 0.3055555555555556,
-    "87": 0.2857142857142857,
-    "88": 0.35714285714285715,
-    "89": 0.2857142857142857,
-    "90": 0.35714285714285715,
+    "77": 0.2222222222222222,
+    "78": 0.2,
+    "79": 0.24444444444444444,
+    "80": 0.35555555555555557,
+    "81": 0.3111111111111111,
+    "82": 0.3055555555555556,
+    "83": 0.2777777777777778,
+    "84": 0.25,
+    "85": 0.25,
+    "86": 0.2222222222222222,
+    "87": 0.3055555555555556,
+    "88": 0.2857142857142857,
+    "89": 0.35714285714285715,
+    "90": 0.2857142857142857,
     "91": 0.35714285714285715,
     "92": 0.35714285714285715,
-    "93": 0.25,
+    "93": 0.35714285714285715,
     "94": 0.25,
-    "95": 0.32142857142857145,
+    "95": 0.25,
     "96": 0.32142857142857145,
     "97": 0.2857142857142857,
     "98": 0.2857142857142857,
@@ -3079,13 +3076,13 @@
       "degree": 32
     },
     {
-      "id": "services_kernel_src_core_tools_tool",
-      "label": "Tool",
+      "id": "services_kernel_src_memory_memory_memoryservice",
+      "label": "MemoryService",
       "degree": 30
     },
     {
-      "id": "services_kernel_src_memory_memory_memoryservice",
-      "label": "MemoryService",
+      "id": "services_kernel_src_core_tools_tool",
+      "label": "Tool",
       "degree": 30
     },
     {
@@ -3120,7 +3117,7 @@
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
-      "why": "crosses file types (code \u2194 doc); peripheral node `web.click tool` unexpectedly reaches hub `webTools()`"
+      "why": "crosses file types (code ↔ doc); peripheral node `web.click tool` unexpectedly reaches hub `webTools()`"
     },
     {
       "source": "webTools()",
@@ -3131,7 +3128,7 @@
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
-      "why": "crosses file types (code \u2194 doc); peripheral node `web.fill tool` unexpectedly reaches hub `webTools()`"
+      "why": "crosses file types (code ↔ doc); peripheral node `web.fill tool` unexpectedly reaches hub `webTools()`"
     },
     {
       "source": "webTools()",
@@ -3142,7 +3139,7 @@
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
-      "why": "crosses file types (code \u2194 doc); peripheral node `web.links tool` unexpectedly reaches hub `webTools()`"
+      "why": "crosses file types (code ↔ doc); peripheral node `web.links tool` unexpectedly reaches hub `webTools()`"
     },
     {
       "source": "webTools()",
@@ -3153,11 +3150,44 @@
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
-      "why": "crosses file types (code \u2194 doc); peripheral node `web.open tool` unexpectedly reaches hub `webTools()`"
+      "why": "crosses file types (code ↔ doc); peripheral node `web.open tool` unexpectedly reaches hub `webTools()`"
     }
   ],
-  "tokens": {
-    "input": 33106,
-    "output": 24923
-  }
+  "questions": [
+    {
+      "type": "ambiguous_edge",
+      "question": "What is the exact relationship between `kernel/src/selfext/activation.ts` and `src/core/ — Z1 trust core (audit/policy/approvals/estop/loop)`?",
+      "why": "Edge tagged AMBIGUOUS (relation: references) - confidence is low."
+    },
+    {
+      "type": "ambiguous_edge",
+      "question": "What is the exact relationship between `Clean-Slate Evolution Acceptance Run (D-0063)` and `Living-Heartbeat Verification (D-0064)`?",
+      "why": "Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `AuditLog` connect `Audit & Interlock` to `Proactivity Engine`, `Affect & Core Config`, `Secrets Vault`, `Sleep Consolidation`, `Capability Guard`, `Approval Broker`, `Agent Runtime`, `Agenda Management`, `Agent Tools`, `Core Tool Registration`, `MCP Client Host`, `Capability Activation`, `A2UI Registry`, `Policy & E-Stop`, `Episodic Memory`, `Settings Registry`, `Entity Graph Recall`, `Semantic Memory`, `Projects Tracking`, `Durable Grants`, `Skills Registry`, `Dynamic Settings Registry`, `Untrusted Content Tests`, `Announcement Tests`?",
+      "why": "High betweenness centrality (0.028) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Night Lab verification report (2026-08-28)` connect `Repo Architecture Overview` to `Lab Applier`, `Kernel Module Guides`, `Lab Night Run`, `Agent Tools`, `Bench Grading Decisions`, `Lab Bench Engine`?",
+      "why": "High betweenness centrality (0.022) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `D-0079 Night Lab: evidence-gated self-experimentation` connect `Bench Grading Decisions` to `Repo Architecture Overview`, `Proactivity Decisions`?",
+      "why": "High betweenness centrality (0.019) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 25 inferred relationships involving `buildCore()` (e.g. with `.pruneSetting()` and `.add()`) actually correct?",
+      "why": "`buildCore()` has 25 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `AutonomyStatus`, `TickResult`, `Announcement` to the rest of the system?",
+      "why": "552 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
 }
