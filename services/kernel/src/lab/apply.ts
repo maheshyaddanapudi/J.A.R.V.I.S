@@ -208,6 +208,18 @@ export class LabApplier {
     }
     await this.pool.query(`UPDATE lab_experiments SET applied_to_live = false WHERE id = $1`, [row.id]);
     await this.audit.append({ actor: "user", event: "lab_revert", payload: { id: row.id, reverted } });
+    // The apply was announced, so the revert must be too — otherwise a reader
+    // catching up on held announcements is told "it's live" with no correction
+    // (found live 2026-08-28: the relayed apply notice went stale silently).
+    await this.announcer?.raise({
+      kind: "say",
+      urgency: "info",
+      source: "night-lab",
+      text:
+        `Reverted lab result '${row.summary}' — prior state restored exactly` +
+        ` (${[...reverted.prompts, ...reverted.settings].join(", ")}). The kept result stays in the ledger and can be re-applied.`,
+      dedupeKey: `night-lab-revert-${row.id}`,
+    });
     return { ok: true, reason: "reverted", applied: reverted };
   }
 }

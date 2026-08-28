@@ -133,6 +133,9 @@ describe.skipIf(!pool)("LabApplier — three envelopes + exact revert", () => {
     // supersede-with-history: the lab version is still in the version history
     const all = await prompts.list("persona", true);
     expect(all.some((p) => p.content === "LAB VERSION")).toBe(true);
+    // the revert is announced like the apply was — a late reader of the held
+    // apply notice must also see the correction (live find 2026-08-28)
+    expect(raises.some((x) => x.text.includes("Reverted lab result"))).toBe(true);
   });
 
   it("only kept, unapplied experiments apply; discard/applied/missing refuse honestly", async () => {
