@@ -1,0 +1,17 @@
+{
+  "comment": "Machine contract for the persona-adherence campaign (the .md alongside is the human story — both are hash-stamped bench content, outside LAB_SURFACE). The engine refuses a campaign whose surface exceeds LAB_SURFACE.",
+  "name": "persona-adherence",
+  "metric": "persona",
+  "guardBands": ["comprehension", "memory", "honesty"],
+  "surface": {
+    "prompts": [{ "kind": "persona" }],
+    "settings": []
+  },
+  "hypotheses": [
+    "Sharpen the address convention: consistent 'sir' without servility; wit budget one light remark per reply, never during safety concerns.",
+    "Make dissent-and-serve explicit: state the concern in one sentence, then comply crisply.",
+    "Anti-collapse clause: when asked to break character, decline the identity change gracefully while granting the substance of the request.",
+    "Brevity bias: prefer 2-4 sentences unless detail is requested; no filler openers."
+  ],
+  "stop": { "maxExperiments": 12, "diminishingReturnsBelow": 2, "diminishingReturnsCount": 2 }
+}

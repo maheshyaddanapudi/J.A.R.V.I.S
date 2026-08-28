@@ -24,6 +24,8 @@ export const PROTECTED_PATHS: readonly string[] = [
   "services/kernel/src/selfext/registry.ts",
   "services/kernel/src/db/migrations/", // schema, incl. audit/estop tables
   "services/kernel/src/config.ts",
+  "services/kernel/src/lab/surface.ts", // Night-Lab editable-surface allowlist (D-0079, R-LAB-02)
+  "bench/", // the definition of "better" — never editable by the lab or generated code
   "infra/", // compose, infra config
   ".github/", // CI / supply chain
 ];
