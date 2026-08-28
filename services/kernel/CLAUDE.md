@@ -463,8 +463,17 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   (real Sonnet-5):** baseline 93.2; 4 candidates, 4 honest discards via three
   different mechanisms; cap-halt 156,319/150,000; report relayed in-voice.
   Also fixed live-found announcer bug (quiet-hours `enabled` flag ignored by
-  the deferral hold). **432 kernel tests.** Record:
-  `docs/verification/NIGHT_LAB_2026-08-28.md`.
+  the deferral hold). **Night 2 (same date):** fixed a real design flaw — the
+  night's null hypothesis is now the LIVE surface (`overlayOnSurface`: active
+  persona + judge templates + overridden whitelisted settings ride under the
+  baseline AND every trial, candidate overlaid, collision → candidate wins);
+  then a scheduler-fired night against a user-set generic persona produced a
+  REAL KEEP (exp 3, mean persona 92.2 ≥ 87.6+δ4, researcher's hypothesis
+  explicitly diagnosed its two prior failures) and the full proposal-envelope
+  cycle ran live through the CC panel: unapproved apply → 409; approve+apply
+  click → live persona v2 + announcement with revert path + "sir" in the next
+  converse turn; revert → byte-exact restore, lab version kept in history.
+  **433 kernel tests.** Record: `docs/verification/NIGHT_LAB_2026-08-28.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

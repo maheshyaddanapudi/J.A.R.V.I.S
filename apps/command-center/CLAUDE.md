@@ -255,7 +255,11 @@ never decoration (R-UI-03, R-CORE-02).
   lab settings chips from `/settings`. **Verified live via headless Chromium
   (11/11 functional; only non-pass is the shared `/favicon.ico` 404) against
   the real ledger of the first scheduler-fired night** (4 discards, no apply
-  button on discarded rows). Screenshot `docs/screenshots/lab.png`.
+  button on discarded rows). Screenshot `docs/screenshots/lab.png`. **Night 2:
+  the apply/revert cycle verified live through the buttons (7/7 + 6/6)** — a
+  real kept persona: approve+apply click → APPLIED TO LIVE + persona v2 live;
+  revert click → byte-exact restore, apply re-offered. Screenshots
+  `lab-keep.png` / `lab-applied.png` / `lab-reverted.png`.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
