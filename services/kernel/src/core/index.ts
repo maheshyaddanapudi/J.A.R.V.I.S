@@ -73,6 +73,7 @@ import { gatewayTools, reasoningTools } from "../gateway/tools.js";
 import { LabEngine } from "../lab/engine.js";
 import { PyBenchRunner } from "../lab/bench.js";
 import { LabNightRun } from "../lab/night.js";
+import { LabApplier } from "../lab/apply.js";
 import { resolve as resolvePath } from "node:path";
 import { readFile } from "node:fs/promises";
 
@@ -82,6 +83,7 @@ export interface Core {
   /** Night Lab (D-0079): experiment engine + the quiet-hours night orchestrator */
   labEngine: import("../lab/engine.js").LabEngine;
   labNight: import("../lab/night.js").LabNightRun;
+  labApplier: import("../lab/apply.js").LabApplier;
   policy: PolicyEngine;
   approvals: ApprovalBroker;
   activity: ActivityBus;
@@ -474,6 +476,9 @@ export async function buildCore(opts: {
     },
     lastUserActivity: () => loop.lastUserActivityAt,
   });
+  // Apply-to-live (L4): the ONLY path from ledger to live, three-envelope
+  // gated; user-pinned settings and persona changes always need the user.
+  const labApplier = new LabApplier(opts.pool, audit, settings, prompts, announcer);
   const autonomy = new BackgroundScheduler({
     settings, proactive, sleepCycle, estop, audit, activity,
     // Night Lab (D-0079): offered a beat at the end of a quiet-hours tick
@@ -513,7 +518,7 @@ export async function buildCore(opts: {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, activation, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
     entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, announcer, projects, perception, ops, a2ui,
-    labEngine, labNight,
+    labEngine, labNight, labApplier,
     ...(secrets ? { secrets } : {}),
     loop,
   };

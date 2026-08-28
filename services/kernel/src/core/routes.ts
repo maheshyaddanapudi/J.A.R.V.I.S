@@ -59,6 +59,7 @@ export function registerCoreRoutes(
     pool?: import("pg").Pool;
     a2ui?: import("../a2ui/registry.js").A2uiRegistry;
     labNight?: import("../lab/night.js").LabNightRun;
+    labApplier?: import("../lab/apply.js").LabApplier;
   },
 ): void {
   // ---- Night Lab (D-0079): ledger transparency + a manual fire for testing.
@@ -93,6 +94,23 @@ export function registerCoreRoutes(
       if (wait) return await labNight.runNight();
       void labNight.runNight();
       return { started: true };
+    });
+  }
+  if (deps.labApplier) {
+    const applier = deps.labApplier;
+    // Apply a KEPT experiment under the three-envelope rule. `approve: true`
+    // is the localhost user's explicit consent (same trust model as every
+    // other localhost mutation route); without it, proposal-envelope and
+    // user-pinned cases refuse with the reason.
+    app.post("/lab/experiments/:id/apply", async (req, reply) => {
+      const id = (req.params as { id: string }).id;
+      const approve = Boolean((req.body as { approve?: boolean } | undefined)?.approve);
+      const r = await applier.applyKept(id, { approvedByUser: approve });
+      return r.ok ? r : reply.code(409).send(r);
+    });
+    app.post("/lab/experiments/:id/revert", async (req, reply) => {
+      const r = await applier.revert((req.params as { id: string }).id);
+      return r.ok ? r : reply.code(409).send(r);
     });
   }
   // A2UI (D-0061): agent-generated declarative panels. Specs are validated

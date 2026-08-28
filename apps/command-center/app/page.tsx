@@ -266,6 +266,9 @@ export default function SystemPage() {
             <a href="/a2ui" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               a2ui →
             </a>{" "}
+            <a href="/lab" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
+              lab →
+            </a>{" "}
             <a href="/orb" style={{ color: "var(--operational)", marginLeft: "0.4rem" }}>
               voice orb →
             </a>

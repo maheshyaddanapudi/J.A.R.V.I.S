@@ -86,6 +86,7 @@ export function createServer(opts: {
       pool: opts.pool,
       a2ui: opts.core.a2ui,
       labNight: opts.core.labNight,
+      labApplier: opts.core.labApplier,
     });
     registerMemoryRoutes(app, opts.core.memory, opts.core.entityMemory, opts.core.episodicMemory);
   }
