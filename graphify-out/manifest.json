@@ -1464,10 +1464,10 @@
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   "CLAUDE.md": {
-    "mtime": 1787960094.4800124,
-    "seen": 1787960194.4897633,
-    "ast_hash": "5fe5184570f1a5e69bc45bc166f6c47c",
-    "semantic_hash": "5fe5184570f1a5e69bc45bc166f6c47c"
+    "mtime": 1787960729.66405,
+    "seen": 1787960856.74885,
+    "ast_hash": "e730f5b2429d4e073a3a92c025cb22cd",
+    "semantic_hash": "e730f5b2429d4e073a3a92c025cb22cd"
   },
   "README.md": {
     "mtime": 1787690224.869232,
@@ -1954,5 +1954,11 @@
     "seen": 1787957673.8730876,
     "ast_hash": "2e0d793ba1e4b936c7da5a53d3c68f9c",
     "semantic_hash": "2e0d793ba1e4b936c7da5a53d3c68f9c"
+  },
+  "scripts/db_up.sh": {
+    "mtime": 1787960700.8600485,
+    "seen": 1787960702.494112,
+    "ast_hash": "6c742cd412a43c631c96d86c11749962",
+    "semantic_hash": "6c742cd412a43c631c96d86c11749962"
   }
 }
