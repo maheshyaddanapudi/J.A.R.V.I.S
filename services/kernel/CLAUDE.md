@@ -435,6 +435,36 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   duplicates, first live D-0051 autotune self-adjustment (2→1), self-created
   agenda items + a durable project, skill self-UPDATE (fibonacci v2 fast
   doubling), autonomy budget cap engaging naturally.
+- Night Lab ✅ (D-0079, 2026-08-28): `src/lab/` — evidence-gated
+  self-experimentation (autoresearch pattern on our safety rails). `surface.ts`
+  (**PROTECTED PATH**, in R-CAP-08 `PROTECTED_PATHS` along with `bench/`): the
+  Z1-held `LAB_SURFACE` allowlist (5 judge templates auto + persona always-
+  proposal + 6 whitelisted settings) with `LAB_FORBIDDEN_SETTING_PREFIXES`
+  (budget/autonomy/lab/quiet-hours/announce/gateway… — the lab can never edit
+  its own envelope) and deny-first `validateCandidate`. `engine.ts`: keep
+  protocol N=3 trials / δ=4 mean margin / ε=3 guard bands on EVERY trial /
+  8 deterministic hard gates auto-discard / crash rows; ledger migration 0026
+  `lab_experiments` (+ audit `lab_experiment` + episode per row). `bench.ts` →
+  `scripts/lab_bench.py`: boots an ISOLATED lab kernel (scratch `jarvis_lab`
+  DB, own port), loads fixtures through the real gated tools (prefs PINNED —
+  D-0029 pins-only context contract), runs 10 rubric conversations + 4-dim
+  grading via `/gateway/chat`, sha256 bench hash; report required — partial
+  scores never masquerade. `researcher.ts`: planning-role candidate generation,
+  ONE change per candidate, ledger history fed back (live: hypotheses cited
+  prior failures). `night.ts`: runs at END of the scheduler tick in quiet
+  hours; skip/halt conditions (e-stop, disabled, window, live activity,
+  `budget.lab.nightlyTokenCap`, diminishing returns, null candidates); morning
+  report GENERATED FROM THE LEDGER, announced with dedupe + quiet-hours defer,
+  delivered via D-0077 chat relay. `apply.ts`: three envelopes — auto (unpinned
+  whitelisted) / proposal (persona) / user-pinned NEVER auto (one night ≠ the
+  D-0052 trail) — re-validates surface at apply time, exact revert from
+  captured prior state. Routes `/lab/experiments[/:id/apply|revert]`,
+  `/lab/night`; CC `/lab` panel (11/11 headless). **Live scheduler-fired night
+  (real Sonnet-5):** baseline 93.2; 4 candidates, 4 honest discards via three
+  different mechanisms; cap-halt 156,319/150,000; report relayed in-voice.
+  Also fixed live-found announcer bug (quiet-hours `enabled` flag ignored by
+  the deferral hold). **432 kernel tests.** Record:
+  `docs/verification/NIGHT_LAB_2026-08-28.md`.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

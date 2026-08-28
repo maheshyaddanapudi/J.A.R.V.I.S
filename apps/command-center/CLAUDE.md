@@ -243,6 +243,19 @@ never decoration (R-UI-03, R-CORE-02).
   8 focused retests all pass. Notable: the A2UI generated panel's `action`
   button correctly FILES AN APPROVAL (resolved on the dashboard) rather than
   executing directly — generated UI and built-in UI share the same broker.
+- **Night Lab panel** at `/lab` (`app/lab/page.tsx`, 2026-08-28, D-0079): the
+  self-experimentation ledger, fully observable — every experiment (KEEP /
+  DISCARD / CRASH chip + envelope + APPLIED TO LIVE) straight from
+  `GET /lab/experiments`, with baseline→mean per-dimension readouts, verdict
+  reasons (guard-band breaches shown verbatim), bench hash, token spend, and a
+  details disclosure (hypothesis, trial scores, gate failures). Kept rows get
+  apply (auto) or **approve + apply** (proposal envelope — persona/pinned always
+  ask); applied rows get revert; a "run a lab night now" button POSTs
+  `/lab/night {wait:true}` (the run still enforces its whole envelope). Live
+  lab settings chips from `/settings`. **Verified live via headless Chromium
+  (11/11 functional; only non-pass is the shared `/favicon.ico` 404) against
+  the real ledger of the first scheduler-fired night** (4 discards, no apply
+  button on discarded rows). Screenshot `docs/screenshots/lab.png`.
 - **Design system** proposed in `docs/DESIGN_SYSTEM.md` for the R-UI-01 check-in.
 - SSE endpoints (`/core/activity`, `/core/converse`) now echo the CORS header for
   cross-origin EventSource (raw writeHead bypasses the onSend hook) — needed for
