@@ -1,7 +1,7 @@
 # NIGHT_LAB_SPEC — evidence-gated self-experimentation (D-0079)
 
-**Status:** DRAFT — pending the D-0079 check-in. Nothing in this spec is built or enabled.
-**Generated:** 2026-08-25
+**Status:** IMPLEMENTED — the D-0079 check-in was approved 2026-08-27 ("let's go with the /goal to implement this spec and test it out thoroughly") and all four slices are built, tested (39 new kernel tests), and live-verified with a real scheduler-fired campaign night against the Anthropic API. Record: `docs/verification/NIGHT_LAB_2026-08-28.md`. Requirements landed as R-LAB-01…10 in `REQUIREMENTS_TRACEABILITY.md`; threats as T15/T-LAB-1…6 in `THREAT_MODEL.md`.
+**Generated:** 2026-08-25 · **Implemented:** 2026-08-28
 **Authority:** subordinate to the binding authored docs (`docs/01`–`docs/07`) and the decision log. Requirement IDs `R-LAB-nn` are proposed here and land in `REQUIREMENTS_TRACEABILITY.md` on approval.
 **Provenance:** the loop design adapts Andrej Karpathy's [autoresearch](https://github.com/karpathy/autoresearch) (Apache-style agent hill-climbing: one editable surface, one metric, fixed budget, keep/discard by measurement) onto J.A.R.V.I.S.'s existing safety architecture.
 

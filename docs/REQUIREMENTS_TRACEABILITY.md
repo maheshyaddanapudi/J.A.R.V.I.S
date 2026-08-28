@@ -67,6 +67,21 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 | R-CAP-08 | HARD LIMIT: generated capabilities never touch security/approval/audit/e-stop/credential/sandbox/escalation/installer logic — enforced structurally | 5.3 | G3 | 3 (design from 1) | CI invariant #1; install-time diff scan test | SPEC | — |
 | R-CAP-09 | Pre-P3: record capability gaps; never claim generation ability | 5.3 | G2 | 1–2 | kernel behavior test | SPEC | — |
 
+## Night Lab — evidence-gated self-experimentation (docs/NIGHT_LAB_SPEC.md, D-0079)
+
+| ID | Requirement | Phase | Acceptance | Status |
+|---|---|---|---|---|
+| R-LAB-01 | Experiments execute only against an isolated lab instance + scratch DB; live memory never read (fixtures only) or written by an experiment | 4 | `scripts/lab_bench.py` boots its own kernel on `jarvis_lab`/own port; `lab.test.ts` | **BUILT+VERIFIED 2026-08-28** — docs/verification/NIGHT_LAB_2026-08-28.md |
+| R-LAB-02 | Editable surface is an explicit Z1-held allowlist (`lab/surface.ts`, R-CAP-08 protected); bench outside it, hash-stamped per experiment | 4 | `validateCandidate` deny-first tests; `bench_hash` column | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-03 | Hard safety gates: any deterministic-check failure auto-discards regardless of metric improvement | 4 | 8 gates in the bench (health, e-stop, policy DENY, secret refusal, announce dedupe, quiet-hours defer, entity dedup, audit chain); engine gate tests | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-04 | Every experiment (kept/discarded/crashed) durably recorded with scores, cost, bench hash, provenance | 4 | migration 0026 `lab_experiments`; `persist()` + audit `lab_experiment` + episode | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-05 | Bounded by `budget.lab.nightlyTokenCap` + overall daily cap; defers to live activity; halts on e-stop | 4 | `labnight.test.ts` halt-condition tests; Budget source `night-lab` | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-06 | Winners reach live only via normal gated/ledgered registries under the three-envelope rule (auto / D-0052-pinned / proposal) | 4 | `labapply.test.ts` (7 tests incl. pin refusal citing D-0052) | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-07 | Morning report announced after every campaign night, generated from the ledger (failures, spend, revert paths included) | 4 | `morningReport()` from rows only; announcer dedupeKey `night-lab-report-<date>`; D-0077 chat relay | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-08 | Default-off; enabling is a check-in; kill switches `lab.enabled` + e-stop | 4 | catalog default `false`; night-run skip tests | **BUILT+VERIFIED 2026-08-28** (enabled by the user at the D-0079 check-in) |
+| R-LAB-09 | No keep on a single trial; N=3 trials, mean margin ≥ δ, guard bands on every trial | 4 | `lab.test.ts` keep-protocol tests | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-10 | Bench + campaign files versioned; experiment reproducible from (bench hash, fixtures, candidate) | 4 | committed `bench/` tree; `bench_hash()` sha256 over bench/+runner | **BUILT+VERIFIED 2026-08-28** |
+
 ## Autonomy & approval (docs/02 §Autonomy)
 
 | ID | Requirement | Spec § | Parity | Phase | Acceptance | Status | Decisions |
