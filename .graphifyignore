@@ -1,0 +1,4 @@
+# Files graphify must not ingest (gitignore syntax, honored alongside .gitignore).
+# UI screenshots: 69 image nodes extracted from these produced name=None every
+# time — pure vision-call cost, zero graph value (checked 2026-08-28).
+docs/screenshots/

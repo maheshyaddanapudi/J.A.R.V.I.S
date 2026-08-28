@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v setsid >/dev/null 2>&1 && [ -x scripts/graphify-auto-update.sh ] && setsid scripts/graphify-auto-update.sh > graphify-out/.hook-deep-update.log 2>&1 < /dev/null &"
+            "command": "command -v setsid >/dev/null 2>&1 && [ -x \"${CLAUDE_PROJECT_DIR:-.}/scripts/graphify-auto-update.sh\" ] && setsid \"${CLAUDE_PROJECT_DIR:-.}/scripts/graphify-auto-update.sh\" > \"${CLAUDE_PROJECT_DIR:-.}/graphify-out/.hook-deep-update.log\" 2>&1 < /dev/null &"
           }
         ]
       }
