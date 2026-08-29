@@ -30,7 +30,11 @@ if command -v docker >/dev/null 2>&1; then
     say "compose failed — continuing down the ladder"
   else
     try_daemon=""
-    if interactive; then
+    if [ "${JARVIS_DB_UP_NO_DAEMON_START:-}" = "1" ]; then
+      # hook/background mode: never launch the Docker daemon behind the
+      # user's back — use it if running, else fall through to the fallbacks
+      say "daemon not running and daemon-start disabled for this caller — continuing down the ladder"
+    elif interactive; then
       read -r -p "[db-up] Docker is installed but the daemon is not running. Start it now? [Y/n] " ans
       case "${ans:-Y}" in [Nn]*) say "ok — not starting Docker" ;; *) try_daemon=1 ;; esac
     else

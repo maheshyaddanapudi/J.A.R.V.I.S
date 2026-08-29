@@ -20,6 +20,16 @@
         ]
       }
     ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -x \"${CLAUDE_PROJECT_DIR:-.}/scripts/db_up.sh\" ] && JARVIS_DB_UP_NO_DAEMON_START=1 bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/db_up.sh\" 2>&1 | tail -2 || true"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
