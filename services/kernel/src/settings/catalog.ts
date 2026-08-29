@@ -254,7 +254,7 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     type: "boolean",
     default: () => false,
     description:
-      "When on, every gated tool call is checked against the tool's declared input schema before disclosure/approval; a malformed call is refused with a field-level message ('missing required property statement') instead of failing inside the tool. Off = current behavior (the loop still contains any failure — nothing crashes either way). Default set by measurement, not opinion: see the arg-validation experiment in docs/verification/.",
+      "When on, every gated tool call is checked against the tool's declared input schema before disclosure/approval; a malformed call is refused with a field-level message ('missing required property statement') instead of failing inside the tool. Off = default (the loop still contains any failure — nothing crashes either way). Measured 2026-08-29 (docs/verification/ARGVAL_2026-08-29.md): 0 malformed calls in a 24-run A/B battery with Sonnet-5, and 0 false refusals with validation on — default off; re-measure with local models on the Mac, where malformed calls are actually likely.",
   },
   {
     key: "memory.llmJudgment",
