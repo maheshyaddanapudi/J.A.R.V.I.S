@@ -1398,10 +1398,10 @@
     "semantic_hash": "23236ca5bea31fc1c86b317b42097b00"
   },
   ".claude/settings.json": {
-    "mtime": 1787957425.5035024,
-    "seen": 1787957673.86328,
-    "ast_hash": "de1cb52bb53c2d555b228b9acf95f98c",
-    "semantic_hash": "de1cb52bb53c2d555b228b9acf95f98c"
+    "mtime": 1787966489.3094602,
+    "seen": 1787966490.9553776,
+    "ast_hash": "24ef058b622b57082c9c399388222992",
+    "semantic_hash": "24ef058b622b57082c9c399388222992"
   },
   ".claude/CLAUDE.md": {
     "mtime": 1787690224.864197,
@@ -1464,10 +1464,10 @@
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   "CLAUDE.md": {
-    "mtime": 1787960729.66405,
-    "seen": 1787960856.74885,
-    "ast_hash": "e730f5b2429d4e073a3a92c025cb22cd",
-    "semantic_hash": "e730f5b2429d4e073a3a92c025cb22cd"
+    "mtime": 1787966541.3854632,
+    "seen": 1787966697.6023445,
+    "ast_hash": "698a244d3d2200e6dca9614dd766d894",
+    "semantic_hash": "698a244d3d2200e6dca9614dd766d894"
   },
   "README.md": {
     "mtime": 1787690224.869232,
@@ -1956,10 +1956,10 @@
     "semantic_hash": "2e0d793ba1e4b936c7da5a53d3c68f9c"
   },
   "scripts/db_up.sh": {
-    "mtime": 1787960700.8600485,
-    "seen": 1787960702.494112,
-    "ast_hash": "6c742cd412a43c631c96d86c11749962",
-    "semantic_hash": "6c742cd412a43c631c96d86c11749962"
+    "mtime": 1787966278.2174478,
+    "seen": 1787966279.99156,
+    "ast_hash": "17bda84967e0eed65be47981a70c9dd6",
+    "semantic_hash": "17bda84967e0eed65be47981a70c9dd6"
   },
   "services/kernel/test/argvalidation.test.ts": {
     "mtime": 1787965192.561383,
