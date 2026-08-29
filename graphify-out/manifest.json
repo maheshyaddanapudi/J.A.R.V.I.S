@@ -1397,12 +1397,6 @@
     "ast_hash": "23236ca5bea31fc1c86b317b42097b00",
     "semantic_hash": "23236ca5bea31fc1c86b317b42097b00"
   },
-  ".claude/settings.json": {
-    "mtime": 1787966489.3094602,
-    "seen": 1787966490.9553776,
-    "ast_hash": "24ef058b622b57082c9c399388222992",
-    "semantic_hash": "24ef058b622b57082c9c399388222992"
-  },
   ".claude/CLAUDE.md": {
     "mtime": 1787690224.864197,
     "seen": 1787691652.6871016,
@@ -1852,24 +1846,6 @@
     "seen": 1787879745.3982306,
     "ast_hash": "821821ca67d9beba78d940b578207b6c",
     "semantic_hash": "821821ca67d9beba78d940b578207b6c"
-  },
-  "bench/campaigns/persona-adherence.json": {
-    "mtime": 1787874952.7339935,
-    "seen": 1787879745.399315,
-    "ast_hash": "17593903e4cb6b72534406b7972f8783",
-    "semantic_hash": "17593903e4cb6b72534406b7972f8783"
-  },
-  "bench/conversations/conversations.json": {
-    "mtime": 1787874099.826013,
-    "seen": 1787879745.3993175,
-    "ast_hash": "0e16073d514455fbb56ef3a8ad9ff892",
-    "semantic_hash": "0e16073d514455fbb56ef3a8ad9ff892"
-  },
-  "bench/fixtures/memory.json": {
-    "mtime": 1787874086.3180134,
-    "seen": 1787879745.399319,
-    "ast_hash": "dc1ea33cef0601910e674f7cfe7fea51",
-    "semantic_hash": "dc1ea33cef0601910e674f7cfe7fea51"
   },
   "scripts/lab_bench.py": {
     "mtime": 1787874774.2539976,
