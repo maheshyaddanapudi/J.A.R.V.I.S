@@ -253,7 +253,7 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     category: "Memory",
     type: "boolean",
     default: () => true,
-    description: "When on, J.A.R.V.I.S. asks the fast model whether a similarly-named mention is the SAME entity ('Pepper' ⇄ 'Pepper Potts') and which facts restate each other, instead of relying on string heuristics. Best-effort: private/secret memory stays local, and it always falls back to the deterministic logic when no local model is available (offline).",
+    description: "When on, J.A.R.V.I.S. asks the fast model whether a similarly-named mention is the SAME entity ('Pepper' ⇄ 'Pepper Potts') and which facts restate each other, instead of relying on string heuristics. Best-effort: private/secret memory stays local, and it always falls back to the deterministic logic when no local model is available (offline). Turning this off costs only quality, never correctness: name variants may become separate entities, and fact merging / learned-topic extraction fall back to word-overlap heuristics — nothing errors, and every write still lands (live-verified keyless 2026-08-29).",
   },
 
   {
