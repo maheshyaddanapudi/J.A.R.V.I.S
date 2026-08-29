@@ -1014,10 +1014,10 @@
     "semantic_hash": "3b22d429b4916f04e84a7b8a84de21d9"
   },
   "services/kernel/src/settings/catalog.ts": {
-    "mtime": 1787965112.9733784,
-    "seen": 1787965115.0493963,
-    "ast_hash": "a6d618ec8024869c739651aa0b15a295",
-    "semantic_hash": "a6d618ec8024869c739651aa0b15a295"
+    "mtime": 1787965665.7454112,
+    "seen": 1787965692.909297,
+    "ast_hash": "f688bc9ea44113e5945c921672e931c0",
+    "semantic_hash": "f688bc9ea44113e5945c921672e931c0"
   },
   "services/kernel/src/settings/registry.ts": {
     "mtime": 1787690225.0436814,
@@ -1966,5 +1966,11 @@
     "seen": 1787965194.616823,
     "ast_hash": "850b39a333ae0112b3f2b379b3ab510c",
     "semantic_hash": "850b39a333ae0112b3f2b379b3ab510c"
+  },
+  "docs/verification/ARGVAL_2026-08-29.md": {
+    "mtime": 1787965659.5734107,
+    "seen": 1787965692.9130383,
+    "ast_hash": "85ab47e8444128063dd748b0f6b56d94",
+    "semantic_hash": "85ab47e8444128063dd748b0f6b56d94"
   }
 }
