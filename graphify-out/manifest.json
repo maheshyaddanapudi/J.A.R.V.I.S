@@ -1014,10 +1014,10 @@
     "semantic_hash": "3b22d429b4916f04e84a7b8a84de21d9"
   },
   "services/kernel/src/settings/catalog.ts": {
-    "mtime": 1787875503.269981,
-    "seen": 1787879745.4048982,
-    "ast_hash": "9da851c46b02e5e623a75e3c00d29262",
-    "semantic_hash": "9da851c46b02e5e623a75e3c00d29262"
+    "mtime": 1787961716.3241088,
+    "seen": 1787961718.0067565,
+    "ast_hash": "cabf2864e85064a6ac0398cd5f230e1e",
+    "semantic_hash": "cabf2864e85064a6ac0398cd5f230e1e"
   },
   "services/kernel/src/settings/registry.ts": {
     "mtime": 1787690225.0436814,
