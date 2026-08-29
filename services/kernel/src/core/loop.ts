@@ -1,3 +1,4 @@
+import Ajv, { type ValidateFunction } from "ajv";
 import type { GatewayRouter } from "../gateway/router.js";
 import type { NeutralMessage } from "../gateway/schema.js";
 import type { ActivityBus } from "./activity.js";
@@ -31,6 +32,11 @@ export class CoreLoop {
   /** last moment a USER-driven request touched the loop (heartbeat excluded) —
    *  lets the scheduler defer its brain pass while a live session is active */
   lastUserActivityAt: string | null = null;
+  /** compiled per-tool arg validators (tools.validateArgs experiment) —
+   *  lazily built from each tool's declared inputSchema, cached by name */
+  private readonly argValidators = new Map<string, ValidateFunction>();
+  // same CJS-default-under-NodeNext construction dance as gateway/router.ts
+  private readonly ajv = new (Ajv as unknown as typeof Ajv.default)({ strict: false, allowUnionTypes: true });
   private touch(source: string): void {
     if (source !== "heartbeat") this.lastUserActivityAt = new Date().toISOString();
   }
@@ -57,6 +63,11 @@ export class CoreLoop {
       decisions?: import("./consolidation.js").DecisionLog;
       /** durable consent store (D-0059): "always-allow-in-scope" persists */
       durableGrants?: import("./grants.js").DurableGrants;
+      /** tools.validateArgs experiment: when true, tool args are checked
+       *  against the tool's declared inputSchema BEFORE disclosure/policy —
+       *  a mismatch is a clean field-level refusal, not a tool-body crash.
+       *  Default off (current behavior); the default is set by measurement. */
+      validateArgs?: () => Promise<boolean>;
       /**
        * Chat-delivery of announcements (D-0077): the conversation itself is the
        * zero-extra-I/O delivery channel. On each turn, pending (non-deferred)
@@ -107,6 +118,32 @@ export class CoreLoop {
     if (!tool) {
       this.deps.activity.emit({ kind: "error", message: `unknown tool ${input.tool}`, at: now() });
       return { ok: false, summary: `unknown tool: ${input.tool}` };
+    }
+
+    // tools.validateArgs (default off): schema-check args at the ONE choke
+    // point every caller passes, before disclosure/policy/approval — so a
+    // malformed call is refused with a field-level message the caller (human
+    // or agent) can act on, instead of crashing inside the tool body.
+    if (await this.deps.validateArgs?.().catch(() => false)) {
+      let validate = this.argValidators.get(tool.name);
+      if (!validate) {
+        try {
+          const compiled = this.ajv.compile(tool.inputSchema);
+          this.argValidators.set(tool.name, compiled);
+          validate = compiled;
+        } catch {
+          /* uncompilable schema → never block the tool on our own bug */
+        }
+      }
+      if (validate && !validate(input.args ?? {})) {
+        const why = (validate.errors ?? [])
+          .map((e) => `${e.instancePath || "args"} ${e.message ?? "invalid"}`.trim())
+          .slice(0, 3)
+          .join("; ");
+        const summary = `invalid args for ${tool.name}: ${why || "schema mismatch"}`;
+        this.deps.activity.emit({ kind: "tool_result", tool: tool.name, ok: false, summary, at: now() });
+        return { ok: false, summary };
+      }
     }
 
     // Pre-action disclosure for consequential tools (R-CTRL-04). A tool that

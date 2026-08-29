@@ -248,6 +248,15 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     description: "Entities unused for this many days are PROPOSED for review during the sleep cycle — never auto-forgotten.",
   },
   {
+    key: "tools.validateArgs",
+    label: "Validate tool arguments against their schema",
+    category: "Core",
+    type: "boolean",
+    default: () => false,
+    description:
+      "When on, every gated tool call is checked against the tool's declared input schema before disclosure/approval; a malformed call is refused with a field-level message ('missing required property statement') instead of failing inside the tool. Off = current behavior (the loop still contains any failure — nothing crashes either way). Default set by measurement, not opinion: see the arg-validation experiment in docs/verification/.",
+  },
+  {
     key: "memory.llmJudgment",
     label: "Use the fast model for memory judgments",
     category: "Memory",

@@ -372,6 +372,9 @@ export async function buildCore(opts: {
     reasoningTuner,
     decisions,
     durableGrants,
+    // tools.validateArgs experiment: schema-check args at the loop boundary
+    // (default off — the default is decided by measurement, not opinion)
+    validateArgs: async () => settings.bool("tools.validateArgs", false),
     // Chat delivery of announcements (D-0077): pending items are relayed at the
     // start of the next conversation turn and marked delivered — the chat is
     // the zero-extra-I/O notification channel (Mac toasts are an add-on).
