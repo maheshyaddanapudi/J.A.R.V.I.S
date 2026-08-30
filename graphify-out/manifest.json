@@ -1972,5 +1972,17 @@
     "seen": 1788058731.1466265,
     "ast_hash": "2343a986d2d649fff5196fe6d7520113",
     "semantic_hash": "2343a986d2d649fff5196fe6d7520113"
+  },
+  "scripts/longitude_xl.py": {
+    "mtime": 1788063452.5703092,
+    "seen": 1788063454.5948133,
+    "ast_hash": "0c9bc7ed4c9bfb3dcc266b8efcfd9407",
+    "semantic_hash": "0c9bc7ed4c9bfb3dcc266b8efcfd9407"
+  },
+  "services/kernel/test/longitude_fixes.test.ts": {
+    "mtime": 1788056844.6339164,
+    "seen": 1788063440.7365787,
+    "ast_hash": "5b8703d5ec6be03c3cf6924d773bf3ce",
+    "semantic_hash": "5b8703d5ec6be03c3cf6924d773bf3ce"
   }
 }
