@@ -44,6 +44,7 @@ OUT.mkdir(exist_ok=True)
 STATE = OUT / "state.json"
 SEED = 20260830
 COST_CAP = float(os.environ.get("XL_COST_CAP_USD", "400"))
+EMBED = os.environ.get("XL_EMBED_URL", "http://127.0.0.1:9302")
 # Sonnet-5 / Haiku-4.5 $/Mtok (input, output)
 PRICE = {"claude-sonnet-5": (3.0, 15.0), "claude-haiku-4-5": (1.0, 5.0)}
 
@@ -493,6 +494,46 @@ def ensure_kernel() -> None:
         subprocess.run(["bash", str(OUT / "restart_kernel.sh")], timeout=240, check=True)
 
 
+def ensure_embedder() -> None:
+    """Semantic recall needs the local 768-dim embedder alive. A container
+    idle-freeze kills it exactly as it kills Postgres — and XL-500 ran 141
+    days on the kernel's (correct, honest) LEXICAL fallback before anyone
+    noticed, because nothing checked. Self-heal, then verify."""
+    try:
+        httpx.get(f"{EMBED}/v1/models", timeout=5)
+        return
+    except Exception:
+        pass
+    log("[heal] embed server down — restarting")
+    subprocess.Popen(["bash", str(OUT / "restart_embedder.sh")],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(120):
+        try:
+            httpx.get(f"{EMBED}/v1/models", timeout=3)
+            log("[heal] embed server back")
+            return
+        except Exception:
+            time.sleep(2)
+    raise SystemExit("FATAL: embed server will not come up — refusing to run blind")
+
+
+def assert_embeddings_live(day: int, state: dict) -> None:
+    """Fail loudly if vectors stop growing while episodes do: a silent
+    degradation to lexical-only would invalidate every recall curve."""
+    vec = int(psql("SELECT count(*) FROM memory_embeddings") or 0)
+    prev = state.get("last_vec_count")
+    prev_day = state.get("last_vec_day")
+    state["last_vec_count"], state["last_vec_day"] = vec, day
+    if prev is None:
+        return
+    if vec <= prev and day - (prev_day or day) >= 20:
+        fails = int(psql("SELECT count(*) FROM model_calls WHERE role='embeddings' AND NOT ok") or 0)
+        raise SystemExit(
+            f"FATAL day {day}: memory_embeddings flat at {vec} since day {prev_day} "
+            f"({fails} failed embedding calls) — semantic recall is not being measured. "
+            "Fix the embedder and resume; do not report a lexical-only run as semantic.")
+
+
 # -------------------------------------------------------------------- main ---
 METRICS = (OUT / "metrics.jsonl").open("a")
 QUIZ_LOG = (OUT / "quizzes.jsonl").open("a")
@@ -505,6 +546,7 @@ def main() -> None:
         f"{len(ALL_FACTS)} facts ({sum(1 for f in ALL_FACTS if f['pref'])} prefs, "
         f"{sum(1 for f in ALL_FACTS if f['flips'])} flipping) | hash {CATALOG_HASH}")
     ensure_kernel()
+    ensure_embedder()
 
     if start == 1:
         put_setting("heartbeat.deferWhileActiveMinutes", 0, "xl: nights follow days immediately")
@@ -515,6 +557,7 @@ def main() -> None:
 
     for day in range(start, DAYS + 1):
         t_day = time.time()
+        ensure_embedder()
         rng = random.Random(SEED * 100000 + day)  # per-day deterministic
         session = str(uuid.uuid4())
         deep_on_auto = 0
@@ -555,6 +598,8 @@ def main() -> None:
             state.pop("pending_repin", None)
             log(f"  [pin] day {day}: user RE-PINS (#{state['repins']})")
 
+        if day % QUIZ_EVERY == 0:
+            assert_embeddings_live(day, state)
         quiz = quiz_battery(day, rng, state) if day % QUIZ_EVERY == 0 or day == 1 else None
         tick = night(day)
         shifted = shift_world_one_day()
