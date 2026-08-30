@@ -1948,5 +1948,17 @@
     "seen": 1787965692.9130383,
     "ast_hash": "85ab47e8444128063dd748b0f6b56d94",
     "semantic_hash": "85ab47e8444128063dd748b0f6b56d94"
+  },
+  "scripts/longitude_sim.py": {
+    "mtime": 1788051069.253573,
+    "seen": 1788051071.2370384,
+    "ast_hash": "72074fede9e3995694831c70d1702df9",
+    "semantic_hash": "72074fede9e3995694831c70d1702df9"
+  },
+  "docs/verification/FULL_EVIDENCE_2026-08-29.md": {
+    "mtime": 1787973235.6526532,
+    "seen": 1788050897.6616836,
+    "ast_hash": "4788738c520ad2319714371a22c98a33",
+    "semantic_hash": "4788738c520ad2319714371a22c98a33"
   }
 }
