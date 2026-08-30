@@ -462,10 +462,10 @@
     "semantic_hash": "586ee1f26d36ffa136fefcfe507cf210"
   },
   "services/kernel/src/core/consolidation.ts": {
-    "mtime": 1787690225.0237525,
-    "seen": 1787691652.6869936,
-    "ast_hash": "802307dc8ac6b9d1261344ca12abf96f",
-    "semantic_hash": "802307dc8ac6b9d1261344ca12abf96f"
+    "mtime": 1788056799.0019135,
+    "seen": 1788058731.146366,
+    "ast_hash": "844a2ab6cab2d5278da676ae7e9be3dd",
+    "semantic_hash": "844a2ab6cab2d5278da676ae7e9be3dd"
   },
   "services/kernel/src/core/estop.ts": {
     "mtime": 1787690225.0237525,
@@ -480,10 +480,10 @@
     "semantic_hash": "20cd5dc10ab3a347c27de07ee18d70a8"
   },
   "services/kernel/src/core/index.ts": {
-    "mtime": 1787965118.3173788,
-    "seen": 1787965120.1745548,
-    "ast_hash": "3ef82743cff467747c0c41a271a7649b",
-    "semantic_hash": "3ef82743cff467747c0c41a271a7649b"
+    "mtime": 1788056805.273914,
+    "seen": 1788058731.1464324,
+    "ast_hash": "10d9df8563d0b44ac91cc75f2751b618",
+    "semantic_hash": "10d9df8563d0b44ac91cc75f2751b618"
   },
   "services/kernel/src/core/loop.ts": {
     "mtime": 1787965159.397381,
@@ -894,16 +894,16 @@
     "semantic_hash": "9b08514253d298730296b892cd938bb7"
   },
   "services/kernel/src/memory/judge.ts": {
-    "mtime": 1787873852.7260187,
-    "seen": 1787879745.4042442,
-    "ast_hash": "4f51464a3079ad73f173a557340ba706",
-    "semantic_hash": "4f51464a3079ad73f173a557340ba706"
+    "mtime": 1788056762.2099113,
+    "seen": 1788058731.149115,
+    "ast_hash": "4b2498f7a468a58cc68581da50d55360",
+    "semantic_hash": "4b2498f7a468a58cc68581da50d55360"
   },
   "services/kernel/src/memory/memory.ts": {
-    "mtime": 1787690225.0374923,
-    "seen": 1787691652.6870346,
-    "ast_hash": "dba8b665d3af62f6f448ab7d335c2024",
-    "semantic_hash": "dba8b665d3af62f6f448ab7d335c2024"
+    "mtime": 1788056784.1499128,
+    "seen": 1788058731.149117,
+    "ast_hash": "b6b0a001f948bf978e104ae842f58e2b",
+    "semantic_hash": "b6b0a001f948bf978e104ae842f58e2b"
   },
   "services/kernel/src/memory/routes.ts": {
     "mtime": 1787690225.0374923,
@@ -1966,5 +1966,11 @@
     "seen": 1788056185.3148835,
     "ast_hash": "7c7c0888326a32810f19ce271f19418f",
     "semantic_hash": "7c7c0888326a32810f19ce271f19418f"
+  },
+  "services/kernel/src/core/tools/recallPreferences.ts": {
+    "mtime": 1788056741.2579103,
+    "seen": 1788058731.1466265,
+    "ast_hash": "2343a986d2d649fff5196fe6d7520113",
+    "semantic_hash": "2343a986d2d649fff5196fe6d7520113"
   }
 }
