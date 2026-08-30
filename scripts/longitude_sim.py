@@ -184,7 +184,7 @@ def run_quiz(day: int) -> dict:
     answer = (r.get("answer") or "").lower()
     scores = {k: int(all(w in answer for w in words)) for k, words in TRUTH.items()}
     return {"score": sum(scores.values()), "of": len(scores), "per": scores,
-            "answer": answer[:400], "ms": r.get("ms")}
+            "answer": answer[:4000], "ms": r.get("ms")}
 
 
 # ------------------------------------------------------------- night phase ---
