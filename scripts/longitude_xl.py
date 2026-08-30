@@ -120,6 +120,10 @@ VALUE_POOLS = {
     "number": [str(n) for n in (3, 7, 12, 19, 24, 42, 68, 91)],
     "city": ["lisbon", "osaka", "tallinn", "cusco", "windhoek", "bergen", "hobart"],
     "material": ["palladium", "graphene", "basalt fiber", "titanium", "borosilicate", "cedar"],
+    "tea": ["earl grey", "sencha", "chamomile", "darjeeling", "peppermint rooibos"],
+    "hour": [str(n) for n in (6, 7, 8, 9, 21, 22, 23)],
+    "smallnum": [str(n) for n in (11, 12, 13, 14, 16)],
+    "plant": ["fern", "cactus", "monstera", "basil", "jade plant"],
 }
 # Six genuinely deep topics for the promotion arc; routine-forced-deep is the junk control.
 DEEP_TOPICS = ["plasma containment", "orbital rendezvous", "battery chemistry",
@@ -163,11 +167,13 @@ def build_catalog() -> list[dict]:
             mk_fact(name, "person", "meets on", "day", teach + rng.randint(0, 4), False, rng),
         ]}); tid += 1
     # ~28 preference-type topics (finding-#2 fix at scale): stored as PREFERENCES
-    PREFS = [("coffee order", "drink"), ("tea order", "drink"), ("preferred workday start", "number"),
+    # slot-PLAUSIBLE pools (shakeout day-20 finding: an implausible pairing like
+    # 'tea order = espresso macchiato' makes the model refuse a correct recall)
+    PREFS = [("coffee order", "drink"), ("tea order", "tea"), ("preferred workday start", "hour"),
              ("favourite colour", "color"), ("lucky number", "number"), ("preferred travel city", "city"),
              ("workshop paint colour", "color"), ("preferred meeting day", "day"),
-             ("evening drink", "drink"), ("preferred font size", "number"), ("desk plant", "color"),
-             ("preferred backup hour", "number"), ("dream destination", "city"), ("preferred alloy", "material")]
+             ("evening drink", "tea"), ("preferred font size", "smallnum"), ("desk plant", "plant"),
+             ("preferred backup hour", "hour"), ("dream destination", "city"), ("preferred alloy", "material")]
     for i, (pname, pool) in enumerate(PREFS * 2):
         label = pname if i < len(PREFS) else f"weekend {pname}"
         teach = rng.randint(1, 250)
