@@ -1950,10 +1950,10 @@
     "semantic_hash": "85ab47e8444128063dd748b0f6b56d94"
   },
   "scripts/longitude_sim.py": {
-    "mtime": 1788051069.253573,
-    "seen": 1788051071.2370384,
-    "ast_hash": "72074fede9e3995694831c70d1702df9",
-    "semantic_hash": "72074fede9e3995694831c70d1702df9"
+    "mtime": 1788053063.5936916,
+    "seen": 1788053065.3493721,
+    "ast_hash": "2ebc7865f13c17e59d4c6b390d20c071",
+    "semantic_hash": "2ebc7865f13c17e59d4c6b390d20c071"
   },
   "docs/verification/FULL_EVIDENCE_2026-08-29.md": {
     "mtime": 1787973235.6526532,
