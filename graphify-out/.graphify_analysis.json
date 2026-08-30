@@ -1230,6 +1230,27 @@
       "services_ears_src_jarvis_ears_engines_wakewordengine_reset"
     ],
     "36": [
+      "services_kernel_src_lab_engine_campaignspec",
+      "services_kernel_src_lab_night",
+      "services_kernel_src_lab_night_announcerlike",
+      "services_kernel_src_lab_night_announcerlike_raise",
+      "services_kernel_src_lab_night_append",
+      "services_kernel_src_lab_night_gatewaylike",
+      "services_kernel_src_lab_night_gatewaylike_chat",
+      "services_kernel_src_lab_night_labnightdeps",
+      "services_kernel_src_lab_night_nightsummary",
+      "services_kernel_src_lab_night_overlayonsurface",
+      "services_kernel_src_lab_night_settingslike",
+      "services_kernel_src_lab_night_settingslike_bool",
+      "services_kernel_src_lab_night_settingslike_str",
+      "services_kernel_src_lab_night_surfacesnapshot",
+      "services_kernel_src_lab_researcher",
+      "services_kernel_src_lab_researcher_gatewaylike",
+      "services_kernel_src_lab_researcher_gatewaylike_chat",
+      "services_kernel_src_lab_researcher_generatecandidate",
+      "services_kernel_src_lab_researcher_parsejson"
+    ],
+    "37": [
       "services_kernel_src_memory_entities",
       "services_kernel_src_memory_entities_contentwords",
       "services_kernel_src_memory_entities_dicecoefficient",
@@ -1250,7 +1271,7 @@
       "services_kernel_src_memory_entitytools_renderneighborhood",
       "services_kernel_src_memory_entitytools_renderrecall"
     ],
-    "37": [
+    "38": [
       "services_kernel_src_settings_catalog",
       "services_kernel_src_settings_catalog_rationale_288",
       "services_kernel_src_settings_catalog_settings_catalog",
@@ -1271,7 +1292,7 @@
       "services_kernel_test_labapply_test_audit",
       "services_kernel_test_labapply_test_seedkept"
     ],
-    "38": [
+    "39": [
       "services_kernel_src_settings_registry_settingspec",
       "services_kernel_src_settings_registry_settingsregistry",
       "services_kernel_src_settings_registry_settingsregistry_bool",
@@ -1292,7 +1313,7 @@
       "services_kernel_src_settings_registry_settingsregistry_set",
       "services_kernel_src_settings_registry_settingsregistry_str"
     ],
-    "39": [
+    "40": [
       "services_ears_src_jarvis_ears_engines_wakeevent",
       "services_ears_src_jarvis_ears_wake_openwakeword",
       "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword",
@@ -1312,7 +1333,7 @@
       "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_reset",
       "services_ears_tests_test_engines_wake"
     ],
-    "40": [
+    "41": [
       "scripts_longitude_sim",
       "scripts_longitude_sim_agent",
       "scripts_longitude_sim_converse",
@@ -1331,7 +1352,7 @@
       "scripts_longitude_sim_shift_world_one_day",
       "scripts_longitude_sim_snapshot"
     ],
-    "41": [
+    "42": [
       "services_kernel_src_core_approvals_approvalbroker_denyall",
       "services_kernel_src_core_approvals_approvalbroker_resolve",
       "services_kernel_src_core_loop_coreloop",
@@ -1350,7 +1371,7 @@
       "services_kernel_test_reasoning_test_estop",
       "services_kernel_test_reasoning_test_fakestore"
     ],
-    "42": [
+    "43": [
       "services_kernel_src_crypto_kek",
       "services_kernel_src_crypto_kek_exec",
       "services_kernel_src_crypto_kek_randomkek",
@@ -1368,25 +1389,6 @@
       "services_kernel_src_index_secrets",
       "services_kernel_src_index_shutdown",
       "services_kernel_src_index_startedat"
-    ],
-    "43": [
-      "services_kernel_src_lab_engine_campaignspec",
-      "services_kernel_src_lab_night",
-      "services_kernel_src_lab_night_append",
-      "services_kernel_src_lab_night_gatewaylike",
-      "services_kernel_src_lab_night_gatewaylike_chat",
-      "services_kernel_src_lab_night_labnightdeps",
-      "services_kernel_src_lab_night_nightsummary",
-      "services_kernel_src_lab_night_overlayonsurface",
-      "services_kernel_src_lab_night_settingslike",
-      "services_kernel_src_lab_night_settingslike_bool",
-      "services_kernel_src_lab_night_settingslike_str",
-      "services_kernel_src_lab_night_surfacesnapshot",
-      "services_kernel_src_lab_researcher",
-      "services_kernel_src_lab_researcher_gatewaylike",
-      "services_kernel_src_lab_researcher_gatewaylike_chat",
-      "services_kernel_src_lab_researcher_generatecandidate",
-      "services_kernel_src_lab_researcher_parsejson"
     ],
     "44": [
       "services_kernel_src_autonomy_announce_announcer",
@@ -1494,23 +1496,6 @@
       "services_kernel_test_vault_test"
     ],
     "50": [
-      "services_kernel_src_lab_night_announcerlike",
-      "services_kernel_src_lab_night_announcerlike_raise",
-      "services_kernel_src_lab_night_labnightrun",
-      "services_kernel_src_lab_night_labnightrun_constructor",
-      "services_kernel_src_lab_night_labnightrun_currentsurfacecontent",
-      "services_kernel_src_lab_night_labnightrun_inquiethours",
-      "services_kernel_src_lab_night_labnightrun_morningreport",
-      "services_kernel_src_lab_night_labnightrun_now",
-      "services_kernel_src_lab_night_labnightrun_rowstonight",
-      "services_kernel_src_lab_night_labnightrun_runnight",
-      "services_kernel_src_lab_night_labnightrun_useractive",
-      "services_kernel_src_lab_night_promptslike",
-      "services_kernel_src_lab_night_promptslike_get",
-      "services_kernel_src_lab_night_promptslike_getactive",
-      "services_kernel_src_lab_night_settingslike_num"
-    ],
-    "51": [
       "services_kernel_src_devices_interlock",
       "services_kernel_src_devices_interlock_interlockmanager",
       "services_kernel_src_devices_interlock_interlockmanager_arm",
@@ -1526,7 +1511,7 @@
       "services_kernel_test_devices_test_ctx",
       "services_kernel_test_devices_test_setup"
     ],
-    "52": [
+    "51": [
       "services_kernel_src_memory_entities_assertnotsecret",
       "services_kernel_src_memory_entities_entity",
       "services_kernel_src_memory_entities_entitymemory_rememberentity",
@@ -1542,7 +1527,7 @@
       "services_kernel_src_memory_routes",
       "services_kernel_src_memory_semantic_semanticmemory_index"
     ],
-    "53": [
+    "52": [
       "services_kernel_src_perception_service",
       "services_kernel_src_perception_service_fileperceptionsource",
       "services_kernel_src_perception_service_fileperceptionsource_constructor",
@@ -1558,7 +1543,7 @@
       "services_kernel_test_perception_test",
       "services_kernel_test_perception_test_feed"
     ],
-    "54": [
+    "53": [
       "docs_verification_chat_parity_audit_2026_07_19_report",
       "docs_verification_evolution_2026_07_19_report",
       "docs_verification_full_reverification_2026_07_19_report",
@@ -1573,7 +1558,7 @@
       "services_kernel_src_selfext_claude_module",
       "services_kernel_src_settings_claude_module"
     ],
-    "55": [
+    "54": [
       "package",
       "package_description",
       "package_engines",
@@ -1588,7 +1573,7 @@
       "package_scripts_typecheck",
       "package_version"
     ],
-    "56": [
+    "55": [
       "services_ears_tests_test_engines",
       "services_ears_tests_test_engines_kokoro",
       "services_ears_tests_test_engines_py_ndarray",
@@ -1603,7 +1588,7 @@
       "services_ears_tests_test_engines_test_wake_word_detects_spoken_hey_jarvis",
       "services_ears_tests_test_engines_test_wake_word_ignores_other_speech"
     ],
-    "57": [
+    "56": [
       "services_kernel_src_core_budget",
       "services_kernel_src_core_budget_autonomy_sources",
       "services_kernel_src_core_budget_budget",
@@ -1617,6 +1602,21 @@
       "services_kernel_test_budget_test",
       "services_kernel_test_budget_test_seed",
       "services_kernel_test_budget_test_settings"
+    ],
+    "57": [
+      "services_kernel_src_lab_night_labnightrun",
+      "services_kernel_src_lab_night_labnightrun_constructor",
+      "services_kernel_src_lab_night_labnightrun_currentsurfacecontent",
+      "services_kernel_src_lab_night_labnightrun_inquiethours",
+      "services_kernel_src_lab_night_labnightrun_morningreport",
+      "services_kernel_src_lab_night_labnightrun_now",
+      "services_kernel_src_lab_night_labnightrun_rowstonight",
+      "services_kernel_src_lab_night_labnightrun_runnight",
+      "services_kernel_src_lab_night_labnightrun_useractive",
+      "services_kernel_src_lab_night_promptslike",
+      "services_kernel_src_lab_night_promptslike_get",
+      "services_kernel_src_lab_night_promptslike_getactive",
+      "services_kernel_src_lab_night_settingslike_num"
     ],
     "58": [
       "services_kernel_src_memory_memory_assertnotsecret",
@@ -3083,28 +3083,28 @@
     "33": 0.14210526315789473,
     "34": 0.12631578947368421,
     "35": 0.12280701754385964,
-    "36": 0.15204678362573099,
-    "37": 0.13450292397660818,
-    "38": 0.19883040935672514,
-    "39": 0.13725490196078433,
-    "40": 0.23529411764705882,
-    "41": 0.15441176470588236,
-    "42": 0.13970588235294118,
-    "43": 0.14705882352941177,
+    "36": 0.1286549707602339,
+    "37": 0.15204678362573099,
+    "38": 0.13450292397660818,
+    "39": 0.19883040935672514,
+    "40": 0.13725490196078433,
+    "41": 0.23529411764705882,
+    "42": 0.15441176470588236,
+    "43": 0.13970588235294118,
     "44": 0.16666666666666666,
     "45": 0.225,
     "46": 0.2916666666666667,
     "47": 0.22857142857142856,
     "48": 0.13333333333333333,
     "49": 0.17142857142857143,
-    "50": 0.2571428571428571,
-    "51": 0.2087912087912088,
-    "52": 0.26373626373626374,
-    "53": 0.1978021978021978,
-    "54": 0.19230769230769232,
-    "55": 0.15384615384615385,
-    "56": 0.20512820512820512,
-    "57": 0.19230769230769232,
+    "50": 0.2087912087912088,
+    "51": 0.26373626373626374,
+    "52": 0.1978021978021978,
+    "53": 0.19230769230769232,
+    "54": 0.15384615384615385,
+    "55": 0.20512820512820512,
+    "56": 0.19230769230769232,
+    "57": 0.32051282051282054,
     "58": 0.20512820512820512,
     "59": 0.16666666666666666,
     "60": 0.21212121212121213,
