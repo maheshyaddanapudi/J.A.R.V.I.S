@@ -207,10 +207,16 @@ def night(day: int) -> dict:
 def shift_world_one_day() -> int:
     """Every timestamptz column in every table EXCEPT audit_log/schema_migrations
     moves back one day: the world's memory is now one day older. Honest aging."""
+    # reasoning_decisions is EXCLUDED from aging (found live at day 29 of the
+    # first 100-day run): the D-0052 pin's own timestamp lives inside an
+    # encrypted JSON preference value that column-shifting cannot touch, so
+    # shifting the decision journal put every override BEFORE the frozen pin
+    # and the (correct!) since-pin evaluation saw zero evidence forever. The
+    # journal stays at real time, matching the pin's real-time anchor.
     cols = psql(
         "SELECT table_name || '.' || column_name FROM information_schema.columns "
         "WHERE table_schema='public' AND data_type='timestamp with time zone' "
-        "AND table_name NOT IN ('audit_log','schema_migrations')"
+        "AND table_name NOT IN ('audit_log','schema_migrations','reasoning_decisions')"
     ).splitlines()
     n = 0
     for tc in cols:
