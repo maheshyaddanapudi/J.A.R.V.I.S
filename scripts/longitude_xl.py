@@ -386,6 +386,11 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
                   "(memory.recallPreferences) before concluding anything is missing. "
                   "If a value is truly not in memory say 'not found' — never guess. " + qs, max_steps=8)
         answer = (r.get("answer") or "").lower()
+        if not answer.strip():  # transient empty batch (XL-500 day 110) — one retry
+            r = agent("Answer these from memory, one numbered line each; check both "
+                      "entity memory and stored preferences; say 'not found' if truly absent. " + qs,
+                      max_steps=8)
+            answer = (r.get("answer") or "").lower()
         segs = re.split(r"(?:^|\n|\s)[1-5]\s*[)\.]", answer)
         for j, f in enumerate(batch):
             seg = segs[j + 1] if j + 1 < len(segs) else answer
