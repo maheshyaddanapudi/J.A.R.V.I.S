@@ -246,26 +246,17 @@ def attention_due(t: dict, day: int, rng: random.Random) -> bool:
     return False
 
 
-def plan_day(day: int, rng: random.Random) -> list[tuple[str, str]]:
+def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[str, str]]:
     acts: list[tuple[str, str]] = []
     if day in QUIET:
         acts.append(("chat", "Quiet day. Anything that needs me?"))
         return acts
 
-    # 1) teach facts due today (batched per topic into agent runs)
-    by_topic: dict[str, list[str]] = {}
-    for f in ALL_FACTS:
-        if f["teach"] == day:
-            by_topic.setdefault(f["topic"], []).append(fact_statement(f, truth_value(f, day)))
-        for flip in f["flips"]:
-            if flip == day:
-                by_topic.setdefault(f["topic"], []).append(
-                    "update your memory — " + fact_statement(f, truth_value(f, day)) + " now (it changed)")
-    for topic, stmts in list(by_topic.items())[:4]:  # bound the day's teaching load
-        # ≤3 statements per run: a 5-statement batch exhausted the step budget
-        # and silently dropped facts (shakeout day-30 finding)
-        for i in range(0, min(len(stmts), 6), 3):
-            acts.append(("agent-teach", "Remember these things: " + "; ".join(stmts[i:i + 3]) + "."))
+    # 1) teaching handled by the persistent queue (see teach_due/drain_teach):
+    # a capped day CARRIES OVER instead of dropping topics (shakeout v2 day-20
+    # finding: >4 topics due on one day silently vanished forever)
+    for stmt in teach_acts:
+        acts.append(("agent-teach", stmt))
 
     # 2) deep-topic corrections on schedule (the REAL promotion signal)
     for t in CATALOG:
@@ -297,15 +288,74 @@ def plan_day(day: int, rng: random.Random) -> list[tuple[str, str]]:
     return acts[:12]
 
 
+# ---------------------------------------------------------- teaching queue ---
+def teach_due(day: int) -> list[dict]:
+    """Queue items that come due today: first-teach and flip announcements.
+    The seq tag keeps items unique (two queued flips of one fact must not
+    alias each other when the drain removes delivered items)."""
+    items = []
+    for f in ALL_FACTS:
+        if f["teach"] == day:
+            items.append({"fid": f["fid"], "kind": "teach", "seq": f"{f['fid']}:t"})
+        for i, flip in enumerate(f["flips"]):
+            if flip == day:
+                items.append({"fid": f["fid"], "kind": "flip", "seq": f"{f['fid']}:f{i}"})
+    return items
+
+
+FACT_BY_ID = {f["fid"]: f for f in ALL_FACTS}
+
+
+def drain_teach(state: dict, day: int) -> list[str]:
+    """Pop up to 4 topics' worth (≤3 statements per run) off the queue; build
+    the statements from the ANNOUNCED value index so a delayed flip announces
+    the right next value. Marks delivery/announcement in state."""
+    queue: list[dict] = state.setdefault("teach_queue", [])
+    delivered: dict = state.setdefault("delivered", {})
+    announced: dict = state.setdefault("announced", {})
+    by_topic: dict[str, list[dict]] = {}
+    for item in queue:
+        by_topic.setdefault(FACT_BY_ID[item["fid"]]["topic"], []).append(item)
+    stmts_out: list[str] = []
+    taken: list[dict] = []
+    for topic, items in list(by_topic.items())[:4]:
+        batch = items[:3]
+        parts = []
+        for it in batch:
+            f = FACT_BY_ID[it["fid"]]
+            if it["kind"] == "teach":
+                v = f["values"][announced.get(it["fid"], 0) % len(f["values"])]
+                parts.append(fact_statement(f, v))
+                delivered[it["fid"]] = day
+            else:
+                nxt = announced.get(it["fid"], 0) + 1
+                v = f["values"][nxt % len(f["values"])]
+                parts.append("update your memory — " + fact_statement(f, v) + " now (it changed)")
+                announced[it["fid"]] = nxt
+        stmts_out.append("Remember these things: " + "; ".join(parts) + ".")
+        taken.extend(batch)
+    taken_seqs = {i["seq"] for i in taken}
+    state["teach_queue"] = [i for i in queue if i["seq"] not in taken_seqs]
+    return stmts_out
+
+
+def announced_truth(state: dict, fid: str) -> str:
+    """Ground truth as ANNOUNCED to the kernel (a queued, not-yet-delivered
+    flip does not count against it — scoring follows what it was told)."""
+    f = FACT_BY_ID[fid]
+    return f["values"][state.get("announced", {}).get(fid, 0) % len(f["values"])]
+
+
 # -------------------------------------------------------------------- quiz ---
 NEG = re.compile(r"\b(no record|not found|don'?t have|do not have|won'?t fabricate|"
                  r"haven'?t told|not (on file|recorded|stored)|i have no)\b", re.I)
 
 
-def quiz_battery(day: int, rng: random.Random) -> dict:
+def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
     """Stratified ~20-fact quiz in batches of 5 questions per agent run.
-    Scored per fact against the truth engine; full answers preserved."""
-    taught = [f for f in ALL_FACTS if f["teach"] <= day - 1]
+    Scored per fact against the ANNOUNCED truth; full answers preserved."""
+    delivered = state.get("delivered", {})
+    taught = [f for f in ALL_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
     if not taught:
         return {"day": day, "facts": [], "score": 0, "of": 0}
     prefs = [f for f in taught if f["pref"]]
@@ -325,12 +375,13 @@ def quiz_battery(day: int, rng: random.Random) -> dict:
         segs = re.split(r"(?:^|\n|\s)[1-5]\s*[)\.]", answer)
         for j, f in enumerate(batch):
             seg = segs[j + 1] if j + 1 < len(segs) else answer
-            tv = truth_value(f, day - 1).lower()
+            tv = announced_truth(state, f["fid"]).lower()
             hit = int(all(w in seg for w in tv.split()) and not NEG.search(seg[:120]))
             honest_miss = int(not hit and bool(NEG.search(seg)))
             hits += hit
             records.append({"fid": f["fid"], "topic": f["topic"], "pref": f["pref"],
-                            "age": day - f["teach"], "flips": sum(1 for d in f["flips"] if d <= day),
+                            "age": day - delivered.get(f["fid"], day),
+                            "flips": state.get("announced", {}).get(f["fid"], 0),
                             "hit": hit, "honest_miss": honest_miss, "truth": tv,
                             "seg": seg.strip()[:300]})
         QUIZ_LOG.write(json.dumps({"day": day, "batch_answer": answer[:4000]}) + "\n")
@@ -450,7 +501,9 @@ def main() -> None:
         deep_on_auto = 0
         lat: list[int] = []
 
-        for kind, text in plan_day(day, rng):
+        state.setdefault("teach_queue", []).extend(teach_due(day))
+        teach_acts = [] if day in QUIET else drain_teach(state, day)
+        for kind, text in plan_day(day, rng, teach_acts):
             if kind in ("agent", "agent-teach"):
                 r = agent(text, max_steps=8 if kind == "agent-teach" else 5)
                 lat.append(r.get("ms", 0))
@@ -483,14 +536,14 @@ def main() -> None:
             state.pop("pending_repin", None)
             log(f"  [pin] day {day}: user RE-PINS (#{state['repins']})")
 
-        quiz = quiz_battery(day, rng) if day % QUIZ_EVERY == 0 or day == 1 else None
+        quiz = quiz_battery(day, rng, state) if day % QUIZ_EVERY == 0 or day == 1 else None
         tick = night(day)
         shifted = shift_world_one_day()
 
         if day in RESTARTS:
             log(f"  [restart] day {day}: kernel restart (continuity check)")
             rc = subprocess.run(["bash", str(OUT / "restart_kernel.sh")], timeout=240).returncode
-            post = quiz_battery(day, random.Random(SEED * 999 + day))
+            post = quiz_battery(day, random.Random(SEED * 999 + day), state)
             log(f"  [restart] back rc={rc}; post-restart quiz {post['score']}/{post['of']}")
             snapshot(day, {"restart": {"rc": rc, "post_quiz_score": post["score"], "post_quiz_of": post["of"]}})
             QUIZ_LOG.write(json.dumps({"day": day, "post_restart": post}) + "\n")
