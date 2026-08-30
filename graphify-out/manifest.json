@@ -1548,10 +1548,10 @@
     "semantic_hash": "328f37bf0b824d9615d73622450ecdcc"
   },
   "docs/DECISION_LOG.md": {
-    "mtime": 1787881423.0004992,
-    "seen": 1787926032.8112302,
-    "ast_hash": "652b6fb17037b32d16ead178c8f11323",
-    "semantic_hash": "652b6fb17037b32d16ead178c8f11323"
+    "mtime": 1788056167.4378762,
+    "seen": 1788056185.31428,
+    "ast_hash": "24429bed85147ed1598f311e5fcfad28",
+    "semantic_hash": "24429bed85147ed1598f311e5fcfad28"
   },
   "docs/DESIGN_SYSTEM.md": {
     "mtime": 1787690224.8882782,
@@ -1566,10 +1566,10 @@
     "semantic_hash": "2e5c686f37987b0bb7afce86764b7212"
   },
   "docs/IMPLEMENTATION_PLAN.md": {
-    "mtime": 1787877316.0299394,
-    "seen": 1787879745.4080558,
-    "ast_hash": "37a0db3c83215f6556f0befc0a6f1268",
-    "semantic_hash": "37a0db3c83215f6556f0befc0a6f1268"
+    "mtime": 1788056149.729875,
+    "seen": 1788056185.3143601,
+    "ast_hash": "df74e52edbce250bda2a2c7d3140a574",
+    "semantic_hash": "df74e52edbce250bda2a2c7d3140a574"
   },
   "docs/MAC_BRINGUP.md": {
     "mtime": 1787690224.8882782,
@@ -1950,15 +1950,21 @@
     "semantic_hash": "85ab47e8444128063dd748b0f6b56d94"
   },
   "scripts/longitude_sim.py": {
-    "mtime": 1788053063.5936916,
-    "seen": 1788053065.3493721,
-    "ast_hash": "2ebc7865f13c17e59d4c6b390d20c071",
-    "semantic_hash": "2ebc7865f13c17e59d4c6b390d20c071"
+    "mtime": 1788056119.1778731,
+    "seen": 1788056185.3062494,
+    "ast_hash": "f534a3834d86130fb93db148600622d8",
+    "semantic_hash": "f534a3834d86130fb93db148600622d8"
   },
   "docs/verification/FULL_EVIDENCE_2026-08-29.md": {
     "mtime": 1787973235.6526532,
     "seen": 1788050897.6616836,
     "ast_hash": "4788738c520ad2319714371a22c98a33",
     "semantic_hash": "4788738c520ad2319714371a22c98a33"
+  },
+  "docs/verification/LONGITUDE_2026-08-30.md": {
+    "mtime": 1788056111.3298728,
+    "seen": 1788056185.3148835,
+    "ast_hash": "7c7c0888326a32810f19ce271f19418f",
+    "semantic_hash": "7c7c0888326a32810f19ce271f19418f"
   }
 }
