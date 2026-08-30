@@ -370,7 +370,9 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
         batch = sample[i:i + 5]
         qs = " ".join(f"{j + 1}) {fact_question(f)}" for j, f in enumerate(batch))
         r = agent("From your memory, answer these briefly, one numbered line each. "
-                  "If a value is not in memory say 'not found' — never guess. " + qs, max_steps=8)
+                  "Check BOTH your entity/graph memory and stored preferences "
+                  "(memory.recallPreferences) before concluding anything is missing. "
+                  "If a value is truly not in memory say 'not found' — never guess. " + qs, max_steps=8)
         answer = (r.get("answer") or "").lower()
         segs = re.split(r"(?:^|\n|\s)[1-5]\s*[)\.]", answer)
         for j, f in enumerate(batch):
