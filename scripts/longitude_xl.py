@@ -162,8 +162,9 @@ def build_catalog() -> list[dict]:
     for name in people:
         att = rng.choices(["weekly", "monthly", "rare", "fading"], weights=[2, 3, 4, 2])[0]
         teach = rng.randint(1, 350)
+        slot, pool = ("preferred material", "material") if rng.random() < 0.2 else ("based in", "city")
         topics.append({"id": tid, "name": name, "kind": "person", "attention": att, "facts": [
-            mk_fact(name, "person", "role", "material" if rng.random() < 0.2 else "city", teach, False, rng),
+            mk_fact(name, "person", slot, pool, teach, False, rng),
             mk_fact(name, "person", "meets on", "day", teach + rng.randint(0, 4), False, rng),
         ]}); tid += 1
     # ~28 preference-type topics (finding-#2 fix at scale): stored as PREFERENCES
@@ -174,11 +175,22 @@ def build_catalog() -> list[dict]:
              ("workshop paint colour", "color"), ("preferred meeting day", "day"),
              ("evening drink", "tea"), ("preferred font size", "smallnum"), ("desk plant", "plant"),
              ("preferred backup hour", "hour"), ("dream destination", "city"), ("preferred alloy", "material")]
+    base_pref_facts: dict[str, dict] = {}
     for i, (pname, pool) in enumerate(PREFS * 2):
         label = pname if i < len(PREFS) else f"weekend {pname}"
         teach = rng.randint(1, 250)
+        fact = mk_fact(label, "preference", "is", pool, teach, True, rng)
+        if i < len(PREFS):
+            base_pref_facts[pname] = fact
+        else:
+            # a weekend twin must never share the base topic's current value —
+            # shakeout v4 day-80: equal values made the (correct!) preference
+            # dup-tidy fold two genuinely distinct topics into one
+            base = base_pref_facts[pname]
+            if fact["values"][0] == base["values"][0]:
+                fact["values"] = fact["values"][1:] + fact["values"][:1]
         topics.append({"id": tid, "name": label, "kind": "preference", "attention": rng.choice(["monthly", "rare"]),
-                       "facts": [mk_fact(label, "preference", "is", pool, teach, True, rng)]}); tid += 1
+                       "facts": [fact]}); tid += 1
     # ~110 things across the THINGS domains
     for kind, pool_names in THINGS.items():
         for base in pool_names:
