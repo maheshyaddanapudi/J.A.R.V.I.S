@@ -363,6 +363,22 @@ def announced_truth(state: dict, fid: str) -> str:
 NEG = re.compile(r"\b(no record|not found|don'?t have|do not have|won'?t fabricate|"
                  r"haven'?t told|not (on file|recorded|stored)|i have no)\b", re.I)
 
+# Answer-list markers, LINE-ANCHORED and keyed by their own number. The earlier
+# whitespace-anchored split scored a perfect answer 0/4 (XL-500 relaunch day 10)
+# because a preamble sentence — "…relying on preferences for items 1 and 3." —
+# matched " 3." and shifted every segment by one.
+ITEM = re.compile(r"(?m)^[^\S\n]*\**\s*([1-9])\s*[).]\s*")
+
+
+def segment_answer(answer: str) -> dict[int, str]:
+    """Map each numbered answer line to its own number: {1: 'text', 2: ...}."""
+    marks = [(m.start(), m.end(), int(m.group(1))) for m in ITEM.finditer(answer)]
+    out: dict[int, str] = {}
+    for i, (start, end, num) in enumerate(marks):
+        stop = marks[i + 1][0] if i + 1 < len(marks) else len(answer)
+        out[num] = answer[end:stop].strip()
+    return out
+
 
 def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
     """Stratified ~20-fact quiz in batches of 5 questions per agent run.
@@ -392,9 +408,9 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
                       "entity memory and stored preferences; say 'not found' if truly absent. " + qs,
                       max_steps=8)
             answer = (r.get("answer") or "").lower()
-        segs = re.split(r"(?:^|\n|\s)[1-5]\s*[)\.]", answer)
+        segs = segment_answer(answer)
         for j, f in enumerate(batch):
-            seg = segs[j + 1] if j + 1 < len(segs) else answer
+            seg = segs.get(j + 1, "")
             tv = announced_truth(state, f["fid"]).lower()
             hit = int(all(w in seg for w in tv.split()) and not NEG.search(seg[:120]))
             honest_miss = int(not hit and bool(NEG.search(seg)))
