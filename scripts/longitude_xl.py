@@ -262,12 +262,18 @@ def plan_day(day: int, rng: random.Random) -> list[tuple[str, str]]:
                 by_topic.setdefault(f["topic"], []).append(
                     "update your memory — " + fact_statement(f, truth_value(f, day)) + " now (it changed)")
     for topic, stmts in list(by_topic.items())[:4]:  # bound the day's teaching load
-        acts.append(("agent", "Remember these things: " + "; ".join(stmts[:5]) + "."))
+        # ≤3 statements per run: a 5-statement batch exhausted the step budget
+        # and silently dropped facts (shakeout day-30 finding)
+        for i in range(0, min(len(stmts), 6), 3):
+            acts.append(("agent-teach", "Remember these things: " + "; ".join(stmts[i:i + 3]) + "."))
 
     # 2) deep-topic corrections on schedule (the REAL promotion signal)
     for t in CATALOG:
         if t["kind"] == "deep" and day in t.get("correct_days", []):
-            acts.append(("chat-deep", f"Any thoughts on {t['name']} stability margins?"))
+            first = day == t["correct_days"][0]
+            acts.append(("chat-deep",
+                         f"Any thoughts on {t['name']} for tomorrow?" if first
+                         else f"How would you approach tuning the {t['name']} side of things?"))
 
     # 3) attention chats — mention topics naturally (keeps retrieval honest)
     due = [t for t in CATALOG if t["facts"] and attention_due(t, day, rng)]
@@ -445,8 +451,8 @@ def main() -> None:
         lat: list[int] = []
 
         for kind, text in plan_day(day, rng):
-            if kind == "agent":
-                r = agent(text)
+            if kind in ("agent", "agent-teach"):
+                r = agent(text, max_steps=8 if kind == "agent-teach" else 5)
                 lat.append(r.get("ms", 0))
             else:
                 reasoning = "deep" if kind in ("chat-deep", "chat-forced-deep") else "auto"
