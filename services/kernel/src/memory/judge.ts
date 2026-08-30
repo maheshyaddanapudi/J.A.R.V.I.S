@@ -156,11 +156,16 @@ export const JUDGE_TEMPLATES = {
     "events. When unsure, it is NOT stale (acting on a valid item matters more than skipping a " +
     'doubtful one). Reply with ONLY JSON: {"stale": [{"idx": <index>, "reason": "<short>"}, ...]} — empty list if all items remain valid.',
   "judge-topic-extraction":
-    "The user just asked J.A.R.V.I.S. to think more deeply about their message. Extract the SPECIFIC " +
-    "subject-matter they want deep reasoning on, as 1-3 short lowercase topic terms (single distinctive " +
-    "words or two-word phrases, e.g. 'palladium', 'orbital mechanics', 'metallurgy'). IGNORE filler and " +
-    "meta words like 'quick', 'one-line', 'intuition', 'explain', 'give me'. If there is no substantive " +
-    'topic, return an empty list. Reply with ONLY JSON: {"topics": ["...", ...]}.',
+    "The user just asked J.A.R.V.I.S. to think more deeply about their message. First judge whether the " +
+    "question's SUBJECT inherently warrants deep reasoning — technical, analytical, multi-factor, or " +
+    "consequential subject-matter (e.g. reactor stability, orbital mechanics, drug interactions). A " +
+    "routine everyday question (weather, lunch, what day it is, whether to take a walk) does NOT " +
+    "qualify even though the user chose deep this time — that choice is a preference of the moment, " +
+    "not evidence about a topic; return an empty list for it. If the subject qualifies, extract it as " +
+    "1-3 short lowercase topic terms (single distinctive words or two-word phrases, e.g. 'palladium', " +
+    "'orbital mechanics', 'metallurgy'). IGNORE filler and meta words like 'quick', 'one-line', " +
+    "'intuition', 'explain', 'give me'. If there is no substantive topic, return an empty list. " +
+    'Reply with ONLY JSON: {"topics": ["...", ...]}.',
 } as const;
 
 export type JudgeTemplateName = keyof typeof JUDGE_TEMPLATES;

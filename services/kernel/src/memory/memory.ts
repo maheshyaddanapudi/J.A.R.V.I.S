@@ -260,4 +260,52 @@ export class MemoryService {
   async export(): Promise<{ preferences: Preference[] }> {
     return { preferences: await this.list(true) };
   }
+
+  /**
+   * Quiet-hours near-duplicate KEY tidy (Longitude finding #5): facts get
+   * consolidation, preferences didn't — so `usual_coffee_order` and
+   * `coffee_order` coexisted. Two active keys are near-duplicates when their
+   * filler-stripped token sets are equal or one contains the other
+   * ('usual coffee order' ⊇ 'coffee order'). Same stored value → the less
+   * specific/older key is soft-deleted (reversible, audited via delete);
+   * different values → a proposal only (the user decides which is true).
+   * Machinery keys (reasoning_/gateway_/a2ui_/lab_) are never touched.
+   */
+  async tidyDuplicates(): Promise<{ merged: string[]; proposals: string[] }> {
+    const FILLER = new Set(["usual", "my", "default", "current", "the", "a", "preferred"]);
+    const norm = (key: string): Set<string> =>
+      new Set(key.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !FILLER.has(t)));
+    const subset = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
+
+    const rows = (await this.list()).filter((p) => !/^(reasoning_|gateway_|a2ui_|lab_)/.test(p.key));
+    const merged: string[] = [];
+    const proposals: string[] = [];
+    const gone = new Set<string>();
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = i + 1; j < rows.length; j++) {
+        const a = rows[i]!, b = rows[j]!;
+        if (gone.has(a.key) || gone.has(b.key)) continue;
+        const na = norm(a.key), nb = norm(b.key);
+        if (na.size === 0 || nb.size === 0) continue;
+        if (!(subset(na, nb) || subset(nb, na))) continue;
+        if (a.value.trim().toLowerCase() === b.value.trim().toLowerCase()) {
+          // identical value — keep pinned first, then the more specific key, then newest
+          const keep =
+            a.pinned !== b.pinned ? (a.pinned ? a : b)
+            : na.size !== nb.size ? (na.size > nb.size ? a : b)
+            : a.updated_at >= b.updated_at ? a : b;
+          const drop = keep === a ? b : a;
+          if (drop.pinned) continue; // never tidy away a pin
+          await this.delete(drop.key);
+          gone.add(drop.key);
+          merged.push(`'${drop.key}' folded into '${keep.key}' (same value)`);
+        } else {
+          proposals.push(
+            `preferences '${a.key}' and '${b.key}' look like the same thing with different values — which is right?`,
+          );
+        }
+      }
+    }
+    return { merged, proposals };
+  }
 }

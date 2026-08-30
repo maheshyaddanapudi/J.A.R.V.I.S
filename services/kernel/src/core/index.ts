@@ -10,6 +10,7 @@ import { ToolRegistry } from "./tools.js";
 import { systemInfoTool } from "./tools/systemInfo.js";
 import { workspaceNoteTool } from "./tools/workspaceNote.js";
 import { rememberPreferenceTool } from "./tools/rememberPreference.js";
+import { recallPreferencesTool } from "./tools/recallPreferences.js";
 import { MemoryService } from "../memory/memory.js";
 import { SimulatedDesktop } from "../control/simulator.js";
 import { computerControlTools } from "../control/tools.js";
@@ -272,6 +273,7 @@ export async function buildCore(opts: {
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
   tools.register(rememberPreferenceTool(memory));
+  tools.register(recallPreferencesTool(memory));
   for (const t of computerControlTools(control)) tools.register(t);
   for (const t of deviceTools(devices, interlock)) tools.register(t);
   for (const t of knowledgeTools(files)) tools.register(t);
@@ -355,6 +357,7 @@ export async function buildCore(opts: {
     // quiet-hours MEMORY consolidation (D-0063): the sleep cycle tidies the
     // day's memories too — dupes merged (with history), stale only PROPOSED.
     memory: entityMemory,
+    prefs: memory,
     settings,
   });
 
