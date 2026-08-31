@@ -225,6 +225,60 @@ for t in CATALOG:
                           "attention": t["attention"], **f})
 
 
+# ------------------------------------------------- the relationship layer ---
+# SECOND ACT (day > RELATIONS_FROM). Days 1-500 taught only ATTRIBUTES, so the
+# knowledge graph grew 60+ entities with ZERO edges and multi-hop recall
+# (`memory.related`, the recursive CTE) was never exercised. This layer teaches
+# how things CONNECT, giving a before/after inside one continuous life.
+#
+# Deliberately computed OUTSIDE `CATALOG` and excluded from CATALOG_HASH — the
+# world's facts, flips and teach days stay byte-identical, so a run already in
+# progress resumes without the hash guard tripping.
+RELATIONS_FROM = int(os.environ.get("XL_RELATIONS_FROM", "500"))
+
+
+def build_relations() -> list[dict]:
+    """Deterministic edges over the EXISTING catalog: who maintains what, which
+    vendor supplies which device, what depends on what, what lives where."""
+    rng = random.Random(SEED + 777)
+    by = lambda k: [t for t in CATALOG if t["kind"] == k]
+    people, vendors = by("person"), by("vendor")
+    devices, projects, places = by("device"), by("project"), by("place")
+    rels: list[dict] = []
+
+    def add(a: dict, verb: str, b: dict, day: int) -> None:
+        rels.append({"rid": f"r{len(rels)}", "from": a["name"], "verb": verb,
+                     "to": b["name"], "teach": day})
+
+    day = RELATIONS_FROM + 2
+    for i, dev in enumerate(devices):                      # vendor supplies device
+        if vendors: add(vendors[i % len(vendors)], "supplies", dev, day); day += 2
+    for i, dev in enumerate(devices):                      # person maintains device
+        if people: add(people[(i * 3) % len(people)], "maintains", dev, day); day += 2
+    for i, pr in enumerate(projects):                      # project depends on device
+        if devices: add(pr, "depends on", devices[(i * 5) % len(devices)], day); day += 2
+    for i, dev in enumerate(devices):                      # device located at place
+        if places: add(dev, "is located at", places[(i * 7) % len(places)], day); day += 3
+    return rels
+
+
+RELATIONS = build_relations()
+
+
+def relation_statement(r: dict) -> str:
+    return f"{r['from']} {r['verb']} the {r['to']}"
+
+
+def two_hop_question(r1: dict, r2: dict) -> tuple[str, str] | None:
+    """A question that CANNOT be answered from one edge: chain r1 -> r2.
+    Only the ...->device->place shape is phrased today; any other chain returns
+    None rather than emitting a sentence its verbs do not support."""
+    if r1["to"] != r2["from"] or r2["verb"] != "is located at" or r1 is r2:
+        return None
+    return (f"Which place is the {r1['to']} — the one {r1['from']} {r1['verb']} — located at?",
+            r2["to"])
+
+
 def truth_value(f: dict, day: int) -> str:
     """Ground truth for a fact on a given day (values rotate at each flip)."""
     idx = sum(1 for d in f["flips"] if d <= day)
@@ -270,6 +324,13 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
     # finding: >4 topics due on one day silently vanished forever)
     for stmt in teach_acts:
         acts.append(("agent-teach", stmt))
+
+    # 1b) relationship teaching (second act): how things CONNECT, so the graph
+    # gains edges and multi-hop recall becomes exercisable
+    due_rels = [r for r in RELATIONS if r["teach"] == day]
+    for i in range(0, len(due_rels), 3):
+        stmts = "; ".join(relation_statement(r) for r in due_rels[i:i + 3])
+        acts.append(("agent-teach", f"Remember how these connect: {stmts}."))
 
     # 2) deep-topic corrections on schedule (the REAL promotion signal)
     for t in CATALOG:
@@ -395,6 +456,14 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
               rng.sample(plain, min(QUIZ_FACTS - min(5, len(prefs)) - min(6, len(flipped)), len(plain))))
     rng.shuffle(sample)
     records, hits = [], 0
+    # multi-hop probes: only once the edges they chain have actually been taught
+    hops: list[tuple[str, str]] = []
+    taught_rels = [r for r in RELATIONS if r["teach"] <= day - 1]
+    for r1 in taught_rels:
+        for r2 in taught_rels:
+            q = two_hop_question(r1, r2)
+            if q: hops.append(q)
+    hops = rng.sample(hops, min(3, len(hops))) if hops else []
     for i in range(0, len(sample), 5):
         batch = sample[i:i + 5]
         qs = " ".join(f"{j + 1}) {fact_question(f)}" for j, f in enumerate(batch))
@@ -421,8 +490,22 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
                             "hit": hit, "honest_miss": honest_miss, "truth": tv,
                             "seg": seg.strip()[:300]})
         QUIZ_LOG.write(json.dumps({"day": day, "batch_answer": answer[:4000]}) + "\n")
+
+    for qtext, truth in hops:
+        r = agent("Answer from memory in one line. This needs you to connect two "
+                  "things you know — use your entity/graph memory (memory.related / "
+                  "memory.recallGraph). Say 'not found' if you cannot connect them. " + qtext,
+                  max_steps=8)
+        ans = (r.get("answer") or "").lower()
+        hit = int(all(w in ans for w in truth.lower().split()) and not NEG.search(ans[:160]))
+        hits += hit
+        records.append({"fid": "hop", "topic": qtext[:60], "pref": False, "age": 0,
+                        "flips": 0, "hit": hit, "honest_miss": int(not hit and bool(NEG.search(ans))),
+                        "truth": truth, "seg": ans[:300], "multihop": True})
+        QUIZ_LOG.write(json.dumps({"day": day, "hop_q": qtext, "truth": truth, "answer": ans[:2000]}) + "\n")
     QUIZ_LOG.flush()
-    return {"day": day, "facts": records, "score": hits, "of": len(sample)}
+    return {"day": day, "facts": records, "score": hits, "of": len(sample) + len(hops),
+            "multihop_asked": len(hops)}
 
 
 # ------------------------------------------------------------- night + time ---
