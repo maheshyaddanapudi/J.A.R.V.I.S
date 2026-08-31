@@ -622,8 +622,13 @@ def assert_model_live(day: int) -> None:
     ~day 315 and then ran 180 more days of failed calls, scoring 0/20 on every
     battery, because nothing watched the SUCCESS rate. Checks the most recent
     calls, so a long-dead provider is caught within one quiz interval."""
+    # Order by the identity id, NEVER by `at`: the nightly world-aging shifts
+    # every timestamp, and a compensating repair shift can push historical rows
+    # AHEAD of now() — which made an `ORDER BY at` version of this guard read
+    # 39 five-month-old failures as "the latest calls" and nearly halt a healthy
+    # run. Insertion order is the only monotonic clock in an aged database.
     recent = psql("SELECT ok FROM model_calls WHERE provider <> 'embedserver' "
-                  "ORDER BY at DESC LIMIT 40").split()
+                  "ORDER BY id DESC LIMIT 40").split()
     if len(recent) >= 20 and all(v == "f" for v in recent):
         err = psql("SELECT left(error,200) FROM model_calls WHERE NOT ok "
                    "ORDER BY at DESC LIMIT 1")
