@@ -1984,5 +1984,11 @@
     "seen": 1788063440.7365787,
     "ast_hash": "5b8703d5ec6be03c3cf6924d773bf3ce",
     "semantic_hash": "5b8703d5ec6be03c3cf6924d773bf3ce"
+  },
+  "scripts/longitude_xl_preserve.sh": {
+    "mtime": 1788136665.7024179,
+    "seen": 1788136667.3427236,
+    "ast_hash": "7b2f151d169384d14d575935804c786e",
+    "semantic_hash": "7b2f151d169384d14d575935804c786e"
   }
 }
