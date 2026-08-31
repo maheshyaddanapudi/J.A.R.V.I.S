@@ -616,6 +616,24 @@ def ensure_embedder() -> None:
     raise SystemExit("FATAL: embed server will not come up — refusing to run blind")
 
 
+def assert_model_live(day: int) -> None:
+    """Halt if the model provider has stopped answering. A spend ceiling cannot
+    see an EXHAUSTED BALANCE: the first XL-500 attempt burned its credits at
+    ~day 315 and then ran 180 more days of failed calls, scoring 0/20 on every
+    battery, because nothing watched the SUCCESS rate. Checks the most recent
+    calls, so a long-dead provider is caught within one quiz interval."""
+    recent = psql("SELECT ok FROM model_calls WHERE provider <> 'embedserver' "
+                  "ORDER BY at DESC LIMIT 40").split()
+    if len(recent) >= 20 and all(v == "f" for v in recent):
+        err = psql("SELECT left(error,200) FROM model_calls WHERE NOT ok "
+                   "ORDER BY at DESC LIMIT 1")
+        raise SystemExit(
+            f"FATAL day {day}: the last {len(recent)} model calls ALL failed — "
+            f"the run is producing void data. Provider said: {err}\n"
+            "Fix the provider (credits/key/network) and resume; the checkpoint "
+            "is intact, so nothing before this day is lost.")
+
+
 def assert_embeddings_live(day: int, state: dict) -> None:
     """Fail loudly if vectors stop growing while episodes do: a silent
     degradation to lexical-only would invalidate every recall curve."""
@@ -698,6 +716,7 @@ def main() -> None:
             log(f"  [pin] day {day}: user RE-PINS (#{state['repins']})")
 
         if day % QUIZ_EVERY == 0:
+            assert_model_live(day)
             assert_embeddings_live(day, state)
         quiz = quiz_battery(day, rng, state) if day % QUIZ_EVERY == 0 or day == 1 else None
         tick = night(day)
