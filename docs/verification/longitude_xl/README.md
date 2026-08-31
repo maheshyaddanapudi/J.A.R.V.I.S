@@ -1,8 +1,8 @@
-# Longitude-XL snapshot — checkpoint-mid-run (through simulated day 139)
+# Longitude-XL snapshot — checkpoint-day216 (through simulated day 216)
 
 Everything needed to CONTINUE this life, not just read about it. The world is
 seeded against a fixed 1000-day horizon (`LIFE = 1000`, catalog hash
-`9206ceb12fd98ad6`), so days 140–1000 are already determined; a later run
+`9206ceb12fd98ad6`), so days 217–1000 are already determined; a later run
 picks up exactly where this one stopped.
 
 | File | What it is |
