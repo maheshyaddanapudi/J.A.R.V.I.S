@@ -52,6 +52,18 @@ function assertNotSecret(value: string): void {
   }
 }
 
+/** Preference keys the user never wrote by hand — never tidied, never matched
+ *  as a correction target. */
+const MACHINERY_KEY = /^(reasoning_|gateway_|a2ui_|lab_)/;
+
+/** The ONE key normalizer (spec §7 / D-0080): lower-case, split on
+ *  non-alphanumerics, drop 1-char tokens and filler words. Shared by the
+ *  duplicate tidy and the route-agnostic correction so both see keys alike. */
+const KEY_FILLER = new Set(["usual", "my", "default", "current", "the", "a", "preferred"]);
+export function normalizeKeyTokens(key: string): Set<string> {
+  return new Set(key.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !KEY_FILLER.has(t)));
+}
+
 export class MemoryService {
   /**
    * @param vault when provided, conversation content and sensitive preference
@@ -262,6 +274,30 @@ export class MemoryService {
   }
 
   /**
+   * D-0080 B1 (R-MEM-08): the active preferences that could be the home of a
+   * fact about `subject` — keys whose normalized tokens contain EVERY token of
+   * the subject ('optics vendor two' ⊆ 'optics_vendor_two_assigned_number').
+   * Ranked by how many of `hint`'s tokens the key also carries (the attribute
+   * being corrected, e.g. 'assigned number'), then by fewer extra tokens.
+   * Read-only; machinery keys excluded. The caller decides what "unambiguous"
+   * means and never writes on a tie.
+   */
+  async matchKeys(subject: string, hint?: string): Promise<{ key: string; value: string; hintOverlap: number; extra: number }[]> {
+    const want = normalizeKeyTokens(subject);
+    if (want.size === 0) return [];
+    const hintToks = hint ? normalizeKeyTokens(hint) : new Set<string>();
+    const out: { key: string; value: string; hintOverlap: number; extra: number }[] = [];
+    for (const p of await this.list()) {
+      if (MACHINERY_KEY.test(p.key)) continue;
+      const have = normalizeKeyTokens(p.key);
+      if (![...want].every((t) => have.has(t))) continue;
+      const hintOverlap = [...hintToks].filter((t) => have.has(t)).length;
+      out.push({ key: p.key, value: p.value, hintOverlap, extra: have.size - want.size });
+    }
+    return out.sort((a, b) => b.hintOverlap - a.hintOverlap || a.extra - b.extra || a.key.localeCompare(b.key));
+  }
+
+  /**
    * Quiet-hours near-duplicate KEY tidy (Longitude finding #5): facts get
    * consolidation, preferences didn't — so `usual_coffee_order` and
    * `coffee_order` coexisted. Two active keys are near-duplicates when their
@@ -272,9 +308,7 @@ export class MemoryService {
    * Machinery keys (reasoning_/gateway_/a2ui_/lab_) are never touched.
    */
   async tidyDuplicates(): Promise<{ merged: string[]; proposals: string[] }> {
-    const FILLER = new Set(["usual", "my", "default", "current", "the", "a", "preferred"]);
-    const norm = (key: string): Set<string> =>
-      new Set(key.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !FILLER.has(t)));
+    const norm = normalizeKeyTokens;
     const subset = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
     // D-0080 S2: a single normalized token is a subset of EVERY key containing
     // it ('preferred_alloy' -> {alloy} vs 'alloy_supplier_assigned_number'), so
@@ -287,7 +321,7 @@ export class MemoryService {
       return shared >= 2 && Math.min(a.size, b.size) >= 2 && (subset(a, b) || subset(b, a));
     };
 
-    const rows = (await this.list()).filter((p) => !/^(reasoning_|gateway_|a2ui_|lab_)/.test(p.key));
+    const rows = (await this.list()).filter((p) => !MACHINERY_KEY.test(p.key));
     const merged: string[] = [];
     const proposals: string[] = [];
     const gone = new Set<string>();

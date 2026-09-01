@@ -1,6 +1,8 @@
 import { describe, expect, it, afterAll, beforeEach, vi } from "vitest";
 import pg from "pg";
 import { EntityMemory } from "../src/memory/entities.js";
+import { MemoryService } from "../src/memory/memory.js";
+import { entityMemoryTools } from "../src/memory/entityTools.js";
 import type { SemanticMemory } from "../src/memory/semantic.js";
 import type { AuditLog } from "../src/core/audit.js";
 
@@ -129,5 +131,153 @@ describe.skipIf(!pool)("D-0080 S1 — a seed shows the ASKED fact, not just its 
     const r = await mem.recallGraph("what is boat shed two's service day");
     expect(r.entities[0].name).toBe("boat shed two");
     expect(r.entities[0].facts[0]).toContain("thursday"); // ranked first by the asker's words
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-0080 S4 — Defect B: a correction reaches the store where the value LIVES.
+describe.skipIf(!pool)("D-0080 S4 — route-agnostic memory.correct (R-MEM-08)", () => {
+  let mem: EntityMemory;
+  let prefs: MemoryService;
+  let correct: { run(args: unknown): Promise<{ ok: boolean; summary: string; data?: unknown }> };
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    mem = new EntityMemory(pool!, audit);
+    prefs = new MemoryService(pool!, audit);
+    correct = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.correct")!;
+  });
+
+  it("pref-routed update: the preference is corrected with history, no entity fact is invented", async () => {
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    const r = await correct.run({ entity: "optics vendor two", replaces: "assigned number", newStatement: "optics vendor two's assigned number is 68", value: "68" });
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ route: "preference", key: "optics_vendor_two_assigned_number", from: "24", to: "68" });
+    expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("68");
+    const history = await prefs.list(true);
+    expect(history.filter((p) => p.key === "optics_vendor_two_assigned_number").map((p) => p.status).sort()).toEqual(["superseded", "user_statement"]);
+    expect(await mem.listEntities()).toHaveLength(0); // NOT a second home
+  });
+
+  it("…also when the entity exists with an unrelated fact: that fact is untouched", async () => {
+    await mem.rememberFact({ entityName: "optics vendor two", entityKind: "vendor", statement: "optics vendor two's service day is tuesday", provenance: "t" });
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    const r = await correct.run({ entity: "optics vendor two", replaces: "assigned number", newStatement: "optics vendor two's assigned number is 68", value: "68" });
+    expect(r.data).toMatchObject({ route: "preference", to: "68" });
+    const facts = (await mem.recall("optics vendor two"))!.facts.map((f) => f.statement);
+    expect(facts).toEqual(["optics vendor two's service day is tuesday"]);
+    expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("68");
+  });
+
+  it("the attribute in `replaces` picks the right one of several preferences about the subject", async () => {
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    await prefs.remember({ key: "optics_vendor_two_service_day", value: "tuesday", provenance: "chat" });
+    const r = await correct.run({ entity: "optics vendor two", replaces: "service day", newStatement: "optics vendor two's service day is friday", value: "friday" });
+    expect(r.data).toMatchObject({ route: "preference", key: "optics_vendor_two_service_day" });
+    expect((await prefs.get("optics_vendor_two_service_day"))!.value).toBe("friday");
+    expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("24");
+  });
+
+  it("ambiguous (several preferences, no attribute hint) → refuses and changes nothing", async () => {
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    await prefs.remember({ key: "optics_vendor_two_service_day", value: "tuesday", provenance: "chat" });
+    const r = await correct.run({ entity: "optics vendor two", newStatement: "optics vendor two is now 68", value: "68" });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toMatch(/ambiguous/);
+    expect((await prefs.list()).map((p) => p.value).sort()).toEqual(["24", "tuesday"]);
+    expect(await mem.listEntities()).toHaveLength(0);
+  });
+
+  it("a matching entity fact still wins over a same-subject preference (route: fact)", async () => {
+    await mem.rememberFact({ entityName: "optics vendor two", entityKind: "vendor", statement: "optics vendor two's assigned number is 24", provenance: "t" });
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    const r = await correct.run({ entity: "optics vendor two", replaces: "assigned number", newStatement: "optics vendor two's assigned number is 68", value: "68" });
+    expect(r.data).toMatchObject({ route: "fact", superseded: 1 });
+    expect((await mem.recall("optics vendor two"))!.facts.map((f) => f.statement)).toEqual(["optics vendor two's assigned number is 68"]);
+    expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("24"); // never writes the OTHER route
+  });
+
+  it("factId keeps the D-0062 contract (exact target; stale id refused, nothing written anywhere)", async () => {
+    const f = await mem.rememberFact({ entityName: "optics vendor two", entityKind: "vendor", statement: "optics vendor two's assigned number is 24", provenance: "t" });
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    const bad = await correct.run({ entity: "optics vendor two", factId: "00000000-0000-0000-0000-000000000000", newStatement: "x" });
+    expect(bad.ok).toBe(false);
+    expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("24");
+    const good = await correct.run({ entity: "optics vendor two", factId: f.id, newStatement: "optics vendor two's assigned number is 68" });
+    expect(good.data).toMatchObject({ route: "fact", superseded: 1 });
+  });
+
+  it("nothing matches in either store → records a new fact (old behaviour, reported honestly)", async () => {
+    await prefs.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
+    const r = await correct.run({ entity: "optics vendor two", replaces: "assigned number", newStatement: "optics vendor two's assigned number is 68" });
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ route: "fact", superseded: 0 });
+    expect(r.summary).toMatch(/nothing matched to supersede/);
+    expect((await mem.recall("optics vendor two"))!.facts).toHaveLength(1);
+    expect((await prefs.get("coffee_order"))!.value).toBe("cortado");
+  });
+
+  it("without a preference store the tool behaves exactly as before", async () => {
+    const legacy = entityMemoryTools(mem).find((t) => t.name === "memory.correct")!;
+    await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
+    const r = await legacy.run({ entity: "optics vendor two", replaces: "assigned number", newStatement: "optics vendor two's assigned number is 68" });
+    expect(r.data).toMatchObject({ route: "fact", superseded: 0 });
+    expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("24");
+  });
+});
+
+describe.skipIf(!pool)("D-0080 S4 — memory.rememberFacts batch (R-MEM-09)", () => {
+  let mem: EntityMemory;
+  let batch: { run(args: unknown): Promise<{ ok: boolean; summary: string; data?: unknown; detail?: string; rollback?: () => Promise<void> }> };
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    mem = new EntityMemory(pool!, audit);
+    batch = entityMemoryTools(mem).find((t) => t.name === "memory.rememberFacts")!;
+  });
+
+  it("stores N statements in one call, each re-read, with per-item factIds", async () => {
+    const r = await batch.run({ entity: "tessa novak", kind: "person", statements: ["tessa novak is based in Cusco", "tessa novak meets on Monday", "tessa novak's status colour is olive"] });
+    expect(r.ok).toBe(true);
+    expect(r.summary).toContain("3/3");
+    const items = (r.data as { items: { stored: boolean; factId?: string }[] }).items;
+    expect(items.every((it) => it.stored && it.factId)).toBe(true);
+    const facts = (await mem.recall("tessa novak"))!.facts.map((f) => f.statement).sort();
+    expect(facts).toEqual(["tessa novak is based in Cusco", "tessa novak meets on Monday", "tessa novak's status colour is olive"].sort());
+    for (const it of items) expect((await mem.factById(it.factId!))!.statement).toBeTruthy();
+  });
+
+  it("a failing item is reported per item and never masked; the others still land", async () => {
+    const r = await batch.run({ entity: "tessa novak", kind: "person", statements: ["tessa novak is based in Cusco", "", "tessa novak meets on Monday"] });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toMatch(/stored 2 of 3/);
+    expect(r.summary).toMatch(/item 2 failed/);
+    const items = (r.data as { items: { index: number; stored: boolean; error?: string }[] }).items;
+    expect(items.map((it) => it.stored)).toEqual([true, false, true]);
+    expect(items[1]!.error).toMatch(/needs a statement/);
+    expect((await mem.recall("tessa novak"))!.facts).toHaveLength(2);
+    expect(r.detail).toContain("✗");
+  });
+
+  it("a secret-shaped statement is refused per item (R-MEM-06) and the rest are kept", async () => {
+    const r = await batch.run({ entity: "tessa novak", statements: ["tessa novak meets on Monday", "her token is sk-ant-api03-abcdefghij1234567890"] });
+    expect(r.ok).toBe(false);
+    const items = (r.data as { items: { stored: boolean; error?: string }[] }).items;
+    expect(items[1]!.stored).toBe(false);
+    expect(items[1]!.error).toMatch(/secret/);
+    expect((await mem.recall("tessa novak"))!.facts.map((f) => f.statement)).toEqual(["tessa novak meets on Monday"]);
+  });
+
+  it("rollback forgets exactly what the call stored", async () => {
+    const r = await batch.run({ entity: "tessa novak", statements: ["tessa novak is based in Cusco", "tessa novak meets on Monday"] });
+    expect(r.ok).toBe(true);
+    await r.rollback!();
+    expect((await mem.recall("tessa novak"))!.facts).toHaveLength(0);
+  });
+
+  it("is LOW_REVERSIBLE like rememberFact and registered alongside it", () => {
+    const tools = entityMemoryTools(mem);
+    expect(tools.find((t) => t.name === "memory.rememberFacts")!.riskClass).toBe("LOW_REVERSIBLE");
+    expect(tools.find((t) => t.name === "memory.rememberFact")!.description).toMatch(/memory\.rememberFacts/);
+    expect(tools.find((t) => t.name === "memory.rememberFact")!.description).toMatch(/memory\.correct/);
+    expect(tools.find((t) => t.name === "memory.correct")!.description).toMatch(/entity facts AND preferences/);
   });
 });

@@ -587,37 +587,7 @@ export class EntityMemory {
          ORDER BY created_at DESC`,
         [entity.id],
       );
-      let targets: string[];
-      if (input.factId) {
-        // Explicit id from a prior recall — exact, no guessing. Must belong to
-        // this entity and still be active, else the correction is refused
-        // (an id typo must not silently supersede nothing or the wrong thing).
-        if (!active.some((r) => r.id === input.factId)) {
-          throw new Error(`no active fact ${input.factId} on '${entity.name}' — recall the entity and use a current fact id`);
-        }
-        targets = [input.factId];
-      } else if (input.replaces && input.replaces.trim()) {
-        const needle = input.replaces.trim().toLowerCase();
-        // 1) exact substring match (precise).
-        targets = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
-        // 2) fallback: the active fact sharing the most CONTENT words with
-        //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
-        //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
-        //    ≥1 shared content word; otherwise the new statement is just added.
-        if (!targets.length) {
-          const want = contentWords(needle);
-          let best: { id: string; shared: number } | null = null;
-          for (const r of active) {
-            const have = contentWords(this.dec(r.statement));
-            let shared = 0;
-            for (const w of want) if (have.has(w)) shared++;
-            if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
-          }
-          if (best && best.shared >= 1) targets = [best.id];
-        }
-      } else {
-        targets = active.length ? [active[0]!.id] : []; // no target named → most recent active fact
-      }
+      const targets = this.pickCorrectionTargets(active, entity.name, input);
       const { rows: ins } = await client.query(
         `INSERT INTO memory_facts (entity_id, statement, status, provenance, confidence, sensitivity)
          VALUES ($1,$2,'user_statement',$3,1.0,'personal')
@@ -649,6 +619,81 @@ export class EntityMemory {
     } finally {
       client.release();
     }
+  }
+
+  /** Which active fact(s) a correction supersedes — shared by `correctFact`
+   *  and the read-only `correctionTargets` probe so both agree exactly. */
+  private pickCorrectionTargets(
+    active: { id: string; statement: string }[],
+    entityName: string,
+    input: { factId?: string; replaces?: string },
+  ): string[] {
+    if (input.factId) {
+      // Explicit id from a prior recall — exact, no guessing. Must belong to
+      // this entity and still be active, else the correction is refused
+      // (an id typo must not silently supersede nothing or the wrong thing).
+      if (!active.some((r) => r.id === input.factId)) {
+        throw new Error(`no active fact ${input.factId} on '${entityName}' — recall the entity and use a current fact id`);
+      }
+      return [input.factId];
+    }
+    if (input.replaces && input.replaces.trim()) {
+      const needle = input.replaces.trim().toLowerCase();
+      // 1) exact substring match (precise).
+      const exact = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
+      if (exact.length) return exact;
+      // 2) fallback: the active fact sharing the most CONTENT words with
+      //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
+      //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
+      //    ≥1 shared content word; otherwise the new statement is just added.
+      const want = contentWords(needle);
+      let best: { id: string; shared: number } | null = null;
+      for (const r of active) {
+        const have = contentWords(this.dec(r.statement));
+        let shared = 0;
+        for (const w of want) if (have.has(w)) shared++;
+        if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+      }
+      return best && best.shared >= 1 ? [best.id] : [];
+    }
+    return active.length ? [active[0]!.id] : []; // no target named → most recent active fact
+  }
+
+  /**
+   * D-0080 B1 (R-MEM-08): READ-ONLY probe — which active fact(s) a correction
+   * WOULD supersede, without creating the entity or writing anything. Lets the
+   * `memory.correct` tool look in the OTHER store (preferences) before it
+   * invents a second home for a value that already lives there. Throws the
+   * same stale-factId refusal as `correctFact`.
+   */
+  async correctionTargets(input: {
+    entityName: string;
+    factId?: string;
+    replaces?: string;
+  }): Promise<{ entity: Entity | null; targets: string[] }> {
+    const entity = await this.findEntity(input.entityName);
+    if (!entity) {
+      if (input.factId) throw new Error(`no active fact ${input.factId} on '${input.entityName}' — recall the entity and use a current fact id`);
+      return { entity: null, targets: [] };
+    }
+    const { rows: active } = await this.pool.query<{ id: string; statement: string }>(
+      `SELECT id, statement FROM memory_facts
+       WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+       ORDER BY created_at DESC`,
+      [entity.id],
+    );
+    return { entity, targets: this.pickCorrectionTargets(active, entity.name, input) };
+  }
+
+  /** One ACTIVE fact by id (decrypted), or null — the re-read half of a
+   *  write-then-verify (D-0080 B2 batch remember). */
+  async factById(id: string): Promise<Fact | null> {
+    const { rows } = await this.pool.query(
+      `SELECT id, entity_id, statement, status, provenance, confidence, sensitivity, created_at
+       FROM memory_facts WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
+      [id],
+    );
+    return rows[0] ? this.hydrateFact(rows[0]) : null;
   }
 
   async relate(input: {

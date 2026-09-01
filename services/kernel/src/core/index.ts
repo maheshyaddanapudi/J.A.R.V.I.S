@@ -284,7 +284,8 @@ export async function buildCore(opts: {
   // Research-with-provenance composes the (gated) web browser into one sourced-
   // evidence action; per-URL policy applies inside gather.
   for (const t of researchTools(new WebResearcher(web))) tools.register(t);
-  for (const t of entityMemoryTools(entityMemory)) tools.register(t);
+  // D-0080 B1: the preference store rides along so memory.correct is route-agnostic (R-MEM-08)
+  for (const t of entityMemoryTools(entityMemory, memory)) tools.register(t);
   for (const t of episodeMemoryTools(episodicMemory)) tools.register(t);
   // Conversational edit path (D-0055): the same runtime overrides the UI/API
   // offer, as gated tools — "route deep reasoning to X" / "undo that" spoken

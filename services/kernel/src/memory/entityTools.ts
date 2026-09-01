@@ -1,13 +1,18 @@
 import type { Tool, ToolResult } from "../core/tools.js";
 import type { EntityMemory, GraphNeighborhood, GraphRecall, Recall } from "./entities.js";
+import type { MemoryService } from "./memory.js";
 
 /**
  * Semantic-memory tools. Writing to J.A.R.V.I.S.'s knowledge of the user's world
  * (entities/facts/relations) is LOW_REVERSIBLE (reversible via forget; auto only
  * when automation is delegated, else it prompts). Recall is READ_ONLY. The store
  * refuses secret-shaped content (R-MEM-06) and encrypts at rest (R-MEM-03).
+ *
+ * @param prefs the preference store — when given, `memory.correct` is
+ *   ROUTE-AGNOSTIC (D-0080 B1, R-MEM-08): a value that lives in preferences is
+ *   corrected there instead of being re-invented as an entity fact.
  */
-export function entityMemoryTools(mem: EntityMemory): Tool[] {
+export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Tool[] {
   const rememberEntity: Tool = {
     name: "memory.rememberEntity",
     description: "Remember an entity in J.A.R.V.I.S.'s knowledge (kind + name, optional attributes). Reversible.",
@@ -42,7 +47,10 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
 
   const rememberFact: Tool = {
     name: "memory.rememberFact",
-    description: "Remember a fact about a named entity (creates the entity if new). Reversible.",
+    description:
+      "Remember ONE new fact about a named entity (creates the entity if new). Reversible. " +
+      "If the user gives several things to remember at once, use memory.rememberFacts (one call, all of them). " +
+      "If this REPLACES something already known (an update, change or correction), use memory.correct instead.",
     riskClass: "LOW_REVERSIBLE",
     action: "store fact in local memory",
     inputSchema: {
@@ -67,6 +75,73 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
         ok: true,
         summary: `remembered a fact about '${a.entity}'`,
         data: { id: f.id, entity: a.entity },
+      };
+    },
+  };
+
+  // D-0080 B2 (R-MEM-09): Longitude-XL saw a 2-statement teach lose its second
+  // statement — the model simply never issued the second rememberFact call. One
+  // call for N statements removes the per-item skip; each item is written and
+  // RE-READ individually, and a partial failure is reported per item, never
+  // masked behind the successes.
+  const rememberFacts: Tool = {
+    name: "memory.rememberFacts",
+    description:
+      "Remember SEVERAL new facts about one named entity in ONE call (creates the entity if new). " +
+      "Use this whenever the user gives two or more things to remember at once — every statement is stored " +
+      "and re-read individually, with a per-item result. Reversible. For a change to something already known, use memory.correct.",
+    riskClass: "LOW_REVERSIBLE",
+    action: "store facts in local memory",
+    inputSchema: {
+      type: "object",
+      properties: {
+        entity: { type: "string", description: "the entity the facts are about" },
+        kind: { type: "string", description: "entity kind if it must be created" },
+        statements: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 1,
+          maxItems: 25,
+          description: "one complete statement per item, each naming the attribute (e.g. \"tessa novak is based in Cusco\")",
+        },
+      },
+      required: ["entity", "statements"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { entity: string; kind?: string; statements: unknown };
+      const statements = Array.isArray(a.statements) ? a.statements.map((s) => String(s ?? "")) : [];
+      if (!statements.length) return { ok: false, summary: "give at least one statement" };
+      const items: { index: number; statement: string; stored: boolean; factId?: string; error?: string }[] = [];
+      for (const [i, statement] of statements.entries()) {
+        try {
+          const f = await mem.rememberFact({
+            entityName: a.entity,
+            ...(a.kind ? { entityKind: a.kind } : {}),
+            statement,
+            provenance: "conversation (user asked me to remember)",
+          });
+          // write-then-verify: the fact must read back, active, with the same text
+          const back = await mem.factById(f.id);
+          if (back && back.statement === statement) items.push({ index: i + 1, statement, stored: true, factId: f.id });
+          else items.push({ index: i + 1, statement, stored: false, factId: f.id, error: "written but did not read back intact" });
+        } catch (err) {
+          items.push({ index: i + 1, statement, stored: false, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      const stored = items.filter((it) => it.stored);
+      const failed = items.filter((it) => !it.stored);
+      const ok = failed.length === 0;
+      return {
+        ok,
+        summary: ok
+          ? `remembered ${stored.length}/${items.length} fact${items.length > 1 ? "s" : ""} about '${a.entity}' (each re-read)`
+          : `stored ${stored.length} of ${items.length} facts about '${a.entity}' — ${failed.map((f) => `item ${f.index} failed: ${f.error}`).join("; ")}`,
+        data: { entity: a.entity, stored: stored.length, failed: failed.length, items },
+        detail: items.map((it) => `${it.index}. ${it.stored ? "✓" : "✗"} ${it.statement}${it.stored ? ` (factId: ${it.factId})` : ` — ${it.error}`}`).join("\n"),
+        ...(stored.length
+          ? { rollback: async () => { for (const it of stored) if (it.factId) await mem.forgetFact(it.factId); } }
+          : {}),
       };
     },
   };
@@ -186,41 +261,78 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
   const correct: Tool = {
     name: "memory.correct",
     description:
-      "Correct a fact you already hold about an entity: supersede the old statement (kept as history) and record the new one. " +
-      "READ-THEN-WRITE: call memory.recall first — it lists each fact with its factId — then pass the exact factId here. " +
-      "Use this — NOT rememberFact — whenever the user updates/changes/corrects something you know, so the stale fact doesn't linger alongside the new one.",
+      "Correct something you already hold: supersede the old value (kept as history) and record the new one. " +
+      "Works for entity facts AND preferences — if no entity fact matches, the preference holding the value is corrected instead, so a value keeps ONE home. " +
+      "READ-THEN-WRITE: call memory.recall first — it lists each fact with its factId — then pass the exact factId here; otherwise name the attribute in `replaces`. " +
+      "Use this — NOT rememberFact — whenever the user updates/changes/corrects something you know, so the stale value doesn't linger alongside the new one.",
     riskClass: "LOW_REVERSIBLE",
     action: "correct fact in local memory",
     inputSchema: {
       type: "object",
       properties: {
         entity: { type: "string", description: "the entity the fact is about" },
-        newStatement: { type: "string", description: "the corrected/updated fact" },
+        newStatement: { type: "string", description: "the corrected/updated fact as a full statement" },
+        value: { type: "string", description: "the bare new value when the change is a single attribute value (e.g. \"68\") — stored as-is if the fact lives in preferences" },
         factId: { type: "string", description: "the exact id of the fact to supersede (from memory.recall) — PREFERRED" },
-        replaces: { type: "string", description: "fallback: text of the OLD fact to supersede, if you don't have its factId" },
+        replaces: { type: "string", description: "the attribute or old text being replaced (e.g. \"assigned number\") — used to find the right fact or preference when you have no factId" },
         kind: { type: "string", description: "entity kind if it must be created" },
       },
       required: ["entity", "newStatement"],
       additionalProperties: false,
     },
     async run(args: unknown): Promise<ToolResult> {
-      const a = args as { entity: string; newStatement: string; factId?: string; replaces?: string; kind?: string };
-      try {
+      const a = args as { entity: string; newStatement: string; value?: string; factId?: string; replaces?: string; kind?: string };
+      const provenance = "conversation (user corrected me)";
+      const viaFact = async () => {
         const r = await mem.correctFact({
           entityName: a.entity,
           newStatement: a.newStatement,
           ...(a.factId ? { factId: a.factId } : {}),
           ...(a.replaces ? { replaces: a.replaces } : {}),
           ...(a.kind ? { entityKind: a.kind } : {}),
-          provenance: "conversation (user corrected me)",
+          provenance,
         });
         return {
           ok: true,
           summary: r.supersededCount
             ? `corrected '${a.entity}' — superseded ${r.supersededCount} prior fact${r.supersededCount > 1 ? "s" : ""}, kept as history`
-            : `recorded a new fact about '${a.entity}' (no prior statement matched to supersede — recall the entity and pass a factId to target precisely)`,
-          data: { id: r.fact.id, entity: a.entity, superseded: r.supersededCount },
+            : `recorded a new fact about '${a.entity}' (nothing matched to supersede in facts or preferences — recall the entity and pass a factId to target precisely)`,
+          data: { route: "fact" as const, id: r.fact.id, entity: a.entity, superseded: r.supersededCount },
         };
+      };
+      try {
+        // Resolution order (D-0080 B1, R-MEM-08): 1. factId  2. entity-fact text
+        // match  3. a preference whose key names this subject  4. new fact.
+        // Steps 1-2 are a READ-ONLY probe first, so step 3 can run before any
+        // write invents a second home for a value that lives in preferences.
+        const probe = await mem.correctionTargets({
+          entityName: a.entity,
+          ...(a.factId ? { factId: a.factId } : {}),
+          ...(a.replaces ? { replaces: a.replaces } : {}),
+        });
+        if (a.factId || probe.targets.length) return await viaFact();
+        if (prefs) {
+          const matches = await prefs.matchKeys(a.entity, a.replaces);
+          const unambiguous =
+            matches.length === 1 || (matches.length > 1 && matches[0]!.hintOverlap > matches[1]!.hintOverlap);
+          if (unambiguous) {
+            const m = matches[0]!;
+            const updated = await prefs.correct(m.key, a.value ?? a.newStatement, provenance);
+            return {
+              ok: true,
+              summary: `corrected preference '${m.key}': '${m.value}' → '${updated?.value ?? a.value ?? a.newStatement}' (prior value kept as history)`,
+              data: { route: "preference" as const, key: m.key, from: m.value, to: updated?.value, entity: a.entity },
+            };
+          }
+          if (matches.length > 1) {
+            return {
+              ok: false,
+              summary: `ambiguous — ${matches.length} preferences are about '${a.entity}' (${matches.map((m) => m.key).join(", ")}); say which attribute in 'replaces' and try again (nothing was changed)`,
+              data: { route: "preference" as const, candidates: matches.map((m) => m.key) },
+            };
+          }
+        }
+        return await viaFact();
       } catch (err) {
         // e.g. a stale/wrong factId — surfaced to the model so it can re-recall.
         return { ok: false, summary: err instanceof Error ? err.message : String(err) };
@@ -272,7 +384,7 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
     },
   };
 
-  return [rememberEntity, rememberFact, correct, relate, recall, related, recallGraph, forget];
+  return [rememberEntity, rememberFact, rememberFacts, correct, relate, recall, related, recallGraph, forget];
 }
 
 function renderNeighborhood(g: GraphNeighborhood): string {
