@@ -276,6 +276,16 @@ export class MemoryService {
     const norm = (key: string): Set<string> =>
       new Set(key.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !FILLER.has(t)));
     const subset = (a: Set<string>, b: Set<string>) => [...a].every((t) => b.has(t));
+    // D-0080 S2: a single normalized token is a subset of EVERY key containing
+    // it ('preferred_alloy' -> {alloy} vs 'alloy_supplier_assigned_number'), so
+    // subset alone over-fired at longitude. Near-duplicate now requires either
+    // exact single-token equality, or >=2 shared tokens with both keys having
+    // >=2 tokens and one containing the other.
+    const near = (a: Set<string>, b: Set<string>) => {
+      const shared = [...a].filter((t) => b.has(t)).length;
+      if (a.size === 1 && b.size === 1) return shared === 1;
+      return shared >= 2 && Math.min(a.size, b.size) >= 2 && (subset(a, b) || subset(b, a));
+    };
 
     const rows = (await this.list()).filter((p) => !/^(reasoning_|gateway_|a2ui_|lab_)/.test(p.key));
     const merged: string[] = [];
@@ -287,7 +297,7 @@ export class MemoryService {
         if (gone.has(a.key) || gone.has(b.key)) continue;
         const na = norm(a.key), nb = norm(b.key);
         if (na.size === 0 || nb.size === 0) continue;
-        if (!(subset(na, nb) || subset(nb, na))) continue;
+        if (!near(na, nb)) continue;
         if (a.value.trim().toLowerCase() === b.value.trim().toLowerCase()) {
           // identical value — keep pinned first, then the more specific key, then newest
           const keep =

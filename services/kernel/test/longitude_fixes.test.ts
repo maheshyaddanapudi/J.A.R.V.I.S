@@ -142,3 +142,48 @@ describe.skipIf(!pool)("preference duplicate-key tidy (Longitude #5)", () => {
     expect(keys).not.toContain("lunch_spot");
   });
 });
+
+// ---------------------------------------------------------------------------
+// D-0080 S2 (Longitude-XL finding D): single-token keys must not subset everything.
+describe.skipIf(!pool)("preference dup-tidy: token-overlap guard (D-0080 S2)", () => {
+  const mem = new MemoryService(pool!, audit);
+
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE preferences, conversation_memory");
+  });
+
+  it("a single-token key is NOT a near-duplicate of a longer key that merely contains the token", async () => {
+    await mem.remember({ key: "preferred_alloy", value: "palladium", provenance: "chat" });
+    await mem.remember({ key: "alloy_supplier_assigned_number", value: "7", provenance: "chat" });
+    await mem.remember({ key: "alloy_supplier_service_day", value: "tuesday", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(0);
+    expect(t.proposals).toHaveLength(0);
+    expect((await mem.list()).map((p) => p.key).sort()).toEqual(
+      ["alloy_supplier_assigned_number", "alloy_supplier_service_day", "preferred_alloy"],
+    );
+  });
+
+  it("…even when the values happen to coincide (no fold either)", async () => {
+    await mem.remember({ key: "preferred_alloy", value: "palladium", provenance: "chat" });
+    await mem.remember({ key: "alloy_supplier_core_material", value: "palladium", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(0);
+    expect(await mem.list()).toHaveLength(2);
+  });
+
+  it("two single-token keys that normalize to the same token still fold on equal values", async () => {
+    await mem.remember({ key: "colour", value: "teal", provenance: "chat" });
+    await mem.remember({ key: "preferred_colour", value: "teal", provenance: "chat" }); // 'preferred' is filler
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(1);
+    expect(await mem.list()).toHaveLength(1);
+  });
+
+  it("the genuine twin pair still folds (regression: usual_coffee_order vs coffee_order)", async () => {
+    await mem.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
+    await mem.remember({ key: "usual_coffee_order", value: "Cortado", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(1);
+  });
+});
