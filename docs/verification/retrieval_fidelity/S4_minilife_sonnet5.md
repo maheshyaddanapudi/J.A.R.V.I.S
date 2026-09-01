@@ -81,8 +81,9 @@ Teach: 10/10 assigned numbers → facts; 9/10 service days → preferences (`tom
 | ember archive | `correct` `replaces: "ember_archive_service_day"` | **preference** corrected |
 | south beacon five, greta lindholm, cliff sensor nine, amara diallo, brass kettle | **`rememberFact`** — no `correct` call at all | preference stale, second home written |
 
-`memory.correct` 5/5 right (4 preference, 1 fact; every assigned-number fact survived — the
-three guards hold against the real argument habits). The remaining 5/10 are a tool-CHOICE
+`memory.correct` 5/5 right (4 preference, 1 fact; assigned-number facts survived 10/10 — the
+three guards hold against the real argument habits). Quiz 20/20 current values, but 11 answers
+had to report a conflict between the two stores. The remaining 5/10 are a tool-CHOICE
 miss: despite the descriptions, the agent treated the flip as a new fact half the time.
 Descriptions are advice; the kernel can enforce "one home" on the write side too.
 
