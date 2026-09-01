@@ -307,12 +307,14 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
         // write invents a second home for a value that lives in preferences.
         const probe = await mem.correctionTargets({
           entityName: a.entity,
+          newStatement: a.newStatement,
           ...(a.factId ? { factId: a.factId } : {}),
           ...(a.replaces ? { replaces: a.replaces } : {}),
         });
         if (a.factId || probe.targets.length) return await viaFact();
         if (prefs) {
-          const matches = await prefs.matchKeys(a.entity, a.replaces);
+          // the attribute hint: what the model says it replaces, else the new statement itself
+          const matches = await prefs.matchKeys(a.entity, a.replaces ?? a.newStatement);
           const unambiguous =
             matches.length === 1 || (matches.length > 1 && matches[0]!.hintOverlap > matches[1]!.hintOverlap);
           if (unambiguous) {

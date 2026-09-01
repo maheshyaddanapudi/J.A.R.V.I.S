@@ -206,6 +206,48 @@ describe.skipIf(!pool)("D-0080 S4 — route-agnostic memory.correct (R-MEM-08)",
     expect(good.data).toMatchObject({ route: "fact", superseded: 1 });
   });
 
+  // --- mini-life 2026-09-01 regression: the entity's ONLY fact is about a different attribute ---
+  it("no factId/replaces: the new statement's own attribute words pick the home — an unrelated single fact is NOT superseded", async () => {
+    await mem.rememberFact({ entityName: "kestrel hangar", entityKind: "place", statement: "kestrel hangar's assigned number is 13", provenance: "t" });
+    await prefs.remember({ key: "kestrel_hangar_service_day", value: "Friday", provenance: "chat" });
+    const r = await correct.run({ entity: "kestrel hangar", newStatement: "kestrel hangar's service day is Saturday", value: "Saturday" });
+    expect(r.data).toMatchObject({ route: "preference", key: "kestrel_hangar_service_day", to: "Saturday" });
+    expect((await mem.recall("kestrel hangar"))!.facts.map((f) => f.statement)).toEqual(["kestrel hangar's assigned number is 13"]);
+  });
+
+  it("a factId whose fact shares nothing with the new statement is REFUSED (nothing written); 'replaces' quoting the old text overrides", async () => {
+    const f = await mem.rememberFact({ entityName: "kestrel hangar", entityKind: "place", statement: "kestrel hangar's assigned number is 13", provenance: "t" });
+    await prefs.remember({ key: "kestrel_hangar_service_day", value: "Friday", provenance: "chat" });
+    const bad = await correct.run({ entity: "kestrel hangar", factId: f.id, newStatement: "kestrel hangar's service day is Saturday", value: "Saturday" });
+    expect(bad.ok).toBe(false);
+    expect(bad.summary).toMatch(/not about the same thing/);
+    expect((await mem.recall("kestrel hangar"))!.facts.map((f) => f.statement)).toEqual(["kestrel hangar's assigned number is 13"]);
+    expect((await prefs.get("kestrel_hangar_service_day"))!.value).toBe("Friday");
+    // explicit override: the model quotes the old text it means to replace
+    const forced = await correct.run({ entity: "kestrel hangar", factId: f.id, replaces: "assigned number is 13", newStatement: "kestrel hangar's service day is Saturday" });
+    expect(forced.data).toMatchObject({ route: "fact", superseded: 1 });
+  });
+
+  it("'replaces' carrying the entity's own name (the model passed the preference KEY) must not match an unrelated fact by name words alone", async () => {
+    await mem.rememberFact({ entityName: "pine shed", entityKind: "place", statement: "pine shed's assigned number is 24", provenance: "t" });
+    await prefs.remember({ key: "pine_shed_service_day", value: "Friday", provenance: "chat" });
+    // exactly what Sonnet 5 sent in mini-life round C
+    const r = await correct.run({ entity: "pine shed", newStatement: "pine shed's service day is Thursday", replaces: "pine_shed_service_day", value: "Thursday" });
+    expect(r.data).toMatchObject({ route: "preference", key: "pine_shed_service_day", to: "Thursday" });
+    expect((await mem.recall("pine shed"))!.facts.map((f) => f.statement)).toEqual(["pine shed's assigned number is 24"]);
+    // …while a 'replaces' that names the attribute still targets the right fact
+    const r2 = await correct.run({ entity: "pine shed", newStatement: "pine shed's assigned number is 68", replaces: "pine shed assigned number", value: "68" });
+    expect(r2.data).toMatchObject({ route: "fact", superseded: 1 });
+    expect((await mem.recall("pine shed"))!.facts.map((f) => f.statement)).toEqual(["pine shed's assigned number is 68"]);
+  });
+
+  it("no target named, reworded update sharing a content word still supersedes (D-0060 convenience kept)", async () => {
+    await mem.rememberFact({ entityName: "Me", entityKind: "person", statement: "runs at 6am every day", provenance: "t" });
+    const r = await correct.run({ entity: "Me", newStatement: "runs at 5:30am" });
+    expect(r.data).toMatchObject({ route: "fact", superseded: 1 });
+    expect((await mem.recall("Me"))!.facts.map((f) => f.statement)).toEqual(["runs at 5:30am"]);
+  });
+
   it("nothing matches in either store → records a new fact (old behaviour, reported honestly)", async () => {
     await prefs.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
     const r = await correct.run({ entity: "optics vendor two", replaces: "assigned number", newStatement: "optics vendor two's assigned number is 68" });

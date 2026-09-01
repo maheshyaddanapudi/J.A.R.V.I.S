@@ -38,8 +38,17 @@ function stem(w: string): string {
 }
 function contentWords(s: string): Set<string> {
   return new Set(
-    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)).map(stem),
+    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length > 1 && !STOP_WORDS.has(w)).map(stem),
   );
+}
+/** Content words two statements share, ignoring the entity's own name (which
+ *  every statement about it repeats) — "is this about the same attribute?" */
+function sharedContent(a: string, b: string, entityName: string): number {
+  const skip = contentWords(entityName);
+  const wb = contentWords(b);
+  let n = 0;
+  for (const w of contentWords(a)) if (wb.has(w) && !skip.has(w)) n++;
+  return n;
 }
 
 /** Loose name-similarity PRE-FILTER for entity resolution (D-0075). Deliberately
@@ -562,8 +571,9 @@ export class EntityMemory {
    * one. This is the fact-level analogue of entity re-remember (D-0060 gap fix):
    * before this, a contradicting fact just piled up alongside the stale one.
    * `replaces` (a substring of the old statement, case-insensitive) targets which
-   * fact(s) to supersede; if omitted, the single most-recent active fact is
-   * superseded. If nothing matches, the new fact is still recorded (reported).
+   * fact(s) to supersede; if omitted, the active fact sharing content words
+   * with the NEW statement is superseded (D-0080 — was: the most recent fact).
+   * If nothing matches, the new fact is still recorded (reported).
    */
   async correctFact(input: {
     entityName: string;
@@ -626,14 +636,32 @@ export class EntityMemory {
   private pickCorrectionTargets(
     active: { id: string; statement: string }[],
     entityName: string,
-    input: { factId?: string; replaces?: string },
+    input: { factId?: string; replaces?: string; newStatement?: string },
   ): string[] {
     if (input.factId) {
       // Explicit id from a prior recall — exact, no guessing. Must belong to
       // this entity and still be active, else the correction is refused
       // (an id typo must not silently supersede nothing or the wrong thing).
-      if (!active.some((r) => r.id === input.factId)) {
+      const target = active.find((r) => r.id === input.factId);
+      if (!target) {
         throw new Error(`no active fact ${input.factId} on '${entityName}' — recall the entity and use a current fact id`);
+      }
+      // D-0080 guard (mini-life 2026-09-01): an id whose statement shares NO
+      // content with the new statement is almost certainly the wrong fact —
+      // the model targeted the entity's only fact (assigned number) for a
+      // service-day update and a good fact was lost. Refuse rather than
+      // supersede; `replaces` naming the old text is the explicit override.
+      if (input.newStatement) {
+        const old = this.dec(target.statement);
+        const confirmed =
+          !!input.replaces?.trim() &&
+          (old.toLowerCase().includes(input.replaces.trim().toLowerCase()) || sharedContent(old, input.replaces, entityName) >= 1);
+        if (!confirmed && sharedContent(old, input.newStatement, entityName) === 0) {
+          throw new Error(
+            `fact ${input.factId} on '${entityName}' says "${old}" — that is not about the same thing as "${input.newStatement}". ` +
+            `Omit factId to let me find the right home (fact or preference), or pass 'replaces' quoting the old text if you really mean to supersede it`,
+          );
+        }
       }
       return [input.factId];
     }
@@ -646,17 +674,30 @@ export class EntityMemory {
       //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
       //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
       //    ≥1 shared content word; otherwise the new statement is just added.
-      const want = contentWords(needle);
+      //    The entity's own name never counts (mini-life 2026-09-01: the model
+      //    passed 'pine_shed_service_day' and the name words matched the
+      //    assigned-number fact) — only attribute words say "same thing".
       let best: { id: string; shared: number } | null = null;
       for (const r of active) {
-        const have = contentWords(this.dec(r.statement));
-        let shared = 0;
-        for (const w of want) if (have.has(w)) shared++;
+        const shared = sharedContent(this.dec(r.statement), needle, entityName);
         if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
       }
       return best && best.shared >= 1 ? [best.id] : [];
     }
-    return active.length ? [active[0]!.id] : []; // no target named → most recent active fact
+    // No target named. Pre-D-0080 this superseded the MOST RECENT active fact,
+    // which on an entity holding one attribute superseded an unrelated one
+    // (mini-life 2026-09-01). Now the NEW statement's own content words (the
+    // entity's name excluded) pick the fact about the same attribute; nothing
+    // shared → no target, and the caller looks in preferences / records new.
+    if (input.newStatement) {
+      let best: { id: string; shared: number } | null = null;
+      for (const r of active) {
+        const shared = sharedContent(this.dec(r.statement), input.newStatement, entityName);
+        if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+      }
+      return best && best.shared >= 1 ? [best.id] : [];
+    }
+    return active.length ? [active[0]!.id] : [];
   }
 
   /**
@@ -670,6 +711,7 @@ export class EntityMemory {
     entityName: string;
     factId?: string;
     replaces?: string;
+    newStatement?: string;
   }): Promise<{ entity: Entity | null; targets: string[] }> {
     const entity = await this.findEntity(input.entityName);
     if (!entity) {
