@@ -485,6 +485,45 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   ANNOUNCES the restore symmetric with apply (the held apply notice otherwise
   relayed a stale "it's live now" with no correction), + regression assertion.
   **433 kernel tests.** Record: `docs/verification/NIGHT_LAB_2026-08-28.md`.
+- Retrieval fidelity ✅ (D-0080, 2026-09-01; spec `docs/RETRIEVAL_FIDELITY_SPEC.md`,
+  record `docs/verification/RETRIEVAL_FIDELITY_2026-09-01.md`): the four
+  Longitude-XL defects, spec-driven, one slice each, every slice = tests →
+  code → full `make test` → manual Sonnet-5 check → commit.
+  **S1 R-MEM-07** `entities.ts` `recallGraph` seeds by IDENTITY first —
+  `identityMatch()` (word-boundary, ≥2 tokens or ≥5 chars, longest name
+  first) → similarity hits appended → `mode: hybrid|semantic|lexical`,
+  `seeds[].via`; seed facts ranked by the query's terms (cap 8). Knob
+  `memory.recall.identityFirst` (default on) restores similarity-first for A/B.
+  Replay instrument `scripts/longitude_replay.py` over the 55 preserved
+  misses: true graph misses 2→0, seed[0]==asked entity 13→20.
+  **S2 (Defect D)** `memory.ts` `tidyDuplicates` near-dup = exact single token
+  or ≥2 shared tokens with both keys ≥2 tokens and containment.
+  **S3 R-MEM-10** `core/reasoning.ts` candidates `{count, judged}`; promotion
+  needs `count≥2 ∧ judged≥1` — the deterministic fallback ACCUMULATES, never
+  promotes (legacy numeric maps read as judged 0, ledger capped 200);
+  `recordCorrection → {promoted, noted, deferred}`, the loop says "I'll learn
+  that topic once my judgment model is available" (journaled as override);
+  judge template asks for the SUBJECT DOMAIN never an activity word.
+  **S4 R-MEM-08/09** `entityTools.ts` `memory.correct` is ROUTE-AGNOSTIC:
+  factId → entity-fact text → preference (`MemoryService.matchKeys`, key
+  tokens ⊇ subject, ranked by the `replaces`/new-statement hint, ties refused)
+  → new fact; steps 1-2 are the READ-ONLY probe `EntityMemory.correctionTargets`
+  so no write precedes the preference check; `route: fact|preference`.
+  Mini-life-found guards (`sharedContent` — the entity's own name never
+  counts as overlap): a factId whose fact shares no content with the new
+  statement is REFUSED (`replaces` quoting the old text overrides); with no
+  target named the NEW statement's attribute words pick the fact (the old
+  "most recent fact" default superseded unrelated attributes); a `replaces`
+  carrying the entity name (Sonnet 5 passes the preference KEY) no longer
+  matches an unrelated fact by name words; and on the WRITE side
+  `rememberFact`/`rememberFacts` REFUSE an update-in-disguise — a statement
+  naming the whole attribute a stored preference already holds for that
+  subject (`preferenceHome`) — pointing the agent at `memory.correct`
+  (mini-life round D: the agent chose rememberFact for 5/10 flips). Batch
+  `memory.rememberFacts(entity, statements[])` LOW_REVERSIBLE, each item
+  written + re-read (`factById`), per-item result, `ok:false` on any failure,
+  rollback exact. `entityMemoryTools(mem, prefs)` — pass the preference store
+  or the tool is fact-only (legacy). **482 kernel tests.**
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

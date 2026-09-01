@@ -69,5 +69,30 @@ evidence was in (remaining flips would only have lost more facts).
 only attribute words say "same thing". +1 test with the exact arguments above (preference
 route, fact intact; an attribute-naming `replaces` still targets the right fact).
 
-## Round D — 10 fresh entities, fixed matcher
+## Round D — 10 fresh entities, fixed matcher · the tool is right every time it is called; the agent does not always call it
+Teach: 10/10 assigned numbers → facts; 9/10 service days → preferences (`tomas ferreira`'s went to a fact).
+
+| flip | agent's call | outcome |
+|---|---|---|
+| willow dock | `correct` `replaces: "willow_dock_service_day"` (the key) | **preference** corrected, fact intact |
+| tomas ferreira | `correct` `factId` of its service-day fact | **fact** superseded (right one), number intact |
+| ivory lathe | `correct` `replaces: "service day"` | **preference** corrected |
+| upper meadow | `correct` `replaces: "upper_meadow_service_day"` | **preference** corrected |
+| ember archive | `correct` `replaces: "ember_archive_service_day"` | **preference** corrected |
+| south beacon five, greta lindholm, cliff sensor nine, amara diallo, brass kettle | **`rememberFact`** — no `correct` call at all | preference stale, second home written |
+
+`memory.correct` 5/5 right (4 preference, 1 fact; every assigned-number fact survived — the
+three guards hold against the real argument habits). The remaining 5/10 are a tool-CHOICE
+miss: despite the descriptions, the agent treated the flip as a new fact half the time.
+Descriptions are advice; the kernel can enforce "one home" on the write side too.
+
+**Fix 4 — write-side one-home guard.** `memory.rememberFact` (and each `rememberFacts` item)
+refuses a statement that names the WHOLE attribute a stored preference already holds for that
+subject (key tokens minus subject tokens ⊆ statement tokens): *refused: "… service day is
+Tuesday" looks like an UPDATE to what I already hold — preference 'south_beacon_five_service_day'
+= 'Thursday'. Use memory.correct…* A statement naming only part of the attribute ("needs
+service") is a different fact and passes. +1 test (single, batch per-item, partial-attribute
+pass, preference untouched).
+
+## Round E — 10 fresh entities, write guard
 _filled in below_

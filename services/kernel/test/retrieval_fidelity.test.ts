@@ -258,6 +258,28 @@ describe.skipIf(!pool)("D-0080 S4 — route-agnostic memory.correct (R-MEM-08)",
     expect((await prefs.get("coffee_order"))!.value).toBe("cortado");
   });
 
+  // --- mini-life round D: the agent chose rememberFact for a flip → second home ---
+  it("rememberFact refuses an update-in-disguise when a preference already holds that attribute (one home)", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    await prefs.remember({ key: "south_beacon_five_service_day", value: "Thursday", provenance: "chat" });
+    const r = await remember.run({ entity: "south beacon five", statement: "south beacon five's service day is Tuesday" });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toMatch(/memory\.correct/);
+    expect(r.summary).toContain("south_beacon_five_service_day");
+    expect(await mem.recall("south beacon five")).toBeNull(); // nothing written
+    // a statement naming only part of the attribute is a different fact and passes
+    const ok = await remember.run({ entity: "south beacon five", statement: "south beacon five needs service next week" });
+    expect(ok.ok).toBe(true);
+    // and the batch refuses per item
+    const batch = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFacts")!;
+    const b = await batch.run({ entity: "south beacon five", statements: ["south beacon five's service day is Tuesday", "south beacon five's core material is cedar"] });
+    expect(b.ok).toBe(false);
+    const items = (b.data as { items: { stored: boolean; error?: string }[] }).items;
+    expect(items.map((it) => it.stored)).toEqual([false, true]);
+    expect(items[0]!.error).toMatch(/memory\.correct/);
+    expect((await prefs.get("south_beacon_five_service_day"))!.value).toBe("Thursday"); // untouched — correct is the path
+  });
+
   it("without a preference store the tool behaves exactly as before", async () => {
     const legacy = entityMemoryTools(mem).find((t) => t.name === "memory.correct")!;
     await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });

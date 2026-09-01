@@ -1,6 +1,39 @@
 import type { Tool, ToolResult } from "../core/tools.js";
 import type { EntityMemory, GraphNeighborhood, GraphRecall, Recall } from "./entities.js";
-import type { MemoryService } from "./memory.js";
+import { normalizeKeyTokens, type MemoryService } from "./memory.js";
+
+/**
+ * D-0080 R-MEM-08 "one home" guard for WRITES: a new fact whose statement
+ * names the whole attribute that a stored preference already holds for this
+ * subject ('south beacon five's service day is Tuesday' while
+ * `south_beacon_five_service_day = Thursday` exists) is an UPDATE in disguise.
+ * Mini-life 2026-09-01 round D: the agent chose rememberFact for such a flip,
+ * so no correction ran, the preference kept the stale value and the graph got
+ * a second home. Returns the preference that already holds the attribute, or
+ * null. A statement mentioning only part of the attribute ('needs service')
+ * is a different fact and passes.
+ */
+async function preferenceHome(
+  prefs: MemoryService | undefined,
+  entity: string,
+  statement: string,
+): Promise<{ key: string; value: string } | null> {
+  if (!prefs) return null;
+  const subject = normalizeKeyTokens(entity);
+  const words = normalizeKeyTokens(statement);
+  for (const m of await prefs.matchKeys(entity, statement)) {
+    const attr = [...normalizeKeyTokens(m.key)].filter((t) => !subject.has(t));
+    if (attr.length > 0 && attr.every((t) => words.has(t))) return { key: m.key, value: m.value };
+  }
+  return null;
+}
+
+function updateInDisguise(entity: string, statement: string, home: { key: string; value: string }): string {
+  return (
+    `refused: "${statement}" looks like an UPDATE to what I already hold for '${entity}' — preference '${home.key}' = '${home.value}'. ` +
+    `Use memory.correct (it corrects the preference with history) so the old value doesn't linger beside a new fact.`
+  );
+}
 
 /**
  * Semantic-memory tools. Writing to J.A.R.V.I.S.'s knowledge of the user's world
@@ -65,6 +98,10 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     },
     async run(args: unknown): Promise<ToolResult> {
       const a = args as { entity: string; kind?: string; statement: string };
+      const home = await preferenceHome(prefs, a.entity, a.statement);
+      if (home) {
+        return { ok: false, summary: updateInDisguise(a.entity, a.statement, home), data: { route: "preference", key: home.key, value: home.value } };
+      }
       const f = await mem.rememberFact({
         entityName: a.entity,
         ...(a.kind ? { entityKind: a.kind } : {}),
@@ -115,6 +152,11 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       const items: { index: number; statement: string; stored: boolean; factId?: string; error?: string }[] = [];
       for (const [i, statement] of statements.entries()) {
         try {
+          const home = await preferenceHome(prefs, a.entity, statement);
+          if (home) {
+            items.push({ index: i + 1, statement, stored: false, error: updateInDisguise(a.entity, statement, home) });
+            continue;
+          }
           const f = await mem.rememberFact({
             entityName: a.entity,
             ...(a.kind ? { entityKind: a.kind } : {}),
