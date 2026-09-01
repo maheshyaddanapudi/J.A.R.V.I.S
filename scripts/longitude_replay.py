@@ -78,24 +78,32 @@ def main() -> None:
         # prefs
         if has(scoped_prefs(prefs, fact["topic"]), truth):
             via.append("prefs")
-        present = ("exact" in via) or ("prefs" in via)
+        # Defect A is a GRAPH defect only when the value is in the graph (exact
+        # probe) and recallGraph still missed it. A value that lives only in
+        # preferences is structurally invisible to the graph — the agent's
+        # memory.recallPreferences is the right path for it, not a graph bug.
         klass = ("surfaced_by_graph" if "graph" in via
-                 else "present_graph_missed" if present
+                 else "in_graph_but_missed" if "exact" in via
+                 else "prefs_only" if "prefs" in via
                  else "absent")
         rows.append({**m, "question": q, "truth": truth, "via": via, "class": klass,
                      "graph_mode": g.get("mode"), "graph_seed0": (g.get("entities") or [{}])[0].get("name")})
 
     n = len(rows)
-    agg = {k: sum(1 for r in rows if r["class"] == k) for k in ("surfaced_by_graph", "present_graph_missed", "absent")}
+    agg = {k: sum(1 for r in rows if r["class"] == k)
+           for k in ("surfaced_by_graph", "in_graph_but_missed", "prefs_only", "absent")}
     by_any = sum(1 for r in rows if r["via"])
     out = {"label": LABEL, "kernel": K, "misses": n, "aggregate": agg,
            "surfaced_by_any_probe": by_any, "rows": rows}
     dest = SNAP / f"replay_{LABEL}.json"
     dest.write_text(json.dumps(out, indent=1))
     print(f"REPLAY [{LABEL}] over {n} preserved misses against {K}")
+    seed_ok = sum(1 for r in rows if (r.get("graph_seed0") or "").lower() == r["topic"].lower())
     print(f"  surfaced by graph (recallGraph):     {agg['surfaced_by_graph']:>3}  ({100*agg['surfaced_by_graph']/n:.0f}%)")
-    print(f"  present, but graph missed it:        {agg['present_graph_missed']:>3}  ({100*agg['present_graph_missed']/n:.0f}%)  <- Defect A")
+    print(f"  in the graph, but graph missed it:   {agg['in_graph_but_missed']:>3}  ({100*agg['in_graph_but_missed']/n:.0f}%)  <- Defect A (true graph miss)")
+    print(f"  lives in preferences only:           {agg['prefs_only']:>3}  ({100*agg['prefs_only']/n:.0f}%)  (graph cannot see; recallPreferences can)")
     print(f"  absent from every store:             {agg['absent']:>3}  ({100*agg['absent']/n:.0f}%)  <- Defect B")
+    print(f"  seed[0] == the asked entity:         {seed_ok:>3}  ({100*seed_ok/n:.0f}%)  <- precision")
     print(f"  surfaced by ANY probe:               {by_any:>3}  ({100*by_any/n:.0f}%)")
     print(f"  -> {dest}")
 

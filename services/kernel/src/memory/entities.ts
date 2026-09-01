@@ -179,8 +179,31 @@ export interface GraphNeighborhood {
 export interface GraphRecall {
   entities: { name: string; kind: string; facts: string[] }[];
   relations: { fromName: string; relation: string; toName: string }[];
-  /** how the entry points were found: semantic (embeddings) or lexical fallback */
-  mode: "semantic" | "lexical";
+  /** how the entry points were found: identity (a name in the query) and/or
+   *  similarity (embeddings). "hybrid" = both contributed; "lexical" = no
+   *  embedder or no similarity hits; "semantic" = similarity only. */
+  mode: "hybrid" | "semantic" | "lexical";
+  /** the entry points in rank order, each with how it was found (D-0080) */
+  seeds: { name: string; via: "identity" | "similarity" }[];
+}
+
+/**
+ * D-0080 / R-MEM-07: an entity name counts as PRESENT in a query only on word
+ * boundaries, and only if it is specific enough to mean something on its own
+ * (two or more tokens, or five or more characters) — 'kiln' must not seed from
+ * inside 'kilning', 'weather mast' must. Returns the matched length so callers
+ * can rank the MOST SPECIFIC name first ('optics vendor two' before 'optics
+ * vendor'). Deterministic; no model involved.
+ */
+const GRAPH_STOP = new Set(["what", "the", "and", "for", "with", "from", "about", "does", "did", "who", "which",
+  "where", "when", "how", "tell", "know", "any", "its", "his", "her", "their", "that", "this", "have", "has"]);
+
+export function identityMatch(queryLower: string, name: string): number {
+  const n = name.toLowerCase().trim();
+  if (!n) return 0;
+  if (n.split(/\s+/).filter(Boolean).length < 2 && n.length < 5) return 0;
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(queryLower) ? n.length : 0;
 }
 
 function assertNotSecret(value: string): void {
@@ -202,6 +225,11 @@ export class EntityMemory {
      *  best-effort — every method falls back to deterministic logic on null */
     private readonly judge?: MemoryJudge,
   ) {}
+
+  /** D-0080 knob (`memory.recall.identityFirst`, default true): when false,
+   *  recallGraph ranks similarity first and uses identity only as a fallback —
+   *  the pre-D-0080 behaviour, kept for A/B. Read live on every call. */
+  identityFirst?: () => Promise<boolean>;
 
   private enc(plaintext: string): string {
     return this.vault && plaintext ? this.vault.encrypt(plaintext) : plaintext;
@@ -1063,38 +1091,86 @@ export class EntityMemory {
    * to lexical name/fact matching when no embedder is available (never a mock).
    */
   async recallGraph(query: string, limit = 5): Promise<GraphRecall> {
-    const seedIds = new Set<string>();
-    let mode: GraphRecall["mode"] = "semantic";
+    // D-0080: identity BEFORE similarity. The pre-D-0080 version ran the
+    // name-match branch only when vector search returned nothing — which, with
+    // a live embedder, is never — so the graph was always seeded by nearest
+    // neighbours ('optics vendor' for a question about 'optics vendor two').
+    // Longitude-XL measured that as 64% of all recall misses.
+    let identityFirst = true;
+    if (this.identityFirst) {
+      try { identityFirst = await this.identityFirst(); } catch { identityFirst = true; }
+    }
+    const q = query.toLowerCase();
+    const ranked: { id: string; name: string; via: "identity" | "similarity" }[] = [];
+    const have = new Set<string>();
+    const push = (id: string, name: string, via: "identity" | "similarity") => {
+      if (have.has(id)) return;
+      have.add(id);
+      ranked.push({ id, name, via });
+    };
+    const { rows: all } = await this.pool.query<{ id: string; name: string; aliases: string[] | null }>(
+      `SELECT id, name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 500`,
+    );
+    const nameOf = new Map(all.map((r) => [r.id, r.name]));
+
+    // 1) identity seeds — always computed; most specific (longest) name first
+    const identity = all
+      .map((r) => ({
+        r,
+        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).map((a) => identityMatch(q, a))),
+      }))
+      .filter((x) => x.len > 0)
+      .sort((a, b) => b.len - a.len);
+    if (identityFirst) for (const x of identity) push(x.r.id, x.r.name, "identity");
+
+    // 2) similarity seeds — vector entry points (entities + facts→their entity).
+    //    Counted BEFORE dedupe: a similarity hit that repeats an identity seed
+    //    still means the embedder contributed, and `mode` should say so.
+    let similarityHits = 0;
     if (this.semantic) {
       const hits = await this.semantic.search(query, { kinds: ["entity", "fact"], limit: limit * 2 });
       for (const h of hits) {
-        if (h.sourceKind === "entity") seedIds.add(h.sourceId);
-        else if (h.sourceKind === "fact") {
+        let id: string | undefined = h.sourceKind === "entity" ? h.sourceId : undefined;
+        if (h.sourceKind === "fact") {
           const { rows } = await this.pool.query<{ entity_id: string }>(
             `SELECT entity_id FROM memory_facts WHERE id = $1`,
             [h.sourceId],
           );
-          if (rows[0]) seedIds.add(rows[0].entity_id);
+          id = rows[0]?.entity_id;
         }
+        if (!id) continue;
+        similarityHits++;
+        let name = nameOf.get(id);
+        if (name === undefined) {
+          const { rows } = await this.pool.query<{ name: string }>(`SELECT name FROM memory_entities WHERE id = $1`, [id]);
+          name = rows[0]?.name ?? "";
+        }
+        push(id, name, "similarity");
       }
     }
-    if (seedIds.size === 0) {
-      // lexical fallback: entity names appearing in the query, or query terms in names
-      mode = "lexical";
-      const { rows } = await this.pool.query<{ id: string; name: string }>(
-        `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 200`,
-      );
-      const q = query.toLowerCase();
-      for (const r of rows) {
+
+    // 3) fallbacks: identity when the knob is off and similarity found nothing;
+    //    then the old loose word match (a name's word appears in the query)
+    if (!identityFirst && ranked.length === 0) for (const x of identity) push(x.r.id, x.r.name, "identity");
+    if (ranked.length === 0) {
+      for (const r of all) {
         const n = r.name.toLowerCase();
-        if (q.includes(n) || n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) seedIds.add(r.id);
+        if (n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) push(r.id, r.name, "identity");
       }
     }
+    const hasIdentity = ranked.some((s) => s.via === "identity");
+    const hasSimilarity = similarityHits > 0;
+    const mode: GraphRecall["mode"] = hasIdentity && hasSimilarity ? "hybrid" : hasSimilarity ? "semantic" : "lexical";
+    const chosen = ranked.slice(0, limit);
+    const seedIds = new Set(chosen.map((s) => s.id));
     const seeds = [...seedIds].slice(0, limit);
     const entities: GraphRecall["entities"] = [];
     const relations: GraphRecall["relations"] = [];
     const included = new Set<string>();
-    const addEntity = async (id: string) => {
+    // Query terms (for ranking a seed's facts): the words the asker actually
+    // used, minus the entity names themselves and trivial stopwords.
+    const qTerms = q.split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !GRAPH_STOP.has(w));
+    const addEntity = async (id: string, isSeed = false) => {
       if (included.has(id) || included.size >= limit * 3) return;
       const { rows } = await this.pool.query<{ id: string; name: string; kind: string }>(
         `SELECT id, name, kind FROM memory_entities WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
@@ -1102,16 +1178,25 @@ export class EntityMemory {
       );
       if (!rows[0]) return;
       included.add(id);
-      const { rows: facts } = await this.pool.query<{ statement: string }>(
-        `SELECT statement FROM memory_facts
+      // D-0080: a SEED entity shows up to 8 facts, the ones mentioning the
+      // asker's words first, newest first within that — the old flat cap of 3
+      // hid the asked fact behind unrelated ones ('boat shed two' seeded
+      // correctly and still missed its service day). Expansion nodes keep 3.
+      const { rows: facts } = await this.pool.query<{ statement: string; created_at: string }>(
+        `SELECT statement, created_at FROM memory_facts
          WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
-         ORDER BY confidence DESC, created_at DESC LIMIT 3`,
+         ORDER BY created_at DESC LIMIT 40`,
         [id],
       );
-      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: facts.map((f) => this.dec(f.statement)) });
+      const decoded = facts.map((f) => this.dec(f.statement));
+      const score = (t: string) => qTerms.reduce((n, w) => n + (t.toLowerCase().includes(w) ? 1 : 0), 0);
+      const ordered = isSeed
+        ? decoded.map((t, i) => ({ t, i, s: score(t) })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.t)
+        : decoded;
+      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: ordered.slice(0, isSeed ? 8 : 3) });
     };
     for (const id of seeds) {
-      await addEntity(id);
+      await addEntity(id, true);
       // one-hop expansion: pull in connected entities + the connecting edges
       const { rows: rels } = await this.pool.query<{
         from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string;
@@ -1137,7 +1222,7 @@ export class EntityMemory {
       seen.add(k);
       return true;
     });
-    return { entities, relations: uniqueRelations, mode };
+    return { entities, relations: uniqueRelations, mode, seeds: chosen.map((s) => ({ name: s.name, via: s.via })) };
   }
 
   private hydrateEntity(r: Record<string, unknown>): Entity {

@@ -237,6 +237,8 @@ export async function buildCore(opts: {
   // vector index enables hybrid graph recall (entry points by meaning → one-hop
   // expansion, D-0045).
   const entityMemory = new EntityMemory(opts.pool, audit, opts.vault, semanticMemory, memoryJudge);
+  // D-0080: identity-before-similarity seeding, live-editable (R-MEM-07)
+  entityMemory.identityFirst = () => settings.bool("memory.recall.identityFirst", true);
   // Episodic memory — the recallable timeline of notable events, encrypted at rest.
   const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault, semanticMemory);
 

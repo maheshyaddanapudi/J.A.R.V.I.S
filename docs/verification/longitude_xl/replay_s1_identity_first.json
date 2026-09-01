@@ -1,14 +1,14 @@
 {
- "label": "baseline",
+ "label": "s1_identity_first",
  "kernel": "http://127.0.0.1:4170",
  "misses": 55,
  "aggregate": {
-  "surfaced_by_graph": 37,
-  "in_graph_but_missed": 2,
+  "surfaced_by_graph": 38,
+  "in_graph_but_missed": 0,
   "prefs_only": 5,
-  "absent": 11
+  "absent": 12
  },
- "surfaced_by_any_probe": 44,
+ "surfaced_by_any_probe": 43,
  "rows": [
   {
    "fid": "58.0",
@@ -33,8 +33,8 @@
    "truth": "68",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
-   "graph_seed0": "North"
+   "graph_mode": "hybrid",
+   "graph_seed0": "optics vendor"
   },
   {
    "fid": "78.0",
@@ -48,7 +48,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Tidal Model Two"
   },
   {
@@ -60,7 +60,7 @@
    "truth": "19",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Cloud Recycler Two"
   },
   {
@@ -72,7 +72,7 @@
    "truth": "borosilicate",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Rooftop Garden Two"
   },
   {
@@ -87,7 +87,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Hana Moreau"
   },
   {
@@ -102,7 +102,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Rooftop Garden Two"
   },
   {
@@ -117,7 +117,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Rooftop Garden Two"
   },
   {
@@ -132,7 +132,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "lab-glass supplier two"
   },
   {
@@ -159,7 +159,7 @@
    "truth": "crimson",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Cloud Recycler Two"
   },
   {
@@ -174,8 +174,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "The Filament Shop Two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "optics vendor"
   },
   {
    "fid": "110.0",
@@ -218,7 +218,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Umar Reyes"
   },
   {
@@ -233,7 +233,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "storage unit north"
   },
   {
@@ -247,8 +247,8 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "Tessa Novak's meeting"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Tessa Novak"
   },
   {
    "fid": "94.1",
@@ -261,8 +261,8 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "North"
+   "graph_mode": "hybrid",
+   "graph_seed0": "optics vendor"
   },
   {
    "fid": "65.1",
@@ -276,8 +276,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "fusion sim two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "fusion sim"
   },
   {
    "fid": "109.1",
@@ -290,8 +290,8 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "North (lab-glass supplier)"
+   "graph_mode": "hybrid",
+   "graph_seed0": "lab-glass supplier"
   },
   {
    "fid": "99.1",
@@ -304,8 +304,8 @@
     "prefs"
    ],
    "class": "prefs_only",
-   "graph_mode": "semantic",
-   "graph_seed0": "Storage Unit Two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Cloud Recycler Two"
   },
   {
    "fid": "154.1",
@@ -319,7 +319,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "the boat shed north"
   },
   {
@@ -334,7 +334,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "battery retrofit two"
   },
   {
@@ -346,7 +346,7 @@
    "truth": "windhoek",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "microscope north"
   },
   {
@@ -361,7 +361,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Coral Census Two"
   },
   {
@@ -372,11 +372,12 @@
    "question": "What is the coral census's assigned number?",
    "truth": "24",
    "via": [
+    "graph",
     "exact",
     "prefs"
    ],
-   "class": "in_graph_but_missed",
-   "graph_mode": "semantic",
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
    "graph_seed0": "Coral Census Two"
   },
   {
@@ -391,7 +392,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Coral Census Two"
   },
   {
@@ -419,8 +420,8 @@
     "prefs"
    ],
    "class": "prefs_only",
-   "graph_mode": "semantic",
-   "graph_seed0": "boat shed"
+   "graph_mode": "hybrid",
+   "graph_seed0": "boat shed two"
   },
   {
    "fid": "149.1",
@@ -431,8 +432,8 @@
    "truth": "lisbon",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
-   "graph_seed0": "Test Range North"
+   "graph_mode": "hybrid",
+   "graph_seed0": "the test range"
   },
   {
    "fid": "163.0",
@@ -445,7 +446,7 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "the morning swim north"
   },
   {
@@ -460,8 +461,8 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "rooftop garden"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Rooftop Garden Two"
   },
   {
    "fid": "68.0",
@@ -475,8 +476,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "Drone Survey Two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Drone Survey North"
   },
   {
    "fid": "86.1",
@@ -490,8 +491,8 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "Glacier Telemetry Two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "glacier telemetry north"
   },
   {
    "fid": "148.1",
@@ -505,8 +506,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "Storage Unit Two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "storage unit north"
   },
   {
    "fid": "138.2",
@@ -520,8 +521,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "Lakeside Cabin North"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Lakeside Cabin Two"
   },
   {
    "fid": "28.1",
@@ -532,7 +533,7 @@
    "truth": "friday",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Priya Keller"
   },
   {
@@ -547,7 +548,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "seed bank"
   },
   {
@@ -558,10 +559,11 @@
    "question": "What is the glacier telemetry's status colour?",
    "truth": "ochre",
    "via": [
+    "graph",
     "exact"
    ],
-   "class": "in_graph_but_missed",
-   "graph_mode": "semantic",
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
    "graph_seed0": "glacier telemetry north"
   },
   {
@@ -573,7 +575,7 @@
    "truth": "19",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Aquarium Rig Two"
   },
   {
@@ -587,8 +589,8 @@
     "prefs"
    ],
    "class": "prefs_only",
-   "graph_mode": "semantic",
-   "graph_seed0": "Filament Shop North"
+   "graph_mode": "hybrid",
+   "graph_seed0": "the test range"
   },
   {
    "fid": "95.2",
@@ -602,7 +604,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "catering service two"
   },
   {
@@ -612,11 +614,9 @@
    "pref": false,
    "question": "What is the friday review north's service day?",
    "truth": "wednesday",
-   "via": [
-    "graph"
-   ],
-   "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "hybrid",
    "graph_seed0": "Friday Review"
   },
   {
@@ -630,8 +630,8 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "coral census north"
+   "graph_mode": "hybrid",
+   "graph_seed0": "the coral census north"
   },
   {
    "fid": "122.0",
@@ -645,7 +645,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Microscope Two"
   },
   {
@@ -672,7 +672,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Coral Census Two"
   },
   {
@@ -687,8 +687,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "tidal model"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Tidal Model North"
   },
   {
    "fid": "111.0",
@@ -702,8 +702,8 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "sensor importer north"
+   "graph_mode": "hybrid",
+   "graph_seed0": "The Sensor Importer Two"
   },
   {
    "fid": "161.2",
@@ -717,8 +717,8 @@
     "prefs"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "Morning Swim Two"
+   "graph_mode": "hybrid",
+   "graph_seed0": "the morning swim north"
   },
   {
    "fid": "163.2",
@@ -731,7 +731,7 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "the morning swim north"
   },
   {
@@ -746,7 +746,7 @@
     "exact"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "Lena Moreau's meeting"
   },
   {
@@ -760,8 +760,8 @@
     "graph"
    ],
    "class": "surfaced_by_graph",
-   "graph_mode": "semantic",
-   "graph_seed0": "North"
+   "graph_mode": "hybrid",
+   "graph_seed0": "optics vendor"
   },
   {
    "fid": "98.0",
@@ -772,8 +772,8 @@
    "truth": "lisbon",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
-   "graph_seed0": "the cloud recycler north"
+   "graph_mode": "hybrid",
+   "graph_seed0": "Cloud Recycler Two"
   },
   {
    "fid": "121.0",
@@ -784,9 +784,8 @@
    "truth": "graphene",
    "via": [],
    "class": "absent",
-   "graph_mode": "semantic",
+   "graph_mode": "hybrid",
    "graph_seed0": "kiln north"
   }
- ],
- "seed0_is_topic": 13
+ ]
 }

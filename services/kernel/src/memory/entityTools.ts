@@ -106,7 +106,7 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
 
   const recall: Tool = {
     name: "memory.recall",
-    description: "Recall everything J.A.R.V.I.S. knows about a named entity (facts + relationships). Read-only.",
+    description: "Recall everything J.A.R.V.I.S. knows about an entity BY EXACT NAME (facts + relationships). Use this when the question names the thing. Read-only.",
     riskClass: "READ_ONLY",
     action: "recall entity knowledge",
     inputSchema: {
@@ -159,7 +159,7 @@ export function entityMemoryTools(mem: EntityMemory): Tool[] {
   const recallGraph: Tool = {
     name: "memory.recallGraph",
     description:
-      "Hybrid recall over the knowledge graph: finds entities/facts relevant to a query BY MEANING, then expands to what they are connected to. Read-only.",
+      "Hybrid recall over the knowledge graph: entities NAMED in the query seed first (most specific name wins), then entities/facts relevant BY MEANING, then one hop to what they are connected to. Read-only.",
     riskClass: "READ_ONLY",
     action: "hybrid graph recall",
     inputSchema: {
@@ -286,7 +286,8 @@ function renderNeighborhood(g: GraphNeighborhood): string {
 }
 
 function renderGraphRecall(r: GraphRecall): string {
-  const lines = [`relevant knowledge (${r.mode} entry points + graph expansion):`];
+  const seeds = r.seeds?.length ? ` — entry points: ${r.seeds.map((s) => `${s.name} (${s.via})`).join(", ")}` : "";
+  const lines = [`relevant knowledge (${r.mode}${seeds}):`];
   for (const e of r.entities) {
     lines.push(`  ${e.kind} — ${e.name}`);
     for (const f of e.facts) lines.push(`    · ${f}`);

@@ -257,6 +257,15 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
       "When on, every gated tool call is checked against the tool's declared input schema before disclosure/approval; a malformed call is refused with a field-level message ('missing required property statement') instead of failing inside the tool. Off = default (the loop still contains any failure — nothing crashes either way). Measured 2026-08-29 (docs/verification/ARGVAL_2026-08-29.md): 0 malformed calls in a 24-run A/B battery with Sonnet-5, and 0 false refusals with validation on — default off; re-measure with local models on the Mac, where malformed calls are actually likely.",
   },
   {
+    key: "memory.recall.identityFirst",
+    label: "Seed graph recall by name before meaning",
+    category: "Memory",
+    type: "boolean",
+    default: () => true,
+    description:
+      "When on (default), an entity whose name appears in the query is the first entry point for graph recall — most specific name first ('optics vendor two' before 'optics vendor') — and vector similarity fills the remaining slots. When off, similarity ranks first and names are only a fallback (the pre-D-0080 behaviour, kept for A/B). Longitude-XL (docs/verification/LONGITUDE_XL_2026-09-01.md) measured similarity-first as the cause of 64% of recall misses: exact questions were seeded with the nearest NEIGHBOUR entity.",
+  },
+  {
     key: "memory.llmJudgment",
     label: "Use the fast model for memory judgments",
     category: "Memory",
