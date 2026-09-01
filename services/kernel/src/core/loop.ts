@@ -349,12 +349,22 @@ export class CoreLoop {
     if (requested === "deep" && this.deps.reasoningTuner) {
       try {
         if (assessDepth(input.text, learnedTopics, threshold).mode === "fast") {
-          const promoted = await this.deps.reasoningTuner.recordCorrection(input.text);
-          if (promoted.length) {
+          const learned = await this.deps.reasoningTuner.recordCorrection(input.text);
+          if (learned.promoted.length) {
             decision = {
               mode: "deep",
-              why: `explicitly requested — noted, I'll think deeply about '${promoted.join("', '")}' from now on`,
+              why: `explicitly requested — noted, I'll think deeply about '${learned.promoted.join("', '")}' from now on`,
               reason: "correction_promoted",
+            };
+          } else if (learned.deferred) {
+            // D-0080 C2 (R-MEM-10): no judgment model confirmed the topic, so
+            // the fallback only accumulated it — say so rather than learning
+            // silently (or, worse, learning filler). Still an override for the
+            // decision journal: the user did correct a fast assessment.
+            decision = {
+              mode: "deep",
+              why: "explicitly requested — noted; I'll learn that topic once my judgment model is available",
+              reason: "override",
             };
           }
         }

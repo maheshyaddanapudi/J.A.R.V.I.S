@@ -164,7 +164,11 @@ export const JUDGE_TEMPLATES = {
     "not evidence about a topic; return an empty list for it. If the subject qualifies, extract it as " +
     "1-3 short lowercase topic terms (single distinctive words or two-word phrases, e.g. 'palladium', " +
     "'orbital mechanics', 'metallurgy'). IGNORE filler and meta words like 'quick', 'one-line', " +
-    "'intuition', 'explain', 'give me'. If there is no substantive topic, return an empty list. " +
+    "'intuition', 'explain', 'give me'. Return the SUBJECT DOMAIN — a field, system, material, or " +
+    "phenomenon — never an activity, method, or process word ('tuning', 'planning', 'testing', " +
+    "'setup', 'review'): for 'how would you approach tuning the containment field' the topic is " +
+    "'containment field', not 'tuning'. If the only candidate is an activity word, or there is no " +
+    "substantive topic, return an empty list. " +
     'Reply with ONLY JSON: {"topics": ["...", ...]}.',
 } as const;
 

@@ -76,23 +76,56 @@ describe.skipIf(!pool)("promotion calibration (Longitude #4)", () => {
     expect(JUDGE_TEMPLATES["judge-topic-extraction"]).toMatch(/empty list/i);
   });
 
+  it("template asks for the SUBJECT DOMAIN, never an activity/process word (D-0080 C1)", () => {
+    const t = JUDGE_TEMPLATES["judge-topic-extraction"];
+    expect(t).toMatch(/never an activity, method, or process word/i);
+    expect(t).toMatch(/'tuning'/);
+    expect(t).toMatch(/only candidate is an activity word.*empty list/i);
+  });
+
   it("a judge returning [] (routine) accumulates nothing and never promotes", async () => {
     const judge = { extractTopics: vi.fn(async () => [] as string[]) };
     const tuner = new ReasoningTuner(mem, judge);
-    expect(await tuner.recordCorrection("Should I take an umbrella if the sky looks grey?")).toEqual([]);
-    expect(await tuner.recordCorrection("Should I take an umbrella if the sky looks grey?")).toEqual([]);
-    expect(await tuner.recordCorrection("Should I take an umbrella if the sky looks grey?")).toEqual([]);
+    for (let i = 0; i < 3; i++) {
+      expect(await tuner.recordCorrection("Should I take an umbrella if the sky looks grey?")).toEqual({
+        promoted: [], noted: [], deferred: false,
+      });
+    }
     expect(await tuner.topics()).toEqual([]);
+  });
+
+  it("activity phrasing: a judge that (per C1) returns [] for 'tuning' → three corrections promote nothing", async () => {
+    const judge = { extractTopics: vi.fn(async () => [] as string[]) };
+    const tuner = new ReasoningTuner(mem, judge);
+    for (let i = 0; i < 3; i++) {
+      expect((await tuner.recordCorrection("How would you approach tuning the containment field?")).promoted).toEqual([]);
+    }
+    expect(await tuner.topics()).toEqual([]);
+    expect(judge.extractTopics).toHaveBeenCalledTimes(3);
   });
 
   it("a depth-worthy topic still promotes on the second correction", async () => {
     const judge = { extractTopics: vi.fn(async () => ["plasma containment"]) };
     const tuner = new ReasoningTuner(mem, judge);
-    expect(await tuner.recordCorrection("Any thoughts on plasma containment stability margins?")).toEqual([]);
-    expect(await tuner.recordCorrection("How would you tune plasma containment fields?")).toEqual([
+    expect((await tuner.recordCorrection("Any thoughts on plasma containment stability margins?")).promoted).toEqual([]);
+    expect((await tuner.recordCorrection("How would you tune plasma containment fields?")).promoted).toEqual([
       "plasma containment",
     ]);
     expect(await tuner.topics()).toEqual(["plasma containment"]);
+  });
+
+  it("D-0080 C2: judge unavailable (null) → five corrections accumulate in the real store, topics stay empty, each carries the deferral", async () => {
+    const judge = { extractTopics: vi.fn(async () => null) };
+    const tuner = new ReasoningTuner(mem, judge);
+    for (let i = 0; i < 5; i++) {
+      const r = await tuner.recordCorrection("should I take an umbrella if the sky looks grey");
+      expect(r.promoted).toEqual([]);
+      expect(r.deferred).toBe(true);
+    }
+    expect(await tuner.topics()).toEqual([]);
+    const ledger = JSON.parse((await mem.get("reasoning_deep_candidates"))!.value) as Record<string, { count: number; judged: number }>;
+    expect(ledger["umbrella"]).toEqual({ count: 5, judged: 0 });
+    expect(Object.values(ledger).every((c) => c.judged === 0)).toBe(true);
   });
 });
 
