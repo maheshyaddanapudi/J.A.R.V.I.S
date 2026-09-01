@@ -95,5 +95,34 @@ Tuesday" looks like an UPDATE to what I already hold — preference 'south_beaco
 service") is a different fact and passes. +1 test (single, batch per-item, partial-attribute
 pass, preference untouched).
 
-## Round E — 10 fresh entities, write guard
-_filled in below_
+## Round E — 10 fresh entities, write guard live · **PASS**
+Teach: 10/10 assigned numbers → facts; 8/10 service days → preferences (`mateo salazar`,
+`yusuf demir` → facts). Flips, from the audit trail of tool calls:
+
+| flip | what the agent did | home |
+|---|---|---|
+| granite pier | `correct` (`replaces` = key) | preference ✓ |
+| mateo salazar | `correct` (factId of its service-day fact) | fact ✓ |
+| ridge antenna six | **`rememberFact` → refused** ("looks like an UPDATE … use memory.correct") → `correct` (`replaces` = key) | preference ✓ |
+| teak workbench | `correct` (`replaces` = key) | preference ✓ |
+| ines carvalho | **`rememberFact` → refused** → `correct` (`replaces: "service day"`) | preference ✓ |
+| marsh probe eight | **`rememberFact` → refused** → `correct` (`replaces: "service day"`) | preference ✓ |
+| lower orchard | `correct` (`replaces` = key) | preference ✓ |
+| yusuf demir | `correct` (factId of its service-day fact) | fact ✓ |
+| pewter jug | **`rememberFact` → refused** → `correct` (`replaces` = key) | preference ✓ |
+| cobalt index | **`rememberFact` → refused** → `correct` (`replaces: "service day"`) | preference ✓ |
+
+The agent's first choice was `rememberFact` on 5/10 flips — the same rate as round D — and
+every one of those was refused and re-issued as `memory.correct` within the same run. Corrections
+landed in the right home **10/10** (8 preference, 2 fact), second homes **0**, assigned-number
+facts survived **10/10**. Quiz in fresh runs: **20/20** current values, **0** conflict reports
+(round D had 11). 225 s.
+
+## Verdict
+Spec §5.3 gate (≥19/20 current after mixed-route teach + agent-announced flips): **met on the
+final build (20/20, no conflicts)** — and only there. Rounds B–D are the reason the slice has
+four more guards than the spec asked for: the unit tests encoded hand-written tool calls; the
+real agent passes the preference key as `replaces`, sometimes a factId of the wrong fact, and
+chooses `rememberFact` for an update half the time. Every one of those habits is now either
+routed correctly or refused with the right pointer, and each has the exact captured arguments
+as a regression test. Cost of the five rounds ≈ $6 on Sonnet 5.
