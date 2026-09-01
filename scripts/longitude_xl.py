@@ -639,6 +639,26 @@ def assert_model_live(day: int) -> None:
             "is intact, so nothing before this day is lost.")
 
 
+def assert_day_live(day: int, start_id: int) -> None:
+    """Same-day provider check: if the day's Anthropic calls were mostly
+    failures (≥5 failed and failures outnumber successes), the model died DURING
+    the day — halt before the day is aged, snapshotted or checkpointed. The
+    2026-09-01 second act lost its credits mid-quiz on day 540: the quiz scored
+    5/20 against a dead model and three 11-second void days followed."""
+    row = psql(f"SELECT count(*) FILTER (WHERE ok), count(*) FILTER (WHERE NOT ok) "
+               f"FROM model_calls WHERE id > {start_id} AND provider='anthropic'")
+    try:
+        ok, bad = (int(x) for x in row.split("|"))
+    except ValueError:
+        return
+    if bad >= 5 and bad > ok:
+        err = psql("SELECT left(error,200) FROM model_calls WHERE NOT ok ORDER BY id DESC LIMIT 1")
+        raise SystemExit(
+            f"FATAL day {day}: {bad} of the day's {ok + bad} model calls failed — the provider died "
+            f"during the day, so this day is NOT committed (no aging, no checkpoint). Provider said: {err}\n"
+            "Fix the provider (credits?) and resume: the day re-runs for real.")
+
+
 def assert_embeddings_live(day: int, state: dict) -> None:
     """Fail loudly if vectors stop growing while episodes do: a silent
     degradation to lexical-only would invalidate every recall curve."""
@@ -684,6 +704,7 @@ def main() -> None:
         session = str(uuid.uuid4())
         deep_on_auto = 0
         lat: list[int] = []
+        day_start_id = int(psql("SELECT coalesce(max(id),0) FROM model_calls") or 0)
 
         state.setdefault("teach_queue", []).extend(teach_due(day))
         teach_acts = [] if day in QUIET else drain_teach(state, day)
@@ -720,10 +741,16 @@ def main() -> None:
             state.pop("pending_repin", None)
             log(f"  [pin] day {day}: user RE-PINS (#{state['repins']})")
 
+        # Provider liveness is checked EVERY day (was: quiz days only — the second
+        # act's credits died mid-day-540 and three void days were counted before
+        # anyone looked). Same-day check runs again after the quiz, before the
+        # world is aged or the checkpoint saved, so a day the model died in is
+        # never committed: fix the provider, re-run the day for real.
+        assert_model_live(day)
         if day % QUIZ_EVERY == 0:
-            assert_model_live(day)
             assert_embeddings_live(day, state)
         quiz = quiz_battery(day, rng, state) if day % QUIZ_EVERY == 0 or day == 1 else None
+        assert_day_live(day, day_start_id)
         tick = night(day)
         shifted = shift_world_one_day()
 
