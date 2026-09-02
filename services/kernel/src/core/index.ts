@@ -10,6 +10,7 @@ import { ToolRegistry } from "./tools.js";
 import { systemInfoTool } from "./tools/systemInfo.js";
 import { workspaceNoteTool } from "./tools/workspaceNote.js";
 import { rememberPreferenceTool } from "./tools/rememberPreference.js";
+import { recallPreferencesTool } from "./tools/recallPreferences.js";
 import { MemoryService } from "../memory/memory.js";
 import { SimulatedDesktop } from "../control/simulator.js";
 import { computerControlTools } from "../control/tools.js";
@@ -50,7 +51,7 @@ import { LocalAgentRuntime } from "../agent/runtime.js";
 import type { AgentRuntime } from "../agent/contract.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { skillTools } from "../skills/tools.js";
-import { GatewayMemoryJudge } from "../memory/judge.js";
+import { GatewayMemoryJudge, seedJudgeTemplates } from "../memory/judge.js";
 import { PromptRegistry } from "../prompts/registry.js";
 import { ReasoningTuner } from "./reasoning.js";
 import { DecisionLog, SleepCycle } from "./consolidation.js";
@@ -70,10 +71,21 @@ import { A2uiRegistry } from "../a2ui/registry.js";
 import { a2uiTools } from "../a2ui/tools.js";
 import { loadRoleOverrides } from "../gateway/overrides.js";
 import { gatewayTools, reasoningTools } from "../gateway/tools.js";
+import { LabEngine } from "../lab/engine.js";
+import { PyBenchRunner } from "../lab/bench.js";
+import { LabNightRun } from "../lab/night.js";
+import { LabApplier } from "../lab/apply.js";
+import { LAB_SETTINGS_SURFACE } from "../lab/surface.js";
+import { resolve as resolvePath } from "node:path";
+import { readFile } from "node:fs/promises";
 
 export interface Core {
   audit: AuditLog;
   estop: EmergencyStop;
+  /** Night Lab (D-0079): experiment engine + the quiet-hours night orchestrator */
+  labEngine: import("../lab/engine.js").LabEngine;
+  labNight: import("../lab/night.js").LabNightRun;
+  labApplier: import("../lab/apply.js").LabApplier;
   policy: PolicyEngine;
   approvals: ApprovalBroker;
   activity: ActivityBus;
@@ -143,6 +155,9 @@ export async function buildCore(opts: {
   control?: ComputerControl;
   /** vault for field-level encryption at rest; omit to store plaintext (dev). */
   vault?: Vault;
+  /** Night-Lab bench runner override (tests inject a fake; default shells to
+   *  scripts/lab_bench.py against the isolated lab instance, D-0079). */
+  labRunner?: import("../lab/engine.js").BenchRunner;
   /**
    * Shared managed secrets vault. If provided (constructed at the process entry
    * so the model gateway can share it), it is used as-is; otherwise buildCore
@@ -207,13 +222,23 @@ export async function buildCore(opts: {
   // extraction via the `fast_conversation` role. BEST-EFFORT — every method falls
   // back to deterministic logic when the gate is off, offline, or no provider is
   // eligible (private/secret memory stays LOCAL_ONLY). It never blocks a write.
+  // Prompts registry — user-editable persona/system/template prompts (R-CAP-01).
+  // Built BEFORE the judge so judge prompt templates resolve from it (D-0079
+  // Slice L1a: the templates are Night-Lab experimentable surface). The five
+  // judge templates are boot-seeded when absent so they are visible/versionable
+  // in /prompts; resolution is best-effort — registry failure → code constant.
+  const prompts = new PromptRegistry(opts.pool, audit);
+  await seedJudgeTemplates(prompts);
   const memoryJudge = new GatewayMemoryJudge(opts.gateway, {
     enabled: () => settings.bool("memory.llmJudgment", true),
+    templates: async (name) => (await prompts.get(name, "template"))?.content ?? null,
   });
   // Semantic knowledge store (entities/facts/relations) — encrypted at rest; the
   // vector index enables hybrid graph recall (entry points by meaning → one-hop
   // expansion, D-0045).
   const entityMemory = new EntityMemory(opts.pool, audit, opts.vault, semanticMemory, memoryJudge);
+  // D-0080: identity-before-similarity seeding, live-editable (R-MEM-07)
+  entityMemory.identityFirst = () => settings.bool("memory.recall.identityFirst", true);
   // Episodic memory — the recallable timeline of notable events, encrypted at rest.
   const episodicMemory = new EpisodicMemory(opts.pool, audit, opts.vault, semanticMemory);
 
@@ -250,6 +275,7 @@ export async function buildCore(opts: {
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
   tools.register(rememberPreferenceTool(memory));
+  tools.register(recallPreferencesTool(memory));
   for (const t of computerControlTools(control)) tools.register(t);
   for (const t of deviceTools(devices, interlock)) tools.register(t);
   for (const t of knowledgeTools(files)) tools.register(t);
@@ -258,7 +284,8 @@ export async function buildCore(opts: {
   // Research-with-provenance composes the (gated) web browser into one sourced-
   // evidence action; per-URL policy applies inside gather.
   for (const t of researchTools(new WebResearcher(web))) tools.register(t);
-  for (const t of entityMemoryTools(entityMemory)) tools.register(t);
+  // D-0080 B1: the preference store rides along so memory.correct is route-agnostic (R-MEM-08)
+  for (const t of entityMemoryTools(entityMemory, memory)) tools.register(t);
   for (const t of episodeMemoryTools(episodicMemory)) tools.register(t);
   // Conversational edit path (D-0055): the same runtime overrides the UI/API
   // offer, as gated tools — "route deep reasoning to X" / "undo that" spoken
@@ -333,6 +360,7 @@ export async function buildCore(opts: {
     // quiet-hours MEMORY consolidation (D-0063): the sleep cycle tidies the
     // day's memories too — dupes merged (with history), stale only PROPOSED.
     memory: entityMemory,
+    prefs: memory,
     settings,
   });
 
@@ -350,6 +378,9 @@ export async function buildCore(opts: {
     reasoningTuner,
     decisions,
     durableGrants,
+    // tools.validateArgs experiment: schema-check args at the loop boundary
+    // (default off — the default is decided by measurement, not opinion)
+    validateArgs: async () => settings.bool("tools.validateArgs", false),
     // Chat delivery of announcements (D-0077): pending items are relayed at the
     // start of the next conversation turn and marked delivered — the chat is
     // the zero-extra-I/O notification channel (Mac toasts are an add-on).
@@ -371,9 +402,7 @@ export async function buildCore(opts: {
   // and re-run one (skill.run) — the no-code counterpart to code capabilities
   // (which are already reusable as `capability:<name>` tools + selfext.listActive).
   for (const t of skillTools(skills)) tools.register(t);
-  // Prompts registry — user-editable persona/system prompts (R-CAP-01). The
-  // conversation loop reads the active persona; default seeded by migration 0013.
-  const prompts = new PromptRegistry(opts.pool, audit);
+  // (prompts registry constructed earlier, before the memory judge — D-0079)
 
   const capabilities = new CapabilityRegistry(opts.pool, audit);
   const stageA = new StageAPipeline(capabilities, audit);
@@ -436,8 +465,43 @@ export async function buildCore(opts: {
       return [];
     }
   };
+  // ---- Night Lab (D-0079): evidence-gated self-experimentation. Built here so
+  // the scheduler can offer it a quiet-hours beat. Everything is default-off
+  // (`lab.enabled`); the run itself re-checks its whole envelope. The engine
+  // never applies anything to live — kept winners wait in the ledger (L4).
+  const labEngine = new LabEngine(opts.pool, audit, episodicMemory);
+  const labRunner = opts.labRunner ?? new PyBenchRunner({ repoRoot: resolvePath(process.cwd(), "..", "..") });
+  const labNight = new LabNightRun({
+    pool: opts.pool, settings, estop, audit,
+    engine: labEngine, runner: labRunner, gateway: opts.gateway, prompts, announcer,
+    // the night measures the CURRENT configuration: overridden on-surface
+    // settings ride into the lab under baseline and every trial
+    effectiveLabSettings: async () => {
+      const out: Record<string, unknown> = {};
+      for (const e of await settings.effective()) {
+        if (e.source !== "default" && LAB_SETTINGS_SURFACE.includes(e.key)) out[e.key] = e.value;
+      }
+      return out;
+    },
+    loadCampaign: async (name) => {
+      try {
+        // approved campaigns are the committed contracts under bench/campaigns/
+        if (!/^[a-z0-9-]+$/.test(name)) return null;
+        const raw = await readFile(resolvePath(process.cwd(), "..", "..", "bench", "campaigns", `${name}.json`), "utf8");
+        return JSON.parse(raw) as import("../lab/engine.js").CampaignSpec;
+      } catch {
+        return null;
+      }
+    },
+    lastUserActivity: () => loop.lastUserActivityAt,
+  });
+  // Apply-to-live (L4): the ONLY path from ledger to live, three-envelope
+  // gated; user-pinned settings and persona changes always need the user.
+  const labApplier = new LabApplier(opts.pool, audit, settings, prompts, announcer);
   const autonomy = new BackgroundScheduler({
     settings, proactive, sleepCycle, estop, audit, activity,
+    // Night Lab (D-0079): offered a beat at the end of a quiet-hours tick
+    labNight: () => labNight.runNight(),
     // the living heartbeat (D-0064): agenda + bounded brain pass + journal
     agenda, agent, pool: opts.pool,
     // no-collide (D-0065): a beat defers its thinking while a live session is on
@@ -473,6 +537,7 @@ export async function buildCore(opts: {
     audit, estop, policy, approvals, activity, tools, memory,
     capabilities, stageA, activation, proactive, proactiveRules, mcp, connectMcp, context, agent, skills, prompts, files, web, terminal,
     entityMemory, episodicMemory, reasoningTuner, sleepCycle, settings, durableGrants, autonomy, agenda, budget, announcer, projects, perception, ops, a2ui,
+    labEngine, labNight, labApplier,
     ...(secrets ? { secrets } : {}),
     loop,
   };

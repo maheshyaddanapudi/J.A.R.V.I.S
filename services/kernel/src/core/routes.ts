@@ -58,8 +58,61 @@ export function registerCoreRoutes(
     ops?: import("../ops/ops.js").Ops;
     pool?: import("pg").Pool;
     a2ui?: import("../a2ui/registry.js").A2uiRegistry;
+    labNight?: import("../lab/night.js").LabNightRun;
+    labApplier?: import("../lab/apply.js").LabApplier;
   },
 ): void {
+  // ---- Night Lab (D-0079): ledger transparency + a manual fire for testing.
+  // The run enforces its ENTIRE envelope itself (enabled/quiet-hours/e-stop/
+  // caps) — the route adds no bypass; a skip returns its honest reason.
+  if (deps.pool) {
+    const pool = deps.pool;
+    app.get("/lab/experiments", async (req) => {
+      const q = req.query as { campaign?: string; limit?: string };
+      const limit = Math.min(100, Math.max(1, Number(q.limit ?? 30) || 30));
+      const params: unknown[] = [];
+      let where = "";
+      if (q.campaign) {
+        params.push(q.campaign);
+        where = `WHERE campaign = $1`;
+      }
+      params.push(limit);
+      const { rows } = await pool.query(
+        `SELECT id, campaign, started_at, finished_at, candidate_summary, hypothesis, baseline, trials,
+                verdict, verdict_reason, gate_failures, tokens_spent, bench_hash, envelope,
+                applied_to_live, applied_ref
+         FROM lab_experiments ${where} ORDER BY started_at DESC LIMIT $${params.length}`,
+        params,
+      );
+      return { experiments: rows };
+    });
+  }
+  if (deps.labNight) {
+    const labNight = deps.labNight;
+    app.post("/lab/night", async (req) => {
+      const wait = Boolean((req.body as { wait?: boolean } | undefined)?.wait);
+      if (wait) return await labNight.runNight();
+      void labNight.runNight();
+      return { started: true };
+    });
+  }
+  if (deps.labApplier) {
+    const applier = deps.labApplier;
+    // Apply a KEPT experiment under the three-envelope rule. `approve: true`
+    // is the localhost user's explicit consent (same trust model as every
+    // other localhost mutation route); without it, proposal-envelope and
+    // user-pinned cases refuse with the reason.
+    app.post("/lab/experiments/:id/apply", async (req, reply) => {
+      const id = (req.params as { id: string }).id;
+      const approve = Boolean((req.body as { approve?: boolean } | undefined)?.approve);
+      const r = await applier.applyKept(id, { approvedByUser: approve });
+      return r.ok ? r : reply.code(409).send(r);
+    });
+    app.post("/lab/experiments/:id/revert", async (req, reply) => {
+      const r = await applier.revert((req.params as { id: string }).id);
+      return r.ok ? r : reply.code(409).send(r);
+    });
+  }
   // A2UI (D-0061): agent-generated declarative panels. Specs are validated
   // (whitelist schema + real references) on write; the client renders them
   // through a sandboxed renderer. Panels are listable + deletable.

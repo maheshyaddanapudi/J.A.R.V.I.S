@@ -67,6 +67,21 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 | R-CAP-08 | HARD LIMIT: generated capabilities never touch security/approval/audit/e-stop/credential/sandbox/escalation/installer logic — enforced structurally | 5.3 | G3 | 3 (design from 1) | CI invariant #1; install-time diff scan test | SPEC | — |
 | R-CAP-09 | Pre-P3: record capability gaps; never claim generation ability | 5.3 | G2 | 1–2 | kernel behavior test | SPEC | — |
 
+## Night Lab — evidence-gated self-experimentation (docs/NIGHT_LAB_SPEC.md, D-0079)
+
+| ID | Requirement | Phase | Acceptance | Status |
+|---|---|---|---|---|
+| R-LAB-01 | Experiments execute only against an isolated lab instance + scratch DB; live memory never read (fixtures only) or written by an experiment | 4 | `scripts/lab_bench.py` boots its own kernel on `jarvis_lab`/own port; `lab.test.ts` | **BUILT+VERIFIED 2026-08-28** — docs/verification/NIGHT_LAB_2026-08-28.md |
+| R-LAB-02 | Editable surface is an explicit Z1-held allowlist (`lab/surface.ts`, R-CAP-08 protected); bench outside it, hash-stamped per experiment | 4 | `validateCandidate` deny-first tests; `bench_hash` column | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-03 | Hard safety gates: any deterministic-check failure auto-discards regardless of metric improvement | 4 | 8 gates in the bench (health, e-stop, policy DENY, secret refusal, announce dedupe, quiet-hours defer, entity dedup, audit chain); engine gate tests | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-04 | Every experiment (kept/discarded/crashed) durably recorded with scores, cost, bench hash, provenance | 4 | migration 0026 `lab_experiments`; `persist()` + audit `lab_experiment` + episode | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-05 | Bounded by `budget.lab.nightlyTokenCap` + overall daily cap; defers to live activity; halts on e-stop | 4 | `labnight.test.ts` halt-condition tests; Budget source `night-lab` | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-06 | Winners reach live only via normal gated/ledgered registries under the three-envelope rule (auto / D-0052-pinned / proposal) | 4 | `labapply.test.ts` (7 tests incl. pin refusal citing D-0052) | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-07 | Morning report announced after every campaign night, generated from the ledger (failures, spend, revert paths included) | 4 | `morningReport()` from rows only; announcer dedupeKey `night-lab-report-<date>`; D-0077 chat relay | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-08 | Default-off; enabling is a check-in; kill switches `lab.enabled` + e-stop | 4 | catalog default `false`; night-run skip tests | **BUILT+VERIFIED 2026-08-28** (enabled by the user at the D-0079 check-in) |
+| R-LAB-09 | No keep on a single trial; N=3 trials, mean margin ≥ δ, guard bands on every trial | 4 | `lab.test.ts` keep-protocol tests | **BUILT+VERIFIED 2026-08-28** |
+| R-LAB-10 | Bench + campaign files versioned; experiment reproducible from (bench hash, fixtures, candidate) | 4 | committed `bench/` tree; `bench_hash()` sha256 over bench/+runner | **BUILT+VERIFIED 2026-08-28** |
+
 ## Autonomy & approval (docs/02 §Autonomy)
 
 | ID | Requirement | Spec § | Parity | Phase | Acceptance | Status | Decisions |
@@ -86,6 +101,10 @@ Acceptance-test IDs: `AT1.x` = the 14 Phase-1 criteria in docs/06 (numbered in o
 | R-MEM-04 | Search/view/correct/pin/forget/export/delete/reset/backup/restore-verified/dedup | 7.3 | H2 | 1 (view/correct/delete) / 2 (full) | AT1.10 | SPEC | — |
 | R-MEM-05 | Epistemic status enum (9 states) distinguished everywhere | 7.2 | H2, B4 | 1→ | schema + retrieval tests | SPEC | — |
 | R-MEM-06 | No secrets in conversational memory; Keychain/encrypted vault | 7.4 | — | 1 | invariant #3 | **BUILT+VERIFIED 2026-07-17** — managed SecretsVault (`crypto/secrets.ts`, migration 0008): integration credentials AES-256-GCM at rest (DB grep = 0 plaintext), KEK from Keychain/env, value never returned over HTTP or written to audit (name-only), MCP `secretEnv` resolves by name (fail-closed); memory still refuses to store secrets on write | D-0013, D-0028 |
+| R-MEM-07 | Entity recall seeds by **identity before similarity**: an entity whose name is in the query ranks ahead of vector neighbours, most-specific name first; works with no embedder | RETRIEVAL_FIDELITY_SPEC §4 | H1 | 2 | §4.5 unit + replay | **BUILT+VERIFIED 2026-09-01** — `recallGraph` identity seeds (`identityMatch`, longest name first) before similarity, `mode`/`seeds[].via`, seed facts ranked by query terms; knob `memory.recall.identityFirst`; 7 unit tests; replay over the 55 preserved Longitude-XL misses: true graph misses 2→0, seed[0]==asked entity 13→20 (+54 %); manual Sonnet-5 agent answers correct. Record `docs/verification/RETRIEVAL_FIDELITY_2026-09-01.md` | D-0080 |
+| R-MEM-08 | A correction reaches the store where the fact **actually lives** (entity fact or preference), supersedes with history, never creates a second home | RETRIEVAL_FIDELITY_SPEC §5 | H1, H2 | 2 | §5.3 unit + mini-life | **BUILT+VERIFIED 2026-09-01** — `memory.correct` resolution factId → fact text → preference (`matchKeys`, ties refused) → new fact behind a read-only probe; `route` reported; mini-life on Sonnet 5 found and fixed two more ways a good fact was lost (wrong-factId guard, new-statement-driven target instead of "most recent"); 11 unit tests; mini-life record `docs/verification/retrieval_fidelity/S4_minilife_sonnet5.md` | D-0080 |
+| R-MEM-09 | Multi-statement teaching is available as **one verified batch call** with per-item outcomes; partial failure reported, never masked | RETRIEVAL_FIDELITY_SPEC §5 | H1 | 2 | §5.3 batch test | **BUILT+VERIFIED 2026-09-01** — `memory.rememberFacts(entity, statements[])` LOW_REVERSIBLE, each item written + re-read (`factById`), per-item `{stored, factId|error}`, `ok:false` on any failure with the items named, exact rollback; 5 unit tests | D-0080 |
+| R-MEM-10 | Learning-by-correction promotes a topic only on **judge-confirmed** extractions; without a judge the system accumulates but does not promote, and says so | RETRIEVAL_FIDELITY_SPEC §6 | B4 | 2 | §6.3 | **BUILT+VERIFIED 2026-09-01** — candidates `{count, judged}`, promotion `count≥2 ∧ judged≥1`, fallback accumulate-only with the deferral notice in the decision `why`, legacy maps as judged 0, ledger cap 200, template subject-domain clause, `tuning` removed from `jarvis_xl` (audit 14574); 13 unit tests; manual Sonnet-5 record `docs/verification/retrieval_fidelity/S3_manual_sonnet5.md` | D-0080 |
 
 ## Proactive behavior (docs/02 §Proactive)
 

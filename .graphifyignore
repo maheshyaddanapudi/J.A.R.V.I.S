@@ -1,0 +1,13 @@
+# Files graphify must not ingest (gitignore syntax, honored alongside .gitignore).
+# UI screenshots: 69 image nodes extracted from these produced name=None every
+# time — pure vision-call cost, zero graph value (checked 2026-08-28).
+docs/screenshots/
+# Pure-data JSON (bench fixtures/contracts, hook config): the JSON extractor
+# correctly finds zero symbols in these, which upstream's #2543 heal misreads
+# as "failed extraction" and re-queues on every single run (named 2026-08-29
+# by calling their own predicate). Ignoring them ends that loop; they never
+# contributed a node.
+bench/campaigns/*.json
+bench/conversations/*.json
+bench/fixtures/*.json
+.claude/settings.json

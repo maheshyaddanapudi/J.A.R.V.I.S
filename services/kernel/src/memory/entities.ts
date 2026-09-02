@@ -38,8 +38,17 @@ function stem(w: string): string {
 }
 function contentWords(s: string): Set<string> {
   return new Set(
-    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)).map(stem),
+    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length > 1 && !STOP_WORDS.has(w)).map(stem),
   );
+}
+/** Content words two statements share, ignoring the entity's own name (which
+ *  every statement about it repeats) — "is this about the same attribute?" */
+function sharedContent(a: string, b: string, entityName: string): number {
+  const skip = contentWords(entityName);
+  const wb = contentWords(b);
+  let n = 0;
+  for (const w of contentWords(a)) if (wb.has(w) && !skip.has(w)) n++;
+  return n;
 }
 
 /** Loose name-similarity PRE-FILTER for entity resolution (D-0075). Deliberately
@@ -179,8 +188,31 @@ export interface GraphNeighborhood {
 export interface GraphRecall {
   entities: { name: string; kind: string; facts: string[] }[];
   relations: { fromName: string; relation: string; toName: string }[];
-  /** how the entry points were found: semantic (embeddings) or lexical fallback */
-  mode: "semantic" | "lexical";
+  /** how the entry points were found: identity (a name in the query) and/or
+   *  similarity (embeddings). "hybrid" = both contributed; "lexical" = no
+   *  embedder or no similarity hits; "semantic" = similarity only. */
+  mode: "hybrid" | "semantic" | "lexical";
+  /** the entry points in rank order, each with how it was found (D-0080) */
+  seeds: { name: string; via: "identity" | "similarity" }[];
+}
+
+/**
+ * D-0080 / R-MEM-07: an entity name counts as PRESENT in a query only on word
+ * boundaries, and only if it is specific enough to mean something on its own
+ * (two or more tokens, or five or more characters) — 'kiln' must not seed from
+ * inside 'kilning', 'weather mast' must. Returns the matched length so callers
+ * can rank the MOST SPECIFIC name first ('optics vendor two' before 'optics
+ * vendor'). Deterministic; no model involved.
+ */
+const GRAPH_STOP = new Set(["what", "the", "and", "for", "with", "from", "about", "does", "did", "who", "which",
+  "where", "when", "how", "tell", "know", "any", "its", "his", "her", "their", "that", "this", "have", "has"]);
+
+export function identityMatch(queryLower: string, name: string): number {
+  const n = name.toLowerCase().trim();
+  if (!n) return 0;
+  if (n.split(/\s+/).filter(Boolean).length < 2 && n.length < 5) return 0;
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(queryLower) ? n.length : 0;
 }
 
 function assertNotSecret(value: string): void {
@@ -202,6 +234,11 @@ export class EntityMemory {
      *  best-effort — every method falls back to deterministic logic on null */
     private readonly judge?: MemoryJudge,
   ) {}
+
+  /** D-0080 knob (`memory.recall.identityFirst`, default true): when false,
+   *  recallGraph ranks similarity first and uses identity only as a fallback —
+   *  the pre-D-0080 behaviour, kept for A/B. Read live on every call. */
+  identityFirst?: () => Promise<boolean>;
 
   private enc(plaintext: string): string {
     return this.vault && plaintext ? this.vault.encrypt(plaintext) : plaintext;
@@ -534,8 +571,9 @@ export class EntityMemory {
    * one. This is the fact-level analogue of entity re-remember (D-0060 gap fix):
    * before this, a contradicting fact just piled up alongside the stale one.
    * `replaces` (a substring of the old statement, case-insensitive) targets which
-   * fact(s) to supersede; if omitted, the single most-recent active fact is
-   * superseded. If nothing matches, the new fact is still recorded (reported).
+   * fact(s) to supersede; if omitted, the active fact sharing content words
+   * with the NEW statement is superseded (D-0080 — was: the most recent fact).
+   * If nothing matches, the new fact is still recorded (reported).
    */
   async correctFact(input: {
     entityName: string;
@@ -559,37 +597,7 @@ export class EntityMemory {
          ORDER BY created_at DESC`,
         [entity.id],
       );
-      let targets: string[];
-      if (input.factId) {
-        // Explicit id from a prior recall — exact, no guessing. Must belong to
-        // this entity and still be active, else the correction is refused
-        // (an id typo must not silently supersede nothing or the wrong thing).
-        if (!active.some((r) => r.id === input.factId)) {
-          throw new Error(`no active fact ${input.factId} on '${entity.name}' — recall the entity and use a current fact id`);
-        }
-        targets = [input.factId];
-      } else if (input.replaces && input.replaces.trim()) {
-        const needle = input.replaces.trim().toLowerCase();
-        // 1) exact substring match (precise).
-        targets = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
-        // 2) fallback: the active fact sharing the most CONTENT words with
-        //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
-        //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
-        //    ≥1 shared content word; otherwise the new statement is just added.
-        if (!targets.length) {
-          const want = contentWords(needle);
-          let best: { id: string; shared: number } | null = null;
-          for (const r of active) {
-            const have = contentWords(this.dec(r.statement));
-            let shared = 0;
-            for (const w of want) if (have.has(w)) shared++;
-            if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
-          }
-          if (best && best.shared >= 1) targets = [best.id];
-        }
-      } else {
-        targets = active.length ? [active[0]!.id] : []; // no target named → most recent active fact
-      }
+      const targets = this.pickCorrectionTargets(active, entity.name, input);
       const { rows: ins } = await client.query(
         `INSERT INTO memory_facts (entity_id, statement, status, provenance, confidence, sensitivity)
          VALUES ($1,$2,'user_statement',$3,1.0,'personal')
@@ -621,6 +629,113 @@ export class EntityMemory {
     } finally {
       client.release();
     }
+  }
+
+  /** Which active fact(s) a correction supersedes — shared by `correctFact`
+   *  and the read-only `correctionTargets` probe so both agree exactly. */
+  private pickCorrectionTargets(
+    active: { id: string; statement: string }[],
+    entityName: string,
+    input: { factId?: string; replaces?: string; newStatement?: string },
+  ): string[] {
+    if (input.factId) {
+      // Explicit id from a prior recall — exact, no guessing. Must belong to
+      // this entity and still be active, else the correction is refused
+      // (an id typo must not silently supersede nothing or the wrong thing).
+      const target = active.find((r) => r.id === input.factId);
+      if (!target) {
+        throw new Error(`no active fact ${input.factId} on '${entityName}' — recall the entity and use a current fact id`);
+      }
+      // D-0080 guard (mini-life 2026-09-01): an id whose statement shares NO
+      // content with the new statement is almost certainly the wrong fact —
+      // the model targeted the entity's only fact (assigned number) for a
+      // service-day update and a good fact was lost. Refuse rather than
+      // supersede; `replaces` naming the old text is the explicit override.
+      if (input.newStatement) {
+        const old = this.dec(target.statement);
+        const confirmed =
+          !!input.replaces?.trim() &&
+          (old.toLowerCase().includes(input.replaces.trim().toLowerCase()) || sharedContent(old, input.replaces, entityName) >= 1);
+        if (!confirmed && sharedContent(old, input.newStatement, entityName) === 0) {
+          throw new Error(
+            `fact ${input.factId} on '${entityName}' says "${old}" — that is not about the same thing as "${input.newStatement}". ` +
+            `Omit factId to let me find the right home (fact or preference), or pass 'replaces' quoting the old text if you really mean to supersede it`,
+          );
+        }
+      }
+      return [input.factId];
+    }
+    if (input.replaces && input.replaces.trim()) {
+      const needle = input.replaces.trim().toLowerCase();
+      // 1) exact substring match (precise).
+      const exact = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
+      if (exact.length) return exact;
+      // 2) fallback: the active fact sharing the most CONTENT words with
+      //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
+      //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
+      //    ≥1 shared content word; otherwise the new statement is just added.
+      //    The entity's own name never counts (mini-life 2026-09-01: the model
+      //    passed 'pine_shed_service_day' and the name words matched the
+      //    assigned-number fact) — only attribute words say "same thing".
+      let best: { id: string; shared: number } | null = null;
+      for (const r of active) {
+        const shared = sharedContent(this.dec(r.statement), needle, entityName);
+        if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+      }
+      return best && best.shared >= 1 ? [best.id] : [];
+    }
+    // No target named. Pre-D-0080 this superseded the MOST RECENT active fact,
+    // which on an entity holding one attribute superseded an unrelated one
+    // (mini-life 2026-09-01). Now the NEW statement's own content words (the
+    // entity's name excluded) pick the fact about the same attribute; nothing
+    // shared → no target, and the caller looks in preferences / records new.
+    if (input.newStatement) {
+      let best: { id: string; shared: number } | null = null;
+      for (const r of active) {
+        const shared = sharedContent(this.dec(r.statement), input.newStatement, entityName);
+        if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+      }
+      return best && best.shared >= 1 ? [best.id] : [];
+    }
+    return active.length ? [active[0]!.id] : [];
+  }
+
+  /**
+   * D-0080 B1 (R-MEM-08): READ-ONLY probe — which active fact(s) a correction
+   * WOULD supersede, without creating the entity or writing anything. Lets the
+   * `memory.correct` tool look in the OTHER store (preferences) before it
+   * invents a second home for a value that already lives there. Throws the
+   * same stale-factId refusal as `correctFact`.
+   */
+  async correctionTargets(input: {
+    entityName: string;
+    factId?: string;
+    replaces?: string;
+    newStatement?: string;
+  }): Promise<{ entity: Entity | null; targets: string[] }> {
+    const entity = await this.findEntity(input.entityName);
+    if (!entity) {
+      if (input.factId) throw new Error(`no active fact ${input.factId} on '${input.entityName}' — recall the entity and use a current fact id`);
+      return { entity: null, targets: [] };
+    }
+    const { rows: active } = await this.pool.query<{ id: string; statement: string }>(
+      `SELECT id, statement FROM memory_facts
+       WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+       ORDER BY created_at DESC`,
+      [entity.id],
+    );
+    return { entity, targets: this.pickCorrectionTargets(active, entity.name, input) };
+  }
+
+  /** One ACTIVE fact by id (decrypted), or null — the re-read half of a
+   *  write-then-verify (D-0080 B2 batch remember). */
+  async factById(id: string): Promise<Fact | null> {
+    const { rows } = await this.pool.query(
+      `SELECT id, entity_id, statement, status, provenance, confidence, sensitivity, created_at
+       FROM memory_facts WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
+      [id],
+    );
+    return rows[0] ? this.hydrateFact(rows[0]) : null;
   }
 
   async relate(input: {
@@ -1063,38 +1178,86 @@ export class EntityMemory {
    * to lexical name/fact matching when no embedder is available (never a mock).
    */
   async recallGraph(query: string, limit = 5): Promise<GraphRecall> {
-    const seedIds = new Set<string>();
-    let mode: GraphRecall["mode"] = "semantic";
+    // D-0080: identity BEFORE similarity. The pre-D-0080 version ran the
+    // name-match branch only when vector search returned nothing — which, with
+    // a live embedder, is never — so the graph was always seeded by nearest
+    // neighbours ('optics vendor' for a question about 'optics vendor two').
+    // Longitude-XL measured that as 64% of all recall misses.
+    let identityFirst = true;
+    if (this.identityFirst) {
+      try { identityFirst = await this.identityFirst(); } catch { identityFirst = true; }
+    }
+    const q = query.toLowerCase();
+    const ranked: { id: string; name: string; via: "identity" | "similarity" }[] = [];
+    const have = new Set<string>();
+    const push = (id: string, name: string, via: "identity" | "similarity") => {
+      if (have.has(id)) return;
+      have.add(id);
+      ranked.push({ id, name, via });
+    };
+    const { rows: all } = await this.pool.query<{ id: string; name: string; aliases: string[] | null }>(
+      `SELECT id, name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 500`,
+    );
+    const nameOf = new Map(all.map((r) => [r.id, r.name]));
+
+    // 1) identity seeds — always computed; most specific (longest) name first
+    const identity = all
+      .map((r) => ({
+        r,
+        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).map((a) => identityMatch(q, a))),
+      }))
+      .filter((x) => x.len > 0)
+      .sort((a, b) => b.len - a.len);
+    if (identityFirst) for (const x of identity) push(x.r.id, x.r.name, "identity");
+
+    // 2) similarity seeds — vector entry points (entities + facts→their entity).
+    //    Counted BEFORE dedupe: a similarity hit that repeats an identity seed
+    //    still means the embedder contributed, and `mode` should say so.
+    let similarityHits = 0;
     if (this.semantic) {
       const hits = await this.semantic.search(query, { kinds: ["entity", "fact"], limit: limit * 2 });
       for (const h of hits) {
-        if (h.sourceKind === "entity") seedIds.add(h.sourceId);
-        else if (h.sourceKind === "fact") {
+        let id: string | undefined = h.sourceKind === "entity" ? h.sourceId : undefined;
+        if (h.sourceKind === "fact") {
           const { rows } = await this.pool.query<{ entity_id: string }>(
             `SELECT entity_id FROM memory_facts WHERE id = $1`,
             [h.sourceId],
           );
-          if (rows[0]) seedIds.add(rows[0].entity_id);
+          id = rows[0]?.entity_id;
         }
+        if (!id) continue;
+        similarityHits++;
+        let name = nameOf.get(id);
+        if (name === undefined) {
+          const { rows } = await this.pool.query<{ name: string }>(`SELECT name FROM memory_entities WHERE id = $1`, [id]);
+          name = rows[0]?.name ?? "";
+        }
+        push(id, name, "similarity");
       }
     }
-    if (seedIds.size === 0) {
-      // lexical fallback: entity names appearing in the query, or query terms in names
-      mode = "lexical";
-      const { rows } = await this.pool.query<{ id: string; name: string }>(
-        `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 200`,
-      );
-      const q = query.toLowerCase();
-      for (const r of rows) {
+
+    // 3) fallbacks: identity when the knob is off and similarity found nothing;
+    //    then the old loose word match (a name's word appears in the query)
+    if (!identityFirst && ranked.length === 0) for (const x of identity) push(x.r.id, x.r.name, "identity");
+    if (ranked.length === 0) {
+      for (const r of all) {
         const n = r.name.toLowerCase();
-        if (q.includes(n) || n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) seedIds.add(r.id);
+        if (n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) push(r.id, r.name, "identity");
       }
     }
+    const hasIdentity = ranked.some((s) => s.via === "identity");
+    const hasSimilarity = similarityHits > 0;
+    const mode: GraphRecall["mode"] = hasIdentity && hasSimilarity ? "hybrid" : hasSimilarity ? "semantic" : "lexical";
+    const chosen = ranked.slice(0, limit);
+    const seedIds = new Set(chosen.map((s) => s.id));
     const seeds = [...seedIds].slice(0, limit);
     const entities: GraphRecall["entities"] = [];
     const relations: GraphRecall["relations"] = [];
     const included = new Set<string>();
-    const addEntity = async (id: string) => {
+    // Query terms (for ranking a seed's facts): the words the asker actually
+    // used, minus the entity names themselves and trivial stopwords.
+    const qTerms = q.split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !GRAPH_STOP.has(w));
+    const addEntity = async (id: string, isSeed = false) => {
       if (included.has(id) || included.size >= limit * 3) return;
       const { rows } = await this.pool.query<{ id: string; name: string; kind: string }>(
         `SELECT id, name, kind FROM memory_entities WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
@@ -1102,16 +1265,25 @@ export class EntityMemory {
       );
       if (!rows[0]) return;
       included.add(id);
-      const { rows: facts } = await this.pool.query<{ statement: string }>(
-        `SELECT statement FROM memory_facts
+      // D-0080: a SEED entity shows up to 8 facts, the ones mentioning the
+      // asker's words first, newest first within that — the old flat cap of 3
+      // hid the asked fact behind unrelated ones ('boat shed two' seeded
+      // correctly and still missed its service day). Expansion nodes keep 3.
+      const { rows: facts } = await this.pool.query<{ statement: string; created_at: string }>(
+        `SELECT statement, created_at FROM memory_facts
          WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
-         ORDER BY confidence DESC, created_at DESC LIMIT 3`,
+         ORDER BY created_at DESC LIMIT 40`,
         [id],
       );
-      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: facts.map((f) => this.dec(f.statement)) });
+      const decoded = facts.map((f) => this.dec(f.statement));
+      const score = (t: string) => qTerms.reduce((n, w) => n + (t.toLowerCase().includes(w) ? 1 : 0), 0);
+      const ordered = isSeed
+        ? decoded.map((t, i) => ({ t, i, s: score(t) })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.t)
+        : decoded;
+      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: ordered.slice(0, isSeed ? 8 : 3) });
     };
     for (const id of seeds) {
-      await addEntity(id);
+      await addEntity(id, true);
       // one-hop expansion: pull in connected entities + the connecting edges
       const { rows: rels } = await this.pool.query<{
         from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string;
@@ -1137,7 +1309,7 @@ export class EntityMemory {
       seen.add(k);
       return true;
     });
-    return { entities, relations: uniqueRelations, mode };
+    return { entities, relations: uniqueRelations, mode, seeds: chosen.map((s) => ({ name: s.name, via: s.via })) };
   }
 
   private hydrateEntity(r: Record<string, unknown>): Entity {

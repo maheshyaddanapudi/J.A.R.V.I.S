@@ -1,0 +1,222 @@
+import { describe, expect, it, beforeEach, vi } from "vitest";
+import pg from "pg";
+import { MemoryService } from "../src/memory/memory.js";
+import { recallPreferencesTool } from "../src/core/tools/recallPreferences.js";
+import { ReasoningTuner } from "../src/core/reasoning.js";
+import { JUDGE_TEMPLATES } from "../src/memory/judge.js";
+import type { AuditLog } from "../src/core/audit.js";
+
+const dbUrl =
+  process.env.JARVIS_TEST_DATABASE_URL ??
+  "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test";
+
+let pool: pg.Pool | undefined;
+try {
+  const probe = new pg.Pool({ connectionString: dbUrl, connectionTimeoutMillis: 2000 });
+  await probe.query("SELECT 1");
+  pool = probe;
+} catch {
+  /* skip */
+}
+
+const audit = { append: vi.fn(async () => ({ seq: 1, chainHash: "x" })) } as unknown as AuditLog;
+
+// ---------------------------------------------------------------------------
+// Longitude finding #2: agents could write preferences but never read them.
+describe.skipIf(!pool)("memory.recallPreferences (Longitude #2)", () => {
+  const mem = new MemoryService(pool!, audit);
+  const tool = recallPreferencesTool(mem);
+
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE preferences, conversation_memory");
+  });
+
+  it("returns stored preferences with values in model-facing detail", async () => {
+    await mem.remember({ key: "coffee_order", value: "Espresso macchiato", provenance: "chat" });
+    await mem.remember({ key: "name_preference", value: "Address the user as 'Chief'", provenance: "chat" });
+    const r = await tool.run({});
+    expect(r.ok).toBe(true);
+    expect(r.detail).toContain("coffee_order = Espresso macchiato");
+    expect(r.detail).toContain("Chief");
+  });
+
+  it("filters by query terms against keys and values", async () => {
+    await mem.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
+    await mem.remember({ key: "lunch_spot", value: "the noodle bar", provenance: "chat" });
+    const r = await tool.run({ query: "what is my coffee order?" });
+    expect(r.detail).toContain("cortado");
+    expect(r.detail).not.toContain("noodle");
+  });
+
+  it("withholds private values but lists the key; excludes machinery keys", async () => {
+    await mem.remember({ key: "therapist_name", value: "Dr Reyes", provenance: "chat", sensitivity: "private" });
+    await mem.remember({ key: "reasoning_deep_topics", value: '["x"]', provenance: "sleep-cycle" });
+    const r = await tool.run({});
+    expect(r.detail).toContain("therapist_name = [value withheld — private]");
+    expect(r.detail).not.toContain("Dr Reyes");
+    expect(r.detail).not.toContain("reasoning_deep_topics");
+  });
+
+  it("is READ_ONLY (auto-runs in the gated loop)", () => {
+    expect(tool.riskClass).toBe("READ_ONLY");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Longitude finding #4: routine questions forced deep must not promote topics.
+describe.skipIf(!pool)("promotion calibration (Longitude #4)", () => {
+  const mem = new MemoryService(pool!, audit);
+
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE preferences, conversation_memory");
+  });
+
+  it("template instructs the judge to return [] for routine questions", () => {
+    expect(JUDGE_TEMPLATES["judge-topic-extraction"]).toMatch(/routine everyday question/i);
+    expect(JUDGE_TEMPLATES["judge-topic-extraction"]).toMatch(/empty list/i);
+  });
+
+  it("template asks for the SUBJECT DOMAIN, never an activity/process word (D-0080 C1)", () => {
+    const t = JUDGE_TEMPLATES["judge-topic-extraction"];
+    expect(t).toMatch(/never an activity, method, or process word/i);
+    expect(t).toMatch(/'tuning'/);
+    expect(t).toMatch(/only candidate is an activity word.*empty list/i);
+  });
+
+  it("a judge returning [] (routine) accumulates nothing and never promotes", async () => {
+    const judge = { extractTopics: vi.fn(async () => [] as string[]) };
+    const tuner = new ReasoningTuner(mem, judge);
+    for (let i = 0; i < 3; i++) {
+      expect(await tuner.recordCorrection("Should I take an umbrella if the sky looks grey?")).toEqual({
+        promoted: [], noted: [], deferred: false,
+      });
+    }
+    expect(await tuner.topics()).toEqual([]);
+  });
+
+  it("activity phrasing: a judge that (per C1) returns [] for 'tuning' → three corrections promote nothing", async () => {
+    const judge = { extractTopics: vi.fn(async () => [] as string[]) };
+    const tuner = new ReasoningTuner(mem, judge);
+    for (let i = 0; i < 3; i++) {
+      expect((await tuner.recordCorrection("How would you approach tuning the containment field?")).promoted).toEqual([]);
+    }
+    expect(await tuner.topics()).toEqual([]);
+    expect(judge.extractTopics).toHaveBeenCalledTimes(3);
+  });
+
+  it("a depth-worthy topic still promotes on the second correction", async () => {
+    const judge = { extractTopics: vi.fn(async () => ["plasma containment"]) };
+    const tuner = new ReasoningTuner(mem, judge);
+    expect((await tuner.recordCorrection("Any thoughts on plasma containment stability margins?")).promoted).toEqual([]);
+    expect((await tuner.recordCorrection("How would you tune plasma containment fields?")).promoted).toEqual([
+      "plasma containment",
+    ]);
+    expect(await tuner.topics()).toEqual(["plasma containment"]);
+  });
+
+  it("D-0080 C2: judge unavailable (null) → five corrections accumulate in the real store, topics stay empty, each carries the deferral", async () => {
+    const judge = { extractTopics: vi.fn(async () => null) };
+    const tuner = new ReasoningTuner(mem, judge);
+    for (let i = 0; i < 5; i++) {
+      const r = await tuner.recordCorrection("should I take an umbrella if the sky looks grey");
+      expect(r.promoted).toEqual([]);
+      expect(r.deferred).toBe(true);
+    }
+    expect(await tuner.topics()).toEqual([]);
+    const ledger = JSON.parse((await mem.get("reasoning_deep_candidates"))!.value) as Record<string, { count: number; judged: number }>;
+    expect(ledger["umbrella"]).toEqual({ count: 5, judged: 0 });
+    expect(Object.values(ledger).every((c) => c.judged === 0)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Longitude finding #5: near-duplicate preference keys get tidied in sleep.
+describe.skipIf(!pool)("preference duplicate-key tidy (Longitude #5)", () => {
+  const mem = new MemoryService(pool!, audit);
+
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE preferences, conversation_memory");
+  });
+
+  it("folds a same-value near-duplicate key, keeping the more specific one", async () => {
+    await mem.remember({ key: "coffee_order", value: "Espresso macchiato", provenance: "chat" });
+    await mem.remember({ key: "usual_coffee_order", value: "espresso macchiato", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(1);
+    expect(t.proposals).toHaveLength(0);
+    const remaining = (await mem.list()).map((p) => p.key);
+    expect(remaining).toHaveLength(1); // one of the pair survives, the other soft-deleted
+  });
+
+  it("differing values on near-duplicate keys become a proposal, nothing deleted", async () => {
+    await mem.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
+    await mem.remember({ key: "usual_coffee_order", value: "flat white", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(0);
+    expect(t.proposals).toHaveLength(1);
+    expect((await mem.list())).toHaveLength(2);
+  });
+
+  it("distinct keys and machinery keys are untouched; pins are never tidied away", async () => {
+    await mem.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
+    await mem.remember({ key: "lunch_spot", value: "cortado", provenance: "chat" });
+    await mem.remember({ key: "reasoning_autotune", value: "{}", provenance: "sleep-cycle" });
+    await mem.remember({ key: "usual_lunch_spot", value: "cortado", provenance: "chat" });
+    await mem.pin("usual_lunch_spot", true);
+    const t = await mem.tidyDuplicates();
+    // lunch_spot vs usual_lunch_spot are near-dups with same value, but the
+    // SPECIFIC survivor by rule is the pinned one — the unpinned dup folds.
+    expect(t.merged).toHaveLength(1);
+    expect(t.merged[0]).toContain("usual_lunch_spot");
+    const keys = (await mem.list()).map((p) => p.key);
+    expect(keys).toContain("usual_lunch_spot");
+    expect(keys).toContain("coffee_order");
+    expect(keys).toContain("reasoning_autotune");
+    expect(keys).not.toContain("lunch_spot");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-0080 S2 (Longitude-XL finding D): single-token keys must not subset everything.
+describe.skipIf(!pool)("preference dup-tidy: token-overlap guard (D-0080 S2)", () => {
+  const mem = new MemoryService(pool!, audit);
+
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE preferences, conversation_memory");
+  });
+
+  it("a single-token key is NOT a near-duplicate of a longer key that merely contains the token", async () => {
+    await mem.remember({ key: "preferred_alloy", value: "palladium", provenance: "chat" });
+    await mem.remember({ key: "alloy_supplier_assigned_number", value: "7", provenance: "chat" });
+    await mem.remember({ key: "alloy_supplier_service_day", value: "tuesday", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(0);
+    expect(t.proposals).toHaveLength(0);
+    expect((await mem.list()).map((p) => p.key).sort()).toEqual(
+      ["alloy_supplier_assigned_number", "alloy_supplier_service_day", "preferred_alloy"],
+    );
+  });
+
+  it("…even when the values happen to coincide (no fold either)", async () => {
+    await mem.remember({ key: "preferred_alloy", value: "palladium", provenance: "chat" });
+    await mem.remember({ key: "alloy_supplier_core_material", value: "palladium", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(0);
+    expect(await mem.list()).toHaveLength(2);
+  });
+
+  it("two single-token keys that normalize to the same token still fold on equal values", async () => {
+    await mem.remember({ key: "colour", value: "teal", provenance: "chat" });
+    await mem.remember({ key: "preferred_colour", value: "teal", provenance: "chat" }); // 'preferred' is filler
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(1);
+    expect(await mem.list()).toHaveLength(1);
+  });
+
+  it("the genuine twin pair still folds (regression: usual_coffee_order vs coffee_order)", async () => {
+    await mem.remember({ key: "coffee_order", value: "cortado", provenance: "chat" });
+    await mem.remember({ key: "usual_coffee_order", value: "Cortado", provenance: "chat" });
+    const t = await mem.tidyDuplicates();
+    expect(t.merged).toHaveLength(1);
+  });
+});

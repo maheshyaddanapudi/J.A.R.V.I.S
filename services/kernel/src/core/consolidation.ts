@@ -50,7 +50,14 @@ export interface ConsolidationReport {
   notes: string[];
   autotune: Autotune;
   /** quiet-hours MEMORY consolidation (D-0063): dupes merged + stale proposals */
-  memory?: { entitiesScanned: number; duplicatesMerged: number; entitiesMerged: number; staleProposals: number };
+  memory?: {
+    entitiesScanned: number;
+    duplicatesMerged: number;
+    entitiesMerged: number;
+    staleProposals: number;
+    /** near-duplicate preference KEYS folded (Longitude finding #5) */
+    preferenceDupes?: number;
+  };
 }
 
 export const CONSOLIDATION_KEY = "reasoning_last_consolidation";
@@ -87,6 +94,8 @@ export class SleepCycle {
       store: { remember(i: { key: string; value: string; provenance: string }): Promise<unknown> };
       /** quiet-hours MEMORY consolidation (D-0063) — merge duplicate facts, propose stale */
       memory?: EntityMemory;
+      /** near-duplicate preference-KEY tidy (Longitude finding #5) — best-effort */
+      prefs?: { tidyDuplicates(): Promise<{ merged: string[]; proposals: string[] }> };
       /** thresholds read live from the editable catalog (D-0058) */
       settings?: SettingsRegistry;
     },
@@ -257,6 +266,17 @@ export class SleepCycle {
           proposals.push(`memory: '${name}' hasn't come up in a long while — forget it, or keep it? (never auto-forgotten)`);
         }
       } catch { /* memory pass is best-effort */ }
+    }
+    if (this.deps.prefs) {
+      try {
+        const t = await this.deps.prefs.tidyDuplicates();
+        if (memorySection) memorySection.preferenceDupes = t.merged.length;
+        if (t.merged.length) {
+          findings.push(`memory: folded ${t.merged.length} duplicate preference key(s)`);
+          for (const d of t.merged.slice(0, 5)) notes.push(`preference tidy — ${d}`);
+        }
+        for (const p of t.proposals) proposals.push(p);
+      } catch { /* preference tidy is best-effort */ }
     }
 
     const atRow = await pool.query<{ now: string }>("SELECT now()::text AS now");

@@ -356,7 +356,11 @@ def main() -> int:
         post("/prompts", {"name": f"accept-{pm}", "content": f"You are J.A.R.V.I.S. test persona {pm}."})
         active1 = get("/prompts/active")
         switched = active1.get("name") == f"accept-{pm}"
-        one_active = len([x for x in get("/prompts").get("prompts", []) if x.get("active")]) == 1
+        # one-active is a PER-KIND invariant: since D-0079 L1a the kernel
+        # boot-seeds 5 always-active judge templates (kind "template"), so
+        # counting across kinds would see 6 (found live 2026-08-28)
+        one_active = len([x for x in get("/prompts").get("prompts", [])
+                          if x.get("active") and x.get("kind") == "persona"]) == 1
         # restore whatever was active before, and remove the test persona (leave no trace)
         if orig:
             httpx.request("POST", f"{K}/prompts/{orig}/activate", json={}, timeout=5)
@@ -450,7 +454,16 @@ def main() -> int:
                     return evt
         return {}
     try:
-        deep_eligible = bool(get("/gateway/roles").get("roles", {}).get("deep_reasoning"))
+        # Conversations run at the privacy-first LOCAL_ONLY default, so a deep
+        # turn can only escalate when a LOCAL, reachable provider serves
+        # deep_reasoning; a remote-only pin (e.g. Anthropic in the dev
+        # container) must take the honest-downgrade branch instead. Found live
+        # 2026-08-28: probing the role TABLE alone graded that correct
+        # downgrade as a FAIL.
+        gw = get("/gateway/status")
+        local_ok = {p.get("provider") for p in gw.get("providers", []) if p.get("local") and p.get("ok")}
+        deep_targets = get("/gateway/roles").get("roles", {}).get("deep_reasoning") or []
+        deep_eligible = any(t.split("/", 1)[0] in local_ok for t in deep_targets)
         routine = converse_decision("Good evening, anything on the schedule?")
         deep = converse_decision("Think deeply: analyze the tradeoffs between the two designs.")
         forced = converse_decision("Think deeply and analyze everything", reasoning="fast")

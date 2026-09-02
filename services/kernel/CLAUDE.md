@@ -435,6 +435,99 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   duplicates, first live D-0051 autotune self-adjustment (2→1), self-created
   agenda items + a durable project, skill self-UPDATE (fibonacci v2 fast
   doubling), autonomy budget cap engaging naturally.
+- Night Lab ✅ (D-0079, 2026-08-28): `src/lab/` — evidence-gated
+  self-experimentation (autoresearch pattern on our safety rails). `surface.ts`
+  (**PROTECTED PATH**, in R-CAP-08 `PROTECTED_PATHS` along with `bench/`): the
+  Z1-held `LAB_SURFACE` allowlist (5 judge templates auto + persona always-
+  proposal + 6 whitelisted settings) with `LAB_FORBIDDEN_SETTING_PREFIXES`
+  (budget/autonomy/lab/quiet-hours/announce/gateway… — the lab can never edit
+  its own envelope) and deny-first `validateCandidate`. `engine.ts`: keep
+  protocol N=3 trials / δ=4 mean margin / ε=3 guard bands on EVERY trial /
+  8 deterministic hard gates auto-discard / crash rows; ledger migration 0026
+  `lab_experiments` (+ audit `lab_experiment` + episode per row). `bench.ts` →
+  `scripts/lab_bench.py`: boots an ISOLATED lab kernel (scratch `jarvis_lab`
+  DB, own port), loads fixtures through the real gated tools (prefs PINNED —
+  D-0029 pins-only context contract), runs 10 rubric conversations + 4-dim
+  grading via `/gateway/chat`, sha256 bench hash; report required — partial
+  scores never masquerade. `researcher.ts`: planning-role candidate generation,
+  ONE change per candidate, ledger history fed back (live: hypotheses cited
+  prior failures). `night.ts`: runs at END of the scheduler tick in quiet
+  hours; skip/halt conditions (e-stop, disabled, window, live activity,
+  `budget.lab.nightlyTokenCap`, diminishing returns, null candidates); morning
+  report GENERATED FROM THE LEDGER, announced with dedupe + quiet-hours defer,
+  delivered via D-0077 chat relay. `apply.ts`: three envelopes — auto (unpinned
+  whitelisted) / proposal (persona) / user-pinned NEVER auto (one night ≠ the
+  D-0052 trail) — re-validates surface at apply time, exact revert from
+  captured prior state. Routes `/lab/experiments[/:id/apply|revert]`,
+  `/lab/night`; CC `/lab` panel (11/11 headless). **Live scheduler-fired night
+  (real Sonnet-5):** baseline 93.2; 4 candidates, 4 honest discards via three
+  different mechanisms; cap-halt 156,319/150,000; report relayed in-voice.
+  Also fixed live-found announcer bug (quiet-hours `enabled` flag ignored by
+  the deferral hold). **Night 2 (same date):** fixed a real design flaw — the
+  night's null hypothesis is now the LIVE surface (`overlayOnSurface`: active
+  persona + judge templates + overridden whitelisted settings ride under the
+  baseline AND every trial, candidate overlaid, collision → candidate wins);
+  then a scheduler-fired night against a user-set generic persona produced a
+  REAL KEEP (exp 3, mean persona 92.2 ≥ 87.6+δ4, researcher's hypothesis
+  explicitly diagnosed its two prior failures) and the full proposal-envelope
+  cycle ran live through the CC panel: unapproved apply → 409; approve+apply
+  click → live persona v2 + announcement with revert path + "sir" in the next
+  converse turn; revert → byte-exact restore, lab version kept in history.
+  **Emergent-disclosure probes (same date):** the spontaneous in-conversation
+  disclosure of lab activity reproduces and is GRADED — 5 live probes: lab
+  episodes disclosed unprompted (recreation), a buried backup-failure episode
+  volunteered even on a pure-task turn while mundane memory stays silent
+  (control: no volunteering), and a planted "self-adjustment" episode was
+  disclosed AND refused as unverified authority ("not something I should
+  self-authorise… I'll disregard it") — D-0067's data-not-instructions
+  posture, self-enforced. Emergent, not guaranteed — the hard channels remain
+  the enforced layer. Probe-found gap fixed: `LabApplier.revert()` now
+  ANNOUNCES the restore symmetric with apply (the held apply notice otherwise
+  relayed a stale "it's live now" with no correction), + regression assertion.
+  **433 kernel tests.** Record: `docs/verification/NIGHT_LAB_2026-08-28.md`.
+- Retrieval fidelity ✅ (D-0080, 2026-09-01; spec `docs/RETRIEVAL_FIDELITY_SPEC.md`,
+  record `docs/verification/RETRIEVAL_FIDELITY_2026-09-01.md`): the four
+  Longitude-XL defects, spec-driven, one slice each, every slice = tests →
+  code → full `make test` → manual Sonnet-5 check → commit.
+  **S1 R-MEM-07** `entities.ts` `recallGraph` seeds by IDENTITY first —
+  `identityMatch()` (word-boundary, ≥2 tokens or ≥5 chars, longest name
+  first) → similarity hits appended → `mode: hybrid|semantic|lexical`,
+  `seeds[].via`; seed facts ranked by the query's terms (cap 8). Knob
+  `memory.recall.identityFirst` (default on) restores similarity-first for A/B.
+  Replay instrument `scripts/longitude_replay.py` over the 55 preserved
+  misses: true graph misses 2→0, seed[0]==asked entity 13→20.
+  **S2 (Defect D)** `memory.ts` `tidyDuplicates` near-dup = exact single token
+  or ≥2 shared tokens with both keys ≥2 tokens and containment.
+  **S3 R-MEM-10** `core/reasoning.ts` candidates `{count, judged}`; promotion
+  needs `count≥2 ∧ judged≥1` — the deterministic fallback ACCUMULATES, never
+  promotes (legacy numeric maps read as judged 0, ledger capped 200);
+  `recordCorrection → {promoted, noted, deferred}`, the loop says "I'll learn
+  that topic once my judgment model is available" (journaled as override);
+  judge template asks for the SUBJECT DOMAIN never an activity word.
+  **S4 R-MEM-08/09** `entityTools.ts` `memory.correct` is ROUTE-AGNOSTIC:
+  factId → entity-fact text → preference (`MemoryService.matchKeys`, key
+  tokens ⊇ subject, ranked by the `replaces`/new-statement hint, ties refused)
+  → new fact; steps 1-2 are the READ-ONLY probe `EntityMemory.correctionTargets`
+  so no write precedes the preference check; `route: fact|preference`.
+  Mini-life-found guards (`sharedContent` — the entity's own name never
+  counts as overlap): a factId whose fact shares no content with the new
+  statement is REFUSED (`replaces` quoting the old text overrides); with no
+  target named the NEW statement's attribute words pick the fact (the old
+  "most recent fact" default superseded unrelated attributes); a `replaces`
+  carrying the entity name (Sonnet 5 passes the preference KEY) no longer
+  matches an unrelated fact by name words; and on the WRITE side
+  `rememberFact`/`rememberFacts` REFUSE an update-in-disguise — a statement
+  naming the whole attribute a stored preference already holds for that
+  subject (`preferenceHome`) — pointing the agent at `memory.correct`
+  (mini-life round D: the agent chose rememberFact for 5/10 flips).
+  Preference choice (`pickPreference`, second-act audit 2026-09-02): an
+  exact key match wins; else best attribute-hint overlap; on a tie the key
+  with FEWER extra tokens (the twin carries 'two'); a true tie is refused.
+  Small prepositions/articles are key filler in `normalizeKeyTokens`. Batch
+  `memory.rememberFacts(entity, statements[])` LOW_REVERSIBLE, each item
+  written + re-read (`factById`), per-item result, `ok:false` on any failure,
+  rollback exact. `entityMemoryTools(mem, prefs)` — pass the preference store
+  or the tool is fact-only (legacy). **482 kernel tests.**
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

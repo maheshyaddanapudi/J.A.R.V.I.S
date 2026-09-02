@@ -1,0 +1,792 @@
+{
+ "label": "baseline",
+ "kernel": "http://127.0.0.1:4170",
+ "misses": 55,
+ "aggregate": {
+  "surfaced_by_graph": 37,
+  "in_graph_but_missed": 2,
+  "prefs_only": 5,
+  "absent": 11
+ },
+ "surfaced_by_any_probe": 44,
+ "rows": [
+  {
+   "fid": "58.0",
+   "first_missed_day": 20,
+   "topic": "weekend preferred meeting day",
+   "pref": true,
+   "question": "What is my weekend preferred meeting day?",
+   "truth": "tuesday",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Hana Moreau"
+  },
+  {
+   "fid": "93.1",
+   "first_missed_day": 20,
+   "topic": "optics vendor two",
+   "pref": false,
+   "question": "What is the optics vendor two's assigned number?",
+   "truth": "68",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "North"
+  },
+  {
+   "fid": "78.0",
+   "first_missed_day": 30,
+   "topic": "tidal model two",
+   "pref": false,
+   "question": "What is the tidal model two's service day?",
+   "truth": "wednesday",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Tidal Model Two"
+  },
+  {
+   "fid": "98.1",
+   "first_missed_day": 40,
+   "topic": "cloud recycler",
+   "pref": false,
+   "question": "What is the cloud recycler's assigned number?",
+   "truth": "19",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Cloud Recycler Two"
+  },
+  {
+   "fid": "117.1",
+   "first_missed_day": 40,
+   "topic": "roof array two",
+   "pref": false,
+   "question": "What is the roof array two's core material?",
+   "truth": "borosilicate",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Rooftop Garden Two"
+  },
+  {
+   "fid": "25.1",
+   "first_missed_day": 50,
+   "topic": "hana moreau",
+   "pref": false,
+   "question": "What is the hana moreau's meets on?",
+   "truth": "thursday",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Hana Moreau"
+  },
+  {
+   "fid": "117.0",
+   "first_missed_day": 50,
+   "topic": "roof array two",
+   "pref": false,
+   "question": "What is the roof array two's home city?",
+   "truth": "tallinn",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Rooftop Garden Two"
+  },
+  {
+   "fid": "117.2",
+   "first_missed_day": 50,
+   "topic": "roof array two",
+   "pref": false,
+   "question": "What is the roof array two's status colour?",
+   "truth": "crimson",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Rooftop Garden Two"
+  },
+  {
+   "fid": "108.0",
+   "first_missed_day": 60,
+   "topic": "lab-glass supplier two",
+   "pref": false,
+   "question": "What is the lab-glass supplier two's assigned number?",
+   "truth": "42",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "lab-glass supplier two"
+  },
+  {
+   "fid": "104.0",
+   "first_missed_day": 80,
+   "topic": "filament shop",
+   "pref": false,
+   "question": "What is the filament shop's status colour?",
+   "truth": "teal",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Filament Shop North"
+  },
+  {
+   "fid": "99.0",
+   "first_missed_day": 90,
+   "topic": "cloud recycler two",
+   "pref": false,
+   "question": "What is the cloud recycler two's status colour?",
+   "truth": "crimson",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Cloud Recycler Two"
+  },
+  {
+   "fid": "93.0",
+   "first_missed_day": 100,
+   "topic": "optics vendor two",
+   "pref": false,
+   "question": "What is the optics vendor two's service day?",
+   "truth": "friday",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "The Filament Shop Two"
+  },
+  {
+   "fid": "110.0",
+   "first_missed_day": 100,
+   "topic": "sensor importer",
+   "pref": false,
+   "question": "What is the sensor importer's assigned number?",
+   "truth": "12",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "semantic",
+   "graph_seed0": "The Sensor Importer Two"
+  },
+  {
+   "fid": "158.0",
+   "first_missed_day": 110,
+   "topic": "cold cellar",
+   "pref": false,
+   "question": "What is the cold cellar's assigned number?",
+   "truth": "42",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Cold Cellar North"
+  },
+  {
+   "fid": "6.1",
+   "first_missed_day": 110,
+   "topic": "umar reyes",
+   "pref": false,
+   "question": "What is the umar reyes's meets on?",
+   "truth": "thursday",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Umar Reyes"
+  },
+  {
+   "fid": "148.0",
+   "first_missed_day": 110,
+   "topic": "storage unit north",
+   "pref": false,
+   "question": "What is the storage unit north's core material?",
+   "truth": "palladium",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "storage unit north"
+  },
+  {
+   "fid": "17.1",
+   "first_missed_day": 110,
+   "topic": "tessa novak",
+   "pref": false,
+   "question": "What is the tessa novak's meets on?",
+   "truth": "monday",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Tessa Novak's meeting"
+  },
+  {
+   "fid": "94.1",
+   "first_missed_day": 110,
+   "topic": "optics vendor north",
+   "pref": false,
+   "question": "What is the optics vendor north's assigned number?",
+   "truth": "24",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "North"
+  },
+  {
+   "fid": "65.1",
+   "first_missed_day": 120,
+   "topic": "fusion sim",
+   "pref": false,
+   "question": "What is the fusion sim's service day?",
+   "truth": "friday",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "fusion sim two"
+  },
+  {
+   "fid": "109.1",
+   "first_missed_day": 130,
+   "topic": "lab-glass supplier north",
+   "pref": false,
+   "question": "What is the lab-glass supplier north's core material?",
+   "truth": "cedar",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "North (lab-glass supplier)"
+  },
+  {
+   "fid": "99.1",
+   "first_missed_day": 130,
+   "topic": "cloud recycler two",
+   "pref": false,
+   "question": "What is the cloud recycler two's service day?",
+   "truth": "tuesday",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "semantic",
+   "graph_seed0": "Storage Unit Two"
+  },
+  {
+   "fid": "154.1",
+   "first_missed_day": 180,
+   "topic": "boat shed north",
+   "pref": false,
+   "question": "What is the boat shed north's home city?",
+   "truth": "bergen",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "the boat shed north"
+  },
+  {
+   "fid": "81.1",
+   "first_missed_day": 180,
+   "topic": "battery retrofit two",
+   "pref": false,
+   "question": "What is the battery retrofit two's assigned number?",
+   "truth": "12",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "battery retrofit two"
+  },
+  {
+   "fid": "124.1",
+   "first_missed_day": 180,
+   "topic": "microscope north",
+   "pref": false,
+   "question": "What is the microscope north's home city?",
+   "truth": "windhoek",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "microscope north"
+  },
+  {
+   "fid": "84.1",
+   "first_missed_day": 190,
+   "topic": "coral census two",
+   "pref": false,
+   "question": "What is the coral census two's service day?",
+   "truth": "friday",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Coral Census Two"
+  },
+  {
+   "fid": "83.0",
+   "first_missed_day": 190,
+   "topic": "coral census",
+   "pref": false,
+   "question": "What is the coral census's assigned number?",
+   "truth": "24",
+   "via": [
+    "exact",
+    "prefs"
+   ],
+   "class": "in_graph_but_missed",
+   "graph_mode": "semantic",
+   "graph_seed0": "Coral Census Two"
+  },
+  {
+   "fid": "83.2",
+   "first_missed_day": 200,
+   "topic": "coral census",
+   "pref": false,
+   "question": "What is the coral census's service day?",
+   "truth": "friday",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Coral Census Two"
+  },
+  {
+   "fid": "89.1",
+   "first_missed_day": 210,
+   "topic": "alloy supplier",
+   "pref": false,
+   "question": "What is the alloy supplier's assigned number?",
+   "truth": "7",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "semantic",
+   "graph_seed0": "Alloy Supplier Two"
+  },
+  {
+   "fid": "153.0",
+   "first_missed_day": 210,
+   "topic": "boat shed two",
+   "pref": false,
+   "question": "What is the boat shed two's service day?",
+   "truth": "thursday",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "semantic",
+   "graph_seed0": "boat shed"
+  },
+  {
+   "fid": "149.1",
+   "first_missed_day": 220,
+   "topic": "test range",
+   "pref": false,
+   "question": "What is the test range's home city?",
+   "truth": "lisbon",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Test Range North"
+  },
+  {
+   "fid": "163.0",
+   "first_missed_day": 230,
+   "topic": "morning swim north",
+   "pref": false,
+   "question": "What is the morning swim north's home city?",
+   "truth": "hobart",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "the morning swim north"
+  },
+  {
+   "fid": "144.0",
+   "first_missed_day": 240,
+   "topic": "rooftop garden two",
+   "pref": false,
+   "question": "What is the rooftop garden two's home city?",
+   "truth": "tallinn",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "rooftop garden"
+  },
+  {
+   "fid": "68.0",
+   "first_missed_day": 240,
+   "topic": "drone survey",
+   "pref": false,
+   "question": "What is the drone survey's assigned number?",
+   "truth": "24",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Drone Survey Two"
+  },
+  {
+   "fid": "86.1",
+   "first_missed_day": 250,
+   "topic": "glacier telemetry",
+   "pref": false,
+   "question": "What is the glacier telemetry's home city?",
+   "truth": "lisbon",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Glacier Telemetry Two"
+  },
+  {
+   "fid": "148.1",
+   "first_missed_day": 260,
+   "topic": "storage unit north",
+   "pref": false,
+   "question": "What is the storage unit north's service day?",
+   "truth": "wednesday",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Storage Unit Two"
+  },
+  {
+   "fid": "138.2",
+   "first_missed_day": 290,
+   "topic": "lakeside cabin two",
+   "pref": false,
+   "question": "What is the lakeside cabin two's service day?",
+   "truth": "friday",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Lakeside Cabin North"
+  },
+  {
+   "fid": "28.1",
+   "first_missed_day": 300,
+   "topic": "priya keller",
+   "pref": false,
+   "question": "What is the priya keller's meets on?",
+   "truth": "friday",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Priya Keller"
+  },
+  {
+   "fid": "101.1",
+   "first_missed_day": 310,
+   "topic": "seed bank",
+   "pref": false,
+   "question": "What is the seed bank's core material?",
+   "truth": "palladium",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "seed bank"
+  },
+  {
+   "fid": "86.0",
+   "first_missed_day": 320,
+   "topic": "glacier telemetry",
+   "pref": false,
+   "question": "What is the glacier telemetry's status colour?",
+   "truth": "ochre",
+   "via": [
+    "exact"
+   ],
+   "class": "in_graph_but_missed",
+   "graph_mode": "semantic",
+   "graph_seed0": "glacier telemetry north"
+  },
+  {
+   "fid": "128.2",
+   "first_missed_day": 330,
+   "topic": "aquarium rig",
+   "pref": false,
+   "question": "What is the aquarium rig's assigned number?",
+   "truth": "19",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Aquarium Rig Two"
+  },
+  {
+   "fid": "149.0",
+   "first_missed_day": 350,
+   "topic": "test range",
+   "pref": false,
+   "question": "What is the test range's status colour?",
+   "truth": "slate",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "semantic",
+   "graph_seed0": "Filament Shop North"
+  },
+  {
+   "fid": "95.2",
+   "first_missed_day": 370,
+   "topic": "catering service",
+   "pref": false,
+   "question": "What is the catering service's status colour?",
+   "truth": "crimson",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "catering service two"
+  },
+  {
+   "fid": "166.1",
+   "first_missed_day": 380,
+   "topic": "friday review north",
+   "pref": false,
+   "question": "What is the friday review north's service day?",
+   "truth": "wednesday",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Friday Review"
+  },
+  {
+   "fid": "85.0",
+   "first_missed_day": 400,
+   "topic": "coral census north",
+   "pref": false,
+   "question": "What is the coral census north's core material?",
+   "truth": "graphene",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "coral census north"
+  },
+  {
+   "fid": "122.0",
+   "first_missed_day": 410,
+   "topic": "microscope",
+   "pref": false,
+   "question": "What is the microscope's status colour?",
+   "truth": "ochre",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Microscope Two"
+  },
+  {
+   "fid": "104.1",
+   "first_missed_day": 420,
+   "topic": "filament shop",
+   "pref": false,
+   "question": "What is the filament shop's assigned number?",
+   "truth": "19",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Filament Shop North"
+  },
+  {
+   "fid": "83.1",
+   "first_missed_day": 430,
+   "topic": "coral census",
+   "pref": false,
+   "question": "What is the coral census's status colour?",
+   "truth": "teal",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Coral Census Two"
+  },
+  {
+   "fid": "79.0",
+   "first_missed_day": 430,
+   "topic": "tidal model north",
+   "pref": false,
+   "question": "What is the tidal model north's service day?",
+   "truth": "thursday",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "tidal model"
+  },
+  {
+   "fid": "111.0",
+   "first_missed_day": 440,
+   "topic": "sensor importer two",
+   "pref": false,
+   "question": "What is the sensor importer two's status colour?",
+   "truth": "teal",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "sensor importer north"
+  },
+  {
+   "fid": "161.2",
+   "first_missed_day": 460,
+   "topic": "morning swim",
+   "pref": false,
+   "question": "What is the morning swim's status colour?",
+   "truth": "crimson",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Morning Swim Two"
+  },
+  {
+   "fid": "163.2",
+   "first_missed_day": 460,
+   "topic": "morning swim north",
+   "pref": false,
+   "question": "What is the morning swim north's core material?",
+   "truth": "borosilicate",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "the morning swim north"
+  },
+  {
+   "fid": "12.0",
+   "first_missed_day": 480,
+   "topic": "lena moreau",
+   "pref": false,
+   "question": "What is the lena moreau's based in?",
+   "truth": "hobart",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Lena Moreau's meeting"
+  },
+  {
+   "fid": "94.0",
+   "first_missed_day": 490,
+   "topic": "optics vendor north",
+   "pref": false,
+   "question": "What is the optics vendor north's core material?",
+   "truth": "basalt fiber",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "North"
+  },
+  {
+   "fid": "98.0",
+   "first_missed_day": 500,
+   "topic": "cloud recycler",
+   "pref": false,
+   "question": "What is the cloud recycler's home city?",
+   "truth": "lisbon",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "the cloud recycler north"
+  },
+  {
+   "fid": "121.0",
+   "first_missed_day": 500,
+   "topic": "kiln north",
+   "pref": false,
+   "question": "What is the kiln north's core material?",
+   "truth": "graphene",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "kiln north"
+  }
+ ],
+ "seed0_is_topic": 13
+}
