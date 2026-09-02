@@ -519,7 +519,11 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `rememberFact`/`rememberFacts` REFUSE an update-in-disguise — a statement
   naming the whole attribute a stored preference already holds for that
   subject (`preferenceHome`) — pointing the agent at `memory.correct`
-  (mini-life round D: the agent chose rememberFact for 5/10 flips). Batch
+  (mini-life round D: the agent chose rememberFact for 5/10 flips).
+  Preference choice (`pickPreference`, second-act audit 2026-09-02): an
+  exact key match wins; else best attribute-hint overlap; on a tie the key
+  with FEWER extra tokens (the twin carries 'two'); a true tie is refused.
+  Small prepositions/articles are key filler in `normalizeKeyTokens`. Batch
   `memory.rememberFacts(entity, statements[])` LOW_REVERSIBLE, each item
   written + re-read (`factById`), per-item result, `ok:false` on any failure,
   rollback exact. `entityMemoryTools(mem, prefs)` — pass the preference store
