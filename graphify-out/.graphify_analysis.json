@@ -1,138 +1,268 @@
 {
   "communities": {
     "0": [
+      "services_kernel_src_a2ui_tools",
+      "services_kernel_src_a2ui_tools_a2uitools",
+      "services_kernel_src_autonomy_agenda",
+      "services_kernel_src_autonomy_agenda_agendaitem",
+      "services_kernel_src_autonomy_agenda_agendatools",
+      "services_kernel_src_autonomy_announce",
+      "services_kernel_src_autonomy_announce_announcement",
+      "services_kernel_src_autonomy_announce_announcetools",
+      "services_kernel_src_autonomy_projects_projecttools",
+      "services_kernel_src_control_tools",
+      "services_kernel_src_control_tools_computercontroltools",
+      "services_kernel_src_control_tools_countelements",
+      "services_kernel_src_core_activity",
+      "services_kernel_src_core_activity_actiondisclosure",
+      "services_kernel_src_core_index",
+      "services_kernel_src_core_index_buildcore",
+      "services_kernel_src_core_tools",
+      "services_kernel_src_core_tools_rememberpreference",
+      "services_kernel_src_core_tools_rememberpreference_rememberargs",
+      "services_kernel_src_core_tools_rememberpreference_rememberpreferencetool",
+      "services_kernel_src_core_tools_systeminfo",
+      "services_kernel_src_core_tools_systeminfo_systeminfotool",
+      "services_kernel_src_core_tools_tool",
+      "services_kernel_src_core_tools_tool_disclose",
+      "services_kernel_src_core_tools_tool_run",
+      "services_kernel_src_core_tools_toolcontext",
+      "services_kernel_src_core_tools_toolresult",
+      "services_kernel_src_core_tools_workspacenote",
+      "services_kernel_src_core_tools_workspacenote_safetarget",
+      "services_kernel_src_core_tools_workspacenote_workspacenoteargs",
+      "services_kernel_src_core_tools_workspacenote_workspacenotetool",
+      "services_kernel_src_devices_interlock",
+      "services_kernel_src_devices_tools",
+      "services_kernel_src_devices_tools_devicetools",
+      "services_kernel_src_devices_tools_high_risk_prefixes",
+      "services_kernel_src_devices_tools_ishighrisk",
+      "services_kernel_src_gateway_tools_gatewaytools",
+      "services_kernel_src_gateway_tools_reasoningtools",
+      "services_kernel_src_knowledge_tools",
+      "services_kernel_src_knowledge_tools_clip",
+      "services_kernel_src_memory_entitytools_entitymemorytools",
+      "services_kernel_src_memory_episodetools",
+      "services_kernel_src_memory_episodetools_episodememorytools",
+      "services_kernel_src_memory_episodetools_rendertimeline",
+      "services_kernel_src_memory_judge_seedjudgetemplates",
+      "services_kernel_src_perception_service",
+      "services_kernel_src_perception_service_fileperceptionsource",
+      "services_kernel_src_perception_service_fileperceptionsource_constructor",
+      "services_kernel_src_perception_service_fileperceptionsource_observe",
+      "services_kernel_src_perception_service_observation",
+      "services_kernel_src_perception_service_perceptionservice",
+      "services_kernel_src_perception_service_perceptionservice_contextprovider",
+      "services_kernel_src_perception_service_perceptionservice_observe",
+      "services_kernel_src_perception_service_perceptionservice_register",
+      "services_kernel_src_perception_service_perceptionsource",
+      "services_kernel_src_perception_service_perceptionsource_observe",
+      "services_kernel_src_perception_service_perceptiontools",
+      "services_kernel_src_perception_service_provenance",
+      "services_kernel_src_research_tools",
+      "services_kernel_src_selfext_activation_activationtools",
+      "services_kernel_src_selfext_activation_authoringtools",
+      "services_kernel_src_skills_tools",
+      "services_kernel_src_skills_tools_skilltools",
+      "services_kernel_src_terminal_terminal",
+      "services_kernel_src_terminal_tools",
+      "services_kernel_src_terminal_tools_toolresult",
+      "services_kernel_src_web_tools",
+      "services_kernel_test_devices_test",
+      "services_kernel_test_devices_test_audit",
+      "services_kernel_test_devices_test_ctx",
+      "services_kernel_test_devices_test_setup",
+      "services_kernel_test_perception_test",
+      "services_kernel_test_perception_test_feed"
+    ],
+    "1": [
+      "services_kernel_src_a2ui_registry_a2uiregistry_constructor",
       "services_kernel_src_agent_runtime_localagentruntime_constructor",
+      "services_kernel_src_core_activity_activitybus",
+      "services_kernel_src_core_activity_activitybus_subscribe",
+      "services_kernel_src_core_activity_activityevent",
       "services_kernel_src_core_approvals",
       "services_kernel_src_core_approvals_approvalbroker",
-      "services_kernel_src_core_approvals_approvalbroker_constructor",
       "services_kernel_src_core_approvals_approvalbroker_create",
+      "services_kernel_src_core_approvals_approvalbroker_denyall",
       "services_kernel_src_core_approvals_approvalbroker_list",
+      "services_kernel_src_core_approvals_approvalbroker_resolve",
       "services_kernel_src_core_approvals_approvalresolution",
       "services_kernel_src_core_approvals_pendingapproval",
-      "services_kernel_src_core_estop",
-      "services_kernel_src_core_estop_emergencystop",
-      "services_kernel_src_core_estop_emergencystop_assertclear",
-      "services_kernel_src_core_estop_emergencystop_constructor",
-      "services_kernel_src_core_estop_emergencystop_isengaged",
       "services_kernel_src_core_loop",
-      "services_kernel_src_core_policy",
-      "services_kernel_src_core_policy_actionrequest",
-      "services_kernel_src_core_policy_decision",
-      "services_kernel_src_core_policy_order",
-      "services_kernel_src_core_policy_policyengine",
-      "services_kernel_src_core_policy_policyengine_classify",
-      "services_kernel_src_core_policy_policyengine_constructor",
-      "services_kernel_src_core_policy_policyengine_evaluate",
-      "services_kernel_src_core_policy_prohibited",
-      "services_kernel_src_core_policy_riskatorbelow",
+      "services_kernel_src_core_loop_coreloop",
+      "services_kernel_src_core_loop_coreloop_constructor",
+      "services_kernel_src_core_loop_coreloop_loaddurablegrants",
+      "services_kernel_src_core_loop_coreloop_remembergrant",
+      "services_kernel_src_core_loop_coreloop_runconversation",
+      "services_kernel_src_core_loop_coreloop_runtool",
+      "services_kernel_src_core_loop_coreloop_touch",
+      "services_kernel_src_core_loop_coreloop_verify",
+      "services_kernel_src_core_reasoning_assessdepth",
       "services_kernel_src_core_routes",
+      "services_kernel_src_core_tools_toolregistry",
+      "services_kernel_src_core_tools_toolregistry_list",
+      "services_kernel_src_core_tools_toolregistry_register",
+      "services_kernel_src_knowledge_files",
+      "services_kernel_src_knowledge_tools_knowledgetools",
+      "services_kernel_src_selfext_activation_activationservice_constructor",
+      "services_kernel_src_terminal_tools_terminaltools",
       "services_kernel_test_agent_test",
       "services_kernel_test_agent_test_audit",
       "services_kernel_test_agent_test_makeestop",
       "services_kernel_test_agent_test_makeloop",
+      "services_kernel_test_agent_test_maketools",
       "services_kernel_test_agent_test_scriptedgateway",
       "services_kernel_test_agent_test_tc",
       "services_kernel_test_argvalidation_test",
       "services_kernel_test_argvalidation_test_audit",
       "services_kernel_test_argvalidation_test_brittle",
       "services_kernel_test_argvalidation_test_estop",
-      "services_kernel_test_context_test",
-      "services_kernel_test_context_test_fakes",
-      "services_kernel_test_context_test_now",
+      "services_kernel_test_argvalidation_test_makeloop",
       "services_kernel_test_gateway_tools_test",
       "services_kernel_test_gateway_tools_test_audit",
       "services_kernel_test_gateway_tools_test_config",
       "services_kernel_test_gateway_tools_test_estop",
       "services_kernel_test_gateway_tools_test_fakepool",
+      "services_kernel_test_gateway_tools_test_loopwith",
       "services_kernel_test_gateway_tools_test_store",
-      "services_kernel_test_policy_test",
-      "services_kernel_test_policy_test_audit",
-      "services_kernel_test_policy_test_engine",
-      "services_kernel_test_policy_test_req",
-      "services_kernel_test_research_test",
-      "services_kernel_test_research_test_audit",
-      "services_kernel_test_research_test_makeestop",
-      "services_kernel_test_research_test_makeloop",
-      "services_kernel_test_research_test_pages",
-      "services_kernel_test_settings_test",
-      "services_kernel_test_settings_test_audit",
-      "services_kernel_test_settings_test_catalog",
-      "services_kernel_test_settings_test_estop",
+      "services_kernel_test_knowledge_test",
+      "services_kernel_test_knowledge_test_audit",
+      "services_kernel_test_knowledge_test_makeestop",
+      "services_kernel_test_knowledge_test_makeloop",
+      "services_kernel_test_reasoning_test",
+      "services_kernel_test_reasoning_test_announceloop",
+      "services_kernel_test_reasoning_test_audit",
+      "services_kernel_test_reasoning_test_convloop",
+      "services_kernel_test_reasoning_test_drain",
+      "services_kernel_test_reasoning_test_estop",
+      "services_kernel_test_reasoning_test_fakestore",
       "services_kernel_test_terminal_test",
       "services_kernel_test_terminal_test_audit",
       "services_kernel_test_terminal_test_makeestop",
-      "services_kernel_test_terminal_test_makeloop",
-      "services_kernel_test_web_test",
-      "services_kernel_test_web_test_audit",
-      "services_kernel_test_web_test_makeestop",
-      "services_kernel_test_web_test_makeloop"
-    ],
-    "1": [
-      "services_kernel_src_research_contract",
-      "services_kernel_src_research_contract_evidence",
-      "services_kernel_src_research_contract_gatheroptions",
-      "services_kernel_src_research_contract_researcher",
-      "services_kernel_src_research_contract_researcher_checktargets",
-      "services_kernel_src_research_contract_researcher_gather",
-      "services_kernel_src_research_contract_researchfindings",
-      "services_kernel_src_research_contract_sourcestatus",
-      "services_kernel_src_research_contract_targetcheck",
-      "services_kernel_src_research_gather",
-      "services_kernel_src_research_gather_queryterms",
-      "services_kernel_src_research_gather_scorepassages",
-      "services_kernel_src_research_gather_webresearcher",
-      "services_kernel_src_research_gather_webresearcher_checktargets",
-      "services_kernel_src_research_gather_webresearcher_constructor",
-      "services_kernel_src_research_gather_webresearcher_gather",
-      "services_kernel_src_web_contract",
-      "services_kernel_src_web_contract_linkitem",
-      "services_kernel_src_web_contract_navresult",
-      "services_kernel_src_web_contract_pagelinks",
-      "services_kernel_src_web_contract_pagetext",
-      "services_kernel_src_web_contract_provenance",
-      "services_kernel_src_web_contract_shotinfo",
-      "services_kernel_src_web_contract_webactionresult",
-      "services_kernel_src_web_contract_webbrowser",
-      "services_kernel_src_web_contract_webbrowser_checktarget",
-      "services_kernel_src_web_contract_webbrowser_click",
-      "services_kernel_src_web_contract_webbrowser_close",
-      "services_kernel_src_web_contract_webbrowser_currenturl",
-      "services_kernel_src_web_contract_webbrowser_fill",
-      "services_kernel_src_web_contract_webbrowser_links",
-      "services_kernel_src_web_contract_webbrowser_open",
-      "services_kernel_src_web_contract_webbrowser_readtext",
-      "services_kernel_src_web_contract_webbrowser_screenshot",
-      "services_kernel_src_web_contract_webtargetcheck",
-      "services_kernel_src_web_playwright",
-      "services_kernel_src_web_playwright_loadchromium",
-      "services_kernel_src_web_playwright_playwrightbrowser",
-      "services_kernel_src_web_playwright_playwrightbrowser_checktarget",
-      "services_kernel_src_web_playwright_playwrightbrowser_click",
-      "services_kernel_src_web_playwright_playwrightbrowser_close",
-      "services_kernel_src_web_playwright_playwrightbrowser_constructor",
-      "services_kernel_src_web_playwright_playwrightbrowser_currenturl",
-      "services_kernel_src_web_playwright_playwrightbrowser_ensurepage",
-      "services_kernel_src_web_playwright_playwrightbrowser_fill",
-      "services_kernel_src_web_playwright_playwrightbrowser_links",
-      "services_kernel_src_web_playwright_playwrightbrowser_open",
-      "services_kernel_src_web_playwright_playwrightbrowser_readtext",
-      "services_kernel_src_web_playwright_playwrightbrowser_requireopen",
-      "services_kernel_src_web_playwright_playwrightbrowser_screenshot",
-      "services_kernel_src_web_playwright_resolvechromiumpath",
-      "services_kernel_src_web_policy",
-      "services_kernel_src_web_policy_checkwebtarget",
-      "services_kernel_src_web_policy_loopback",
-      "services_kernel_src_web_policy_webpolicyoptions",
-      "services_kernel_src_web_test_web_test",
-      "services_kernel_src_web_tools_web_click",
-      "services_kernel_src_web_tools_web_fill",
-      "services_kernel_src_web_tools_web_links",
-      "services_kernel_src_web_tools_web_open",
-      "services_kernel_src_web_tools_web_readtext",
-      "services_kernel_src_web_tools_web_screenshot",
-      "services_kernel_src_web_tools_webtools"
+      "services_kernel_test_terminal_test_makeloop"
     ],
     "2": [
+      "services_kernel_src_agent_contract",
+      "services_kernel_src_agent_contract_agentresult",
+      "services_kernel_src_agent_contract_agentrunoptions",
+      "services_kernel_src_agent_contract_agentruntime",
+      "services_kernel_src_agent_contract_agentstep",
+      "services_kernel_src_agent_runtime",
+      "services_kernel_src_agent_runtime_localagentruntime",
+      "services_kernel_src_agent_runtime_localagentruntime_run",
+      "services_kernel_src_autonomy_agenda_agenda",
+      "services_kernel_src_autonomy_agenda_agenda_add",
+      "services_kernel_src_autonomy_agenda_agenda_constructor",
+      "services_kernel_src_autonomy_agenda_agenda_due",
+      "services_kernel_src_autonomy_agenda_agenda_hydrate",
+      "services_kernel_src_autonomy_agenda_agenda_list",
+      "services_kernel_src_autonomy_agenda_agenda_resolve",
+      "services_kernel_src_autonomy_announce_announcer_raise",
+      "services_kernel_src_autonomy_projects",
+      "services_kernel_src_autonomy_projects_project",
+      "services_kernel_src_autonomy_projects_projectlogentry",
+      "services_kernel_src_autonomy_scheduler",
+      "services_kernel_src_autonomy_scheduler_autonomystatus",
+      "services_kernel_src_autonomy_scheduler_tickresult",
+      "services_kernel_src_core_activity_activitybus_emit",
+      "services_kernel_src_core_approvals_approvalbroker_constructor",
+      "services_kernel_src_core_audit",
+      "services_kernel_src_core_audit_auditentry",
+      "services_kernel_src_core_audit_auditlog",
+      "services_kernel_src_core_audit_auditlog_constructor",
+      "services_kernel_src_core_audit_auditlog_recent",
+      "services_kernel_src_core_audit_redactsecrets",
+      "services_kernel_src_core_audit_whole_match_patterns",
+      "services_kernel_src_core_estop",
+      "services_kernel_src_core_untrusted_wrapuntrusted",
+      "services_kernel_src_prompts_registry",
+      "services_kernel_src_prompts_registry_prompt",
+      "services_kernel_src_prompts_registry_promptkind",
+      "services_kernel_src_skills_registry",
+      "services_kernel_src_skills_registry_agentrunopts",
+      "services_kernel_src_skills_registry_skill",
+      "services_kernel_src_skills_registry_skillregistry_constructor",
+      "services_kernel_src_skills_registry_skillrow",
+      "services_kernel_test_audit_test",
+      "services_kernel_test_heartbeat_test",
+      "services_kernel_test_heartbeat_test_activity",
+      "services_kernel_test_heartbeat_test_audit",
+      "services_kernel_test_heartbeat_test_catalog",
+      "services_kernel_test_heartbeat_test_estop",
+      "services_kernel_test_heartbeat_test_proactive",
+      "services_kernel_test_heartbeat_test_run",
+      "services_kernel_test_heartbeat_test_sleepcycle",
+      "services_kernel_test_projects_test",
+      "services_kernel_test_projects_test_audit",
+      "services_kernel_test_prompts_test",
+      "services_kernel_test_prompts_test_audit",
+      "services_kernel_test_rules_test",
+      "services_kernel_test_rules_test_audit",
+      "services_kernel_test_rules_test_now",
+      "services_kernel_test_skills_test",
+      "services_kernel_test_skills_test_audit",
+      "services_kernel_test_skills_test_fakeagent"
+    ],
+    "3": [
+      "services_kernel_src_proactive_engine",
+      "services_kernel_src_proactive_engine_proactivityengine",
+      "services_kernel_src_proactive_engine_proactivityengine_constructor",
+      "services_kernel_src_proactive_engine_proactivityengine_dismiss",
+      "services_kernel_src_proactive_engine_proactivityengine_effectivegates",
+      "services_kernel_src_proactive_engine_proactivityengine_recent",
+      "services_kernel_src_proactive_engine_proactivityengine_run",
+      "services_kernel_src_proactive_engine_proactivityengine_setdomainenabled",
+      "services_kernel_src_proactive_engine_proactivityengine_snooze",
+      "services_kernel_src_proactive_gates",
+      "services_kernel_src_proactive_gates_gatestack",
+      "services_kernel_src_proactive_gates_gatestack_apply",
+      "services_kernel_src_proactive_gates_gatestack_constructor",
+      "services_kernel_src_proactive_gates_gatestack_countrecent",
+      "services_kernel_src_proactive_gates_gatestack_explain",
+      "services_kernel_src_proactive_gates_gatestack_loaddomainsettings",
+      "services_kernel_src_proactive_gates_gatestack_loadrecentdedupkeys",
+      "services_kernel_src_proactive_gates_gatestack_loadsnoozes",
+      "services_kernel_src_proactive_gates_inquiethours",
+      "services_kernel_src_proactive_gates_priorityrank",
+      "services_kernel_src_proactive_generators",
+      "services_kernel_src_proactive_generators_briefingcandidate",
+      "services_kernel_src_proactive_generators_calendarconflictcandidates",
+      "services_kernel_src_proactive_generators_commitmentcandidates",
+      "services_kernel_src_proactive_generators_daykey",
+      "services_kernel_src_proactive_generators_fmt",
+      "services_kernel_src_proactive_rules",
+      "services_kernel_src_proactive_rules_parsecondition",
+      "services_kernel_src_proactive_rules_partofday",
+      "services_kernel_src_proactive_rules_proactiverule",
+      "services_kernel_src_proactive_rules_proactiverules",
+      "services_kernel_src_proactive_rules_proactiverules_candidate",
+      "services_kernel_src_proactive_rules_proactiverules_constructor",
+      "services_kernel_src_proactive_rules_proactiverules_evaluate",
+      "services_kernel_src_proactive_rules_proactiverules_fill",
+      "services_kernel_src_proactive_rules_proactiverules_list",
+      "services_kernel_src_proactive_rules_proactiverules_remove",
+      "services_kernel_src_proactive_rules_proactiverules_set",
+      "services_kernel_src_proactive_rules_proactiverules_setenabled",
+      "services_kernel_src_proactive_rules_rulecondition",
+      "services_kernel_src_proactive_types",
+      "services_kernel_src_proactive_types_candidate",
+      "services_kernel_src_proactive_types_default_gates",
+      "services_kernel_src_proactive_types_gateconfig",
+      "services_kernel_src_proactive_types_priority",
+      "services_kernel_src_proactive_types_priority_order",
+      "services_kernel_src_proactive_types_priorityatleast",
+      "services_kernel_src_proactive_types_proactiveitem",
+      "services_kernel_src_proactive_types_proactivekind",
+      "services_kernel_src_proactive_types_suppression",
+      "services_kernel_src_settings_catalog",
+      "services_kernel_src_settings_catalog_rationale_288",
+      "services_kernel_test_proactive_test",
+      "services_kernel_test_proactive_test_audit",
+      "services_kernel_test_proactive_test_cand",
+      "services_kernel_test_proactive_test_now"
+    ],
+    "4": [
       "docs_verification_longitude_xl_catalog_hash_guard",
       "docs_verification_longitude_xl_embedder_selfheal_guard",
       "docs_verification_longitude_xl_jarvis_xl_sql",
@@ -188,7 +318,7 @@
       "scripts_longitude_xl_truth_value",
       "scripts_longitude_xl_two_hop_question"
     ],
-    "3": [
+    "5": [
       "appkit",
       "applicationservices",
       "apps_companion_swift_sources_jarvisaudio_audiobridge",
@@ -241,7 +371,59 @@
       "urlsessionwebsockettask",
       "void"
     ],
-    "4": [
+    "6": [
+      "services_kernel_src_core_tools_toolregistry_get",
+      "services_kernel_src_core_tools_toolregistry_has",
+      "services_kernel_src_core_tools_toolregistry_unregister",
+      "services_kernel_src_selfext_activation_activationservice",
+      "services_kernel_src_selfext_activation_activationservice_activate",
+      "services_kernel_src_selfext_activation_activationservice_buildtool",
+      "services_kernel_src_selfext_activation_activationservice_ceiling",
+      "services_kernel_src_selfext_activation_activationservice_deactivate",
+      "services_kernel_src_selfext_activation_activationservice_listactive",
+      "services_kernel_src_selfext_activation_activationservice_restoreactive",
+      "services_kernel_src_selfext_activation_activationservice_validate",
+      "services_kernel_src_selfext_guard",
+      "services_kernel_src_selfext_guard_capabilityguard_scan",
+      "services_kernel_src_selfext_guard_dangerous_patterns",
+      "services_kernel_src_selfext_guard_guardverdict",
+      "services_kernel_src_selfext_guard_manifesthash",
+      "services_kernel_src_selfext_guard_scanfinding",
+      "services_kernel_src_selfext_guard_secret_patterns",
+      "services_kernel_src_selfext_guard_sha",
+      "services_kernel_src_selfext_protected",
+      "services_kernel_src_selfext_protected_capabilitymanifest",
+      "services_kernel_src_selfext_protected_composition_tool_denylist",
+      "services_kernel_src_selfext_protected_findhardlimitviolations",
+      "services_kernel_src_selfext_protected_guardviolation",
+      "services_kernel_src_selfext_protected_passeshardlimit",
+      "services_kernel_src_selfext_protected_proposedfile",
+      "services_kernel_src_selfext_protected_protected_paths",
+      "services_kernel_src_selfext_protected_protected_permissions",
+      "services_kernel_src_selfext_protected_protected_symbol_patterns",
+      "services_kernel_src_selfext_registry_capabilityrecord",
+      "services_kernel_src_selfext_registry_capabilityregistry",
+      "services_kernel_src_selfext_registry_capabilityregistry_constructor",
+      "services_kernel_src_selfext_registry_capabilityregistry_get",
+      "services_kernel_src_selfext_registry_capabilityregistry_list",
+      "services_kernel_src_selfext_registry_capabilityregistry_listactive",
+      "services_kernel_src_selfext_registry_capabilityregistry_listgaps",
+      "services_kernel_src_selfext_registry_capabilityregistry_markactivated",
+      "services_kernel_src_selfext_registry_capabilityregistry_markdeactivated",
+      "services_kernel_src_selfext_registry_capabilityregistry_record",
+      "services_kernel_src_selfext_registry_capabilityregistry_recordgap",
+      "services_kernel_src_selfext_registry_capabilityregistry_recordstagea",
+      "services_kernel_src_selfext_registry_normalizecomposition",
+      "services_kernel_src_selfext_registry_writable_states",
+      "services_kernel_src_selfext_stagea_stageapipeline_run",
+      "services_kernel_src_selfext_stagea_stageareport",
+      "services_kernel_test_activation_test_seed",
+      "services_kernel_test_selfext_test",
+      "services_kernel_test_selfext_test_audit",
+      "services_kernel_test_selfext_test_fakeregistry",
+      "services_kernel_test_selfext_test_manifest"
+    ],
+    "7": [
       "concept_core_loop",
       "concept_five_state_matrix",
       "concept_honesty_rule",
@@ -292,58 +474,7 @@
       "req_r_ui_03",
       "req_r_ui_04"
     ],
-    "5": [
-      "services_kernel_src_autonomy_projects_projects_constructor",
-      "services_kernel_src_core_audit",
-      "services_kernel_src_core_audit_auditentry",
-      "services_kernel_src_core_audit_auditlog",
-      "services_kernel_src_core_audit_auditlog_constructor",
-      "services_kernel_src_core_audit_auditlog_recent",
-      "services_kernel_src_core_audit_whole_match_patterns",
-      "services_kernel_src_crypto_secrets",
-      "services_kernel_src_crypto_secrets_secretinfo",
-      "services_kernel_src_crypto_secrets_secretsvault_constructor",
-      "services_kernel_src_crypto_vault",
-      "services_kernel_src_crypto_vault_gcmdecrypt",
-      "services_kernel_src_crypto_vault_gcmencrypt",
-      "services_kernel_src_crypto_vault_safeequal",
-      "services_kernel_src_crypto_vault_vault",
-      "services_kernel_src_crypto_vault_vault_constructor",
-      "services_kernel_src_crypto_vault_vault_isciphertext",
-      "services_kernel_src_crypto_vault_vault_open",
-      "services_kernel_src_crypto_vault_wrap_info",
-      "services_kernel_src_memory_memory",
-      "services_kernel_src_memory_memory_key_filler",
-      "services_kernel_src_memory_memory_preference",
-      "services_kernel_src_ops_ops",
-      "services_kernel_src_ops_ops_brain_tables",
-      "services_kernel_src_ops_ops_healthreport",
-      "services_kernel_src_prompts_registry",
-      "services_kernel_src_prompts_registry_prompt",
-      "services_kernel_src_prompts_registry_promptkind",
-      "services_kernel_src_skills_registry_skillregistry_constructor",
-      "services_kernel_test_audit_test",
-      "services_kernel_test_entities_test",
-      "services_kernel_test_entities_test_audit",
-      "services_kernel_test_episodes_test",
-      "services_kernel_test_episodes_test_audit",
-      "services_kernel_test_longitude_fixes_test",
-      "services_kernel_test_longitude_fixes_test_audit",
-      "services_kernel_test_memory_test",
-      "services_kernel_test_memory_test_audit",
-      "services_kernel_test_ops_test",
-      "services_kernel_test_ops_test_settings",
-      "services_kernel_test_projects_test",
-      "services_kernel_test_projects_test_audit",
-      "services_kernel_test_prompts_test",
-      "services_kernel_test_prompts_test_audit",
-      "services_kernel_test_secrets_test",
-      "services_kernel_test_secrets_test_audit",
-      "services_kernel_test_secrets_test_auditpayloads",
-      "services_kernel_test_secrets_test_makevault",
-      "services_kernel_test_vault_test"
-    ],
-    "6": [
+    "8": [
       "bench_rubrics_grading",
       "docs_capability_parity_matrix_c1",
       "docs_capability_parity_matrix_c3",
@@ -392,7 +523,7 @@
       "docs_threat_model_t1b",
       "src_lab_nightlab"
     ],
-    "7": [
+    "9": [
       "services_kernel_src_control_contract",
       "services_kernel_src_control_contract_appinfo",
       "services_kernel_src_control_contract_axelement",
@@ -441,241 +572,50 @@
       "services_kernel_src_control_simulator_simwindow",
       "services_kernel_test_control_test"
     ],
-    "8": [
-      "services_kernel_src_agent_contract",
-      "services_kernel_src_agent_contract_agentresult",
-      "services_kernel_src_agent_contract_agentrunoptions",
-      "services_kernel_src_agent_contract_agentruntime",
-      "services_kernel_src_agent_contract_agentstep",
-      "services_kernel_src_agent_runtime",
-      "services_kernel_src_agent_runtime_localagentruntime",
-      "services_kernel_src_agent_runtime_localagentruntime_run",
-      "services_kernel_src_autonomy_scheduler",
-      "services_kernel_src_autonomy_scheduler_autonomystatus",
-      "services_kernel_src_autonomy_scheduler_tickresult",
-      "services_kernel_src_core_activity",
-      "services_kernel_src_core_activity_activitybus",
-      "services_kernel_src_core_activity_activitybus_subscribe",
-      "services_kernel_src_core_untrusted_wrapuntrusted",
-      "services_kernel_src_proactive_engine",
-      "services_kernel_src_proactive_engine_proactivityengine",
-      "services_kernel_src_proactive_engine_proactivityengine_constructor",
-      "services_kernel_src_proactive_engine_proactivityengine_dismiss",
-      "services_kernel_src_proactive_engine_proactivityengine_recent",
-      "services_kernel_src_proactive_engine_proactivityengine_setdomainenabled",
-      "services_kernel_src_proactive_engine_proactivityengine_snooze",
-      "services_kernel_src_skills_registry",
-      "services_kernel_src_skills_registry_agentrunopts",
-      "services_kernel_src_skills_registry_skill",
-      "services_kernel_src_skills_registry_skillrow",
-      "services_kernel_test_autonomy_test",
-      "services_kernel_test_autonomy_test_audit",
-      "services_kernel_test_autonomy_test_fakesettings",
-      "services_kernel_test_autonomy_test_isengaged",
-      "services_kernel_test_autonomy_test_makescheduler",
-      "services_kernel_test_heartbeat_test",
-      "services_kernel_test_heartbeat_test_activity",
-      "services_kernel_test_heartbeat_test_audit",
-      "services_kernel_test_heartbeat_test_catalog",
-      "services_kernel_test_heartbeat_test_estop",
-      "services_kernel_test_heartbeat_test_proactive",
-      "services_kernel_test_heartbeat_test_run",
-      "services_kernel_test_heartbeat_test_sleepcycle",
-      "services_kernel_test_proactive_test",
-      "services_kernel_test_proactive_test_audit",
-      "services_kernel_test_proactive_test_cand",
-      "services_kernel_test_proactive_test_now",
-      "services_kernel_test_rules_test",
-      "services_kernel_test_rules_test_audit",
-      "services_kernel_test_rules_test_now"
-    ],
-    "9": [
-      "services_kernel_src_proactive_engine_proactivityengine_effectivegates",
-      "services_kernel_src_proactive_engine_proactivityengine_run",
-      "services_kernel_src_proactive_gates",
-      "services_kernel_src_proactive_gates_gatestack",
-      "services_kernel_src_proactive_gates_gatestack_apply",
-      "services_kernel_src_proactive_gates_gatestack_constructor",
-      "services_kernel_src_proactive_gates_gatestack_countrecent",
-      "services_kernel_src_proactive_gates_gatestack_explain",
-      "services_kernel_src_proactive_gates_gatestack_loaddomainsettings",
-      "services_kernel_src_proactive_gates_gatestack_loadrecentdedupkeys",
-      "services_kernel_src_proactive_gates_gatestack_loadsnoozes",
-      "services_kernel_src_proactive_gates_inquiethours",
-      "services_kernel_src_proactive_gates_priorityrank",
-      "services_kernel_src_proactive_generators",
-      "services_kernel_src_proactive_generators_briefingcandidate",
-      "services_kernel_src_proactive_generators_calendarconflictcandidates",
-      "services_kernel_src_proactive_generators_commitmentcandidates",
-      "services_kernel_src_proactive_generators_daykey",
-      "services_kernel_src_proactive_generators_fmt",
-      "services_kernel_src_proactive_rules",
-      "services_kernel_src_proactive_rules_parsecondition",
-      "services_kernel_src_proactive_rules_partofday",
-      "services_kernel_src_proactive_rules_proactiverule",
-      "services_kernel_src_proactive_rules_proactiverules",
-      "services_kernel_src_proactive_rules_proactiverules_candidate",
-      "services_kernel_src_proactive_rules_proactiverules_constructor",
-      "services_kernel_src_proactive_rules_proactiverules_evaluate",
-      "services_kernel_src_proactive_rules_proactiverules_fill",
-      "services_kernel_src_proactive_rules_proactiverules_list",
-      "services_kernel_src_proactive_rules_proactiverules_remove",
-      "services_kernel_src_proactive_rules_proactiverules_set",
-      "services_kernel_src_proactive_rules_proactiverules_setenabled",
-      "services_kernel_src_proactive_rules_rulecondition",
-      "services_kernel_src_proactive_types",
-      "services_kernel_src_proactive_types_candidate",
-      "services_kernel_src_proactive_types_default_gates",
-      "services_kernel_src_proactive_types_gateconfig",
-      "services_kernel_src_proactive_types_priority",
-      "services_kernel_src_proactive_types_priority_order",
-      "services_kernel_src_proactive_types_priorityatleast",
-      "services_kernel_src_proactive_types_proactiveitem",
-      "services_kernel_src_proactive_types_proactivekind",
-      "services_kernel_src_proactive_types_suppression",
-      "services_kernel_src_settings_catalog",
-      "services_kernel_src_settings_catalog_rationale_288",
-      "services_kernel_src_settings_catalog_settings_catalog"
-    ],
     "10": [
-      "services_kernel_src_config",
-      "services_kernel_src_config_configschema",
-      "services_kernel_src_config_kernelconfig",
-      "services_kernel_src_config_loadconfig",
-      "services_kernel_src_core_index_core",
-      "services_kernel_src_core_routes_registercoreroutes",
-      "services_kernel_src_core_routes_ssecorsheaders",
-      "services_kernel_src_crypto_kek",
-      "services_kernel_src_crypto_kek_exec",
-      "services_kernel_src_crypto_kek_randomkek",
-      "services_kernel_src_crypto_kek_resolvekek",
-      "services_kernel_src_crypto_vault_vault_kekfromenv",
-      "services_kernel_src_db_migrate",
-      "services_kernel_src_db_migrate_appliedmigration",
-      "services_kernel_src_db_migrate_cli",
-      "services_kernel_src_db_migrate_cli_config",
-      "services_kernel_src_db_migrate_cli_migrationsdir",
-      "services_kernel_src_db_migrate_cli_pool",
-      "services_kernel_src_db_migrate_listmigrationfiles",
-      "services_kernel_src_db_migrate_migrationstatus",
-      "services_kernel_src_db_migrate_runmigrations",
-      "services_kernel_src_db_pool",
-      "services_kernel_src_db_pool_createpool",
-      "services_kernel_src_db_pool_pingdatabase",
-      "services_kernel_src_http_health",
-      "services_kernel_src_http_health_buildhealthreport",
-      "services_kernel_src_http_health_healthreport",
-      "services_kernel_src_http_server",
-      "services_kernel_src_http_server_createserver",
-      "services_kernel_src_index",
-      "services_kernel_src_index_app",
-      "services_kernel_src_index_config",
-      "services_kernel_src_index_gateway",
-      "services_kernel_src_index_here",
-      "services_kernel_src_index_keyfile",
-      "services_kernel_src_index_migrationsdir",
-      "services_kernel_src_index_pkg",
-      "services_kernel_src_index_pool",
-      "services_kernel_src_index_secrets",
-      "services_kernel_src_index_shutdown",
-      "services_kernel_src_index_startedat",
-      "services_kernel_src_scripts_build",
-      "services_kernel_test_config_test",
-      "services_kernel_test_migrate_test",
-      "services_kernel_vitest_config"
+      "services_kernel_src_web_contract",
+      "services_kernel_src_web_contract_linkitem",
+      "services_kernel_src_web_contract_navresult",
+      "services_kernel_src_web_contract_pagelinks",
+      "services_kernel_src_web_contract_pagetext",
+      "services_kernel_src_web_contract_provenance",
+      "services_kernel_src_web_contract_shotinfo",
+      "services_kernel_src_web_contract_webactionresult",
+      "services_kernel_src_web_contract_webtargetcheck",
+      "services_kernel_src_web_playwright",
+      "services_kernel_src_web_playwright_loadchromium",
+      "services_kernel_src_web_playwright_playwrightbrowser",
+      "services_kernel_src_web_playwright_playwrightbrowser_checktarget",
+      "services_kernel_src_web_playwright_playwrightbrowser_click",
+      "services_kernel_src_web_playwright_playwrightbrowser_close",
+      "services_kernel_src_web_playwright_playwrightbrowser_constructor",
+      "services_kernel_src_web_playwright_playwrightbrowser_currenturl",
+      "services_kernel_src_web_playwright_playwrightbrowser_ensurepage",
+      "services_kernel_src_web_playwright_playwrightbrowser_fill",
+      "services_kernel_src_web_playwright_playwrightbrowser_links",
+      "services_kernel_src_web_playwright_playwrightbrowser_open",
+      "services_kernel_src_web_playwright_playwrightbrowser_readtext",
+      "services_kernel_src_web_playwright_playwrightbrowser_requireopen",
+      "services_kernel_src_web_playwright_playwrightbrowser_screenshot",
+      "services_kernel_src_web_playwright_resolvechromiumpath",
+      "services_kernel_src_web_policy",
+      "services_kernel_src_web_policy_checkwebtarget",
+      "services_kernel_src_web_policy_loopback",
+      "services_kernel_src_web_policy_webpolicyoptions",
+      "services_kernel_src_web_test_web_test",
+      "services_kernel_src_web_tools_web_click",
+      "services_kernel_src_web_tools_web_fill",
+      "services_kernel_src_web_tools_web_links",
+      "services_kernel_src_web_tools_web_open",
+      "services_kernel_src_web_tools_web_readtext",
+      "services_kernel_src_web_tools_web_screenshot",
+      "services_kernel_src_web_tools_webtools",
+      "services_kernel_test_web_test",
+      "services_kernel_test_web_test_audit",
+      "services_kernel_test_web_test_makeestop",
+      "services_kernel_test_web_test_makeloop"
     ],
     "11": [
-      "services_kernel_src_selfext_activation",
-      "services_kernel_src_selfext_activation_activationcheck",
-      "services_kernel_src_selfext_activation_risk_order",
-      "services_kernel_src_selfext_activation_steprunner",
-      "services_kernel_src_selfext_activation_steprunner_runtool",
-      "services_kernel_src_selfext_guard",
-      "services_kernel_src_selfext_guard_capabilityguard",
-      "services_kernel_src_selfext_guard_capabilityguard_constructor",
-      "services_kernel_src_selfext_guard_capabilityguard_scan",
-      "services_kernel_src_selfext_guard_dangerous_patterns",
-      "services_kernel_src_selfext_guard_guardverdict",
-      "services_kernel_src_selfext_guard_manifesthash",
-      "services_kernel_src_selfext_guard_scanfinding",
-      "services_kernel_src_selfext_guard_secret_patterns",
-      "services_kernel_src_selfext_guard_sha",
-      "services_kernel_src_selfext_protected",
-      "services_kernel_src_selfext_protected_capabilitymanifest",
-      "services_kernel_src_selfext_protected_composition_tool_denylist",
-      "services_kernel_src_selfext_protected_compositionstep",
-      "services_kernel_src_selfext_protected_findhardlimitviolations",
-      "services_kernel_src_selfext_protected_guardviolation",
-      "services_kernel_src_selfext_protected_passeshardlimit",
-      "services_kernel_src_selfext_protected_proposedfile",
-      "services_kernel_src_selfext_protected_protected_paths",
-      "services_kernel_src_selfext_protected_protected_permissions",
-      "services_kernel_src_selfext_protected_protected_symbol_patterns",
-      "services_kernel_src_selfext_registry",
-      "services_kernel_src_selfext_registry_capabilityregistry_recordstagea",
-      "services_kernel_src_selfext_registry_capabilitystate",
-      "services_kernel_src_selfext_registry_writable_states",
-      "services_kernel_src_selfext_stagea",
-      "services_kernel_src_selfext_stagea_stageapipeline",
-      "services_kernel_src_selfext_stagea_stageapipeline_constructor",
-      "services_kernel_src_selfext_stagea_stageapipeline_run",
-      "services_kernel_src_selfext_stagea_stageareport",
-      "services_kernel_test_activation_test",
-      "services_kernel_test_activation_test_activationwith",
-      "services_kernel_test_activation_test_audit",
-      "services_kernel_test_activation_test_seed",
-      "services_kernel_test_activation_test_seededtools",
-      "services_kernel_test_activation_test_stub",
-      "services_kernel_test_selfext_test",
-      "services_kernel_test_selfext_test_audit",
-      "services_kernel_test_selfext_test_fakeregistry",
-      "services_kernel_test_selfext_test_manifest"
-    ],
-    "12": [
-      "services_kernel_src_context_contract",
-      "services_kernel_src_context_contract_commitmentcontext",
-      "services_kernel_src_context_contract_contextprovider",
-      "services_kernel_src_context_contract_contextprovider_get",
-      "services_kernel_src_context_contract_contextsnapshot",
-      "services_kernel_src_context_contract_episodesource",
-      "services_kernel_src_context_contract_episodesource_recentforcontext",
-      "services_kernel_src_context_contract_knowledgesource",
-      "services_kernel_src_context_contract_knowledgesource_recentforcontext",
-      "services_kernel_src_context_contract_knownentity",
-      "services_kernel_src_context_contract_pinnedfact",
-      "services_kernel_src_context_contract_proactivecontext",
-      "services_kernel_src_context_contract_recentepisode",
-      "services_kernel_src_context_service",
-      "services_kernel_src_context_service_contextservice",
-      "services_kernel_src_context_service_contextservice_addprovider",
-      "services_kernel_src_context_service_contextservice_commitments",
-      "services_kernel_src_context_service_contextservice_constructor",
-      "services_kernel_src_context_service_contextservice_describe",
-      "services_kernel_src_context_service_contextservice_knownentities",
-      "services_kernel_src_context_service_contextservice_pinnedfacts",
-      "services_kernel_src_context_service_contextservice_proactive",
-      "services_kernel_src_context_service_contextservice_recentepisodes",
-      "services_kernel_src_context_service_contextservice_snapshot",
-      "services_kernel_src_context_service_partofday",
-      "services_kernel_src_context_service_relativetime",
-      "services_kernel_src_core_untrusted_wraprecalledmemory",
-      "services_kernel_src_perception_service",
-      "services_kernel_src_perception_service_fileperceptionsource",
-      "services_kernel_src_perception_service_fileperceptionsource_constructor",
-      "services_kernel_src_perception_service_fileperceptionsource_observe",
-      "services_kernel_src_perception_service_observation",
-      "services_kernel_src_perception_service_perceptionservice",
-      "services_kernel_src_perception_service_perceptionservice_contextprovider",
-      "services_kernel_src_perception_service_perceptionservice_observe",
-      "services_kernel_src_perception_service_perceptionservice_register",
-      "services_kernel_src_perception_service_perceptionsource",
-      "services_kernel_src_perception_service_perceptionsource_observe",
-      "services_kernel_src_perception_service_perceptiontools",
-      "services_kernel_src_perception_service_provenance",
-      "services_kernel_test_perception_test",
-      "services_kernel_test_perception_test_feed"
-    ],
-    "13": [
       "services_ears_src_jarvis_ears_audio_io",
       "services_ears_src_jarvis_ears_audio_io_audiosink",
       "services_ears_src_jarvis_ears_audio_io_audiosink_play",
@@ -715,7 +655,7 @@
       "services_ears_tests_test_audio_io_test_buffer_source_yields_all_frames_in_order",
       "services_ears_tests_test_audio_io_test_resample_changes_length_proportionally"
     ],
-    "14": [
+    "12": [
       "autoresearch_karpathy",
       "concept_night_lab",
       "d_0079",
@@ -754,7 +694,7 @@
       "t_lab_5",
       "t_lab_6"
     ],
-    "15": [
+    "13": [
       "services_kernel_src_core_consolidation",
       "services_kernel_src_core_consolidation_consolidationreport",
       "services_kernel_src_core_consolidation_decisionlog",
@@ -793,7 +733,7 @@
       "services_kernel_test_consolidation_test_prefstore",
       "services_kernel_test_consolidation_test_seeddecisions"
     ],
-    "16": [
+    "14": [
       "basemodel",
       "services_ears_src_jarvis_ears_engines_ttschunk",
       "services_ears_src_jarvis_ears_server",
@@ -830,115 +770,42 @@
       "services_ears_src_jarvis_ears_tts_openai_rationale_1",
       "websocket"
     ],
-    "17": [
-      "services_kernel_src_autonomy_announce",
-      "services_kernel_src_autonomy_announce_announcement",
-      "services_kernel_src_autonomy_projects",
-      "services_kernel_src_autonomy_projects_project",
-      "services_kernel_src_autonomy_projects_projectlogentry",
-      "services_kernel_src_control_tools",
-      "services_kernel_src_control_tools_countelements",
-      "services_kernel_src_core_tools",
-      "services_kernel_src_core_tools_recallpreferences",
-      "services_kernel_src_core_tools_recallpreferences_recallargs",
-      "services_kernel_src_core_tools_rememberpreference",
-      "services_kernel_src_core_tools_rememberpreference_rememberargs",
-      "services_kernel_src_core_tools_systeminfo",
-      "services_kernel_src_core_tools_systeminfo_systeminfotool",
-      "services_kernel_src_core_tools_tool",
-      "services_kernel_src_core_tools_tool_run",
-      "services_kernel_src_core_tools_toolcontext",
-      "services_kernel_src_core_tools_toolresult",
-      "services_kernel_src_core_tools_workspacenote",
-      "services_kernel_src_core_tools_workspacenote_safetarget",
-      "services_kernel_src_core_tools_workspacenote_workspacenoteargs",
-      "services_kernel_src_core_tools_workspacenote_workspacenotetool",
-      "services_kernel_src_knowledge_files",
-      "services_kernel_src_knowledge_tools",
-      "services_kernel_src_knowledge_tools_clip",
-      "services_kernel_src_memory_episodetools",
-      "services_kernel_src_memory_episodetools_rendertimeline",
-      "services_kernel_src_research_tools",
-      "services_kernel_src_skills_tools",
-      "services_kernel_src_skills_tools_skilltools",
-      "services_kernel_src_terminal_terminal",
-      "services_kernel_src_web_tools",
-      "services_kernel_test_skills_test",
-      "services_kernel_test_skills_test_audit",
-      "services_kernel_test_skills_test_fakeagent"
+    "15": [
+      "services_kernel_src_core_estop_emergencystop",
+      "services_kernel_src_core_estop_emergencystop_assertclear",
+      "services_kernel_src_core_estop_emergencystop_constructor",
+      "services_kernel_src_core_estop_emergencystop_isengaged",
+      "services_kernel_src_core_estop_emergencystop_load",
+      "services_kernel_src_core_estop_emergencystop_onchange",
+      "services_kernel_src_core_policy",
+      "services_kernel_src_core_policy_actionrequest",
+      "services_kernel_src_core_policy_decision",
+      "services_kernel_src_core_policy_order",
+      "services_kernel_src_core_policy_policyengine",
+      "services_kernel_src_core_policy_policyengine_classify",
+      "services_kernel_src_core_policy_policyengine_constructor",
+      "services_kernel_src_core_policy_policyengine_evaluate",
+      "services_kernel_src_core_policy_prohibited",
+      "services_kernel_src_core_policy_riskatorbelow",
+      "services_kernel_src_research_tools_researchtools",
+      "services_kernel_src_settings_catalog_settings_catalog",
+      "services_kernel_src_settings_tools",
+      "services_kernel_src_settings_tools_settingstools",
+      "services_kernel_test_policy_test",
+      "services_kernel_test_policy_test_audit",
+      "services_kernel_test_policy_test_engine",
+      "services_kernel_test_policy_test_req",
+      "services_kernel_test_research_test",
+      "services_kernel_test_research_test_audit",
+      "services_kernel_test_research_test_makeestop",
+      "services_kernel_test_research_test_makeloop",
+      "services_kernel_test_research_test_pages",
+      "services_kernel_test_settings_test",
+      "services_kernel_test_settings_test_audit",
+      "services_kernel_test_settings_test_catalog",
+      "services_kernel_test_settings_test_estop"
     ],
-    "18": [
-      "services_kernel_src_gateway_adapters_anthropic",
-      "services_kernel_src_gateway_adapters_ollama",
-      "services_kernel_src_gateway_adapters_openai_compat",
-      "services_kernel_src_gateway_provider",
-      "services_kernel_src_gateway_provider_provideradapter",
-      "services_kernel_src_gateway_provider_provideradapter_chatstream",
-      "services_kernel_src_gateway_provider_provideradapter_embed",
-      "services_kernel_src_gateway_provider_provideradapter_ping",
-      "services_kernel_src_gateway_provider_providererror",
-      "services_kernel_src_gateway_provider_providererror_constructor",
-      "services_kernel_src_gateway_providers_anthropic",
-      "services_kernel_src_gateway_providers_anthropic_buildtoolnamemap",
-      "services_kernel_src_gateway_providers_anthropic_thinkingfield",
-      "services_kernel_src_gateway_providers_anthropic_toanthropicpayload",
-      "services_kernel_src_gateway_providers_ollama",
-      "services_kernel_src_gateway_providers_ollama_ollamamessage",
-      "services_kernel_src_gateway_providers_ollama_thinkfield",
-      "services_kernel_src_gateway_providers_ollama_toollamamessages",
-      "services_kernel_src_gateway_providers_openaicompat",
-      "services_kernel_src_gateway_providers_openaicompat_reasoningeffort",
-      "services_kernel_src_gateway_providers_openaicompat_toopenaimessages",
-      "services_kernel_src_gateway_router",
-      "services_kernel_src_gateway_router_ajv",
-      "services_kernel_src_gateway_router_roleoverride",
-      "services_kernel_src_gateway_schema",
-      "services_kernel_src_gateway_schema_chatevent",
-      "services_kernel_src_gateway_schema_contentpart",
-      "services_kernel_src_gateway_schema_imagepart",
-      "services_kernel_src_gateway_schema_neutralmessage",
-      "services_kernel_src_gateway_schema_roletarget",
-      "services_kernel_src_gateway_schema_roletargetschema",
-      "services_kernel_src_gateway_schema_targetoptions",
-      "services_kernel_src_gateway_schema_textpart",
-      "services_kernel_src_gateway_schema_toolcall",
-      "services_kernel_src_gateway_schema_tooldefinition"
-    ],
-    "19": [
-      "services_kernel_src_a2ui_registry_a2uiregistry_constructor",
-      "services_kernel_src_core_tools_toolregistry",
-      "services_kernel_src_core_tools_toolregistry_get",
-      "services_kernel_src_core_tools_toolregistry_has",
-      "services_kernel_src_core_tools_toolregistry_list",
-      "services_kernel_src_core_tools_toolregistry_register",
-      "services_kernel_src_core_tools_toolregistry_unregister",
-      "services_kernel_src_selfext_activation_activationservice",
-      "services_kernel_src_selfext_activation_activationservice_activate",
-      "services_kernel_src_selfext_activation_activationservice_buildtool",
-      "services_kernel_src_selfext_activation_activationservice_ceiling",
-      "services_kernel_src_selfext_activation_activationservice_constructor",
-      "services_kernel_src_selfext_activation_activationservice_deactivate",
-      "services_kernel_src_selfext_activation_activationservice_listactive",
-      "services_kernel_src_selfext_activation_activationservice_restoreactive",
-      "services_kernel_src_selfext_activation_activationservice_validate",
-      "services_kernel_src_selfext_registry_capabilityrecord",
-      "services_kernel_src_selfext_registry_capabilityregistry",
-      "services_kernel_src_selfext_registry_capabilityregistry_constructor",
-      "services_kernel_src_selfext_registry_capabilityregistry_get",
-      "services_kernel_src_selfext_registry_capabilityregistry_list",
-      "services_kernel_src_selfext_registry_capabilityregistry_listactive",
-      "services_kernel_src_selfext_registry_capabilityregistry_listgaps",
-      "services_kernel_src_selfext_registry_capabilityregistry_markactivated",
-      "services_kernel_src_selfext_registry_capabilityregistry_markdeactivated",
-      "services_kernel_src_selfext_registry_capabilityregistry_record",
-      "services_kernel_src_selfext_registry_capabilityregistry_recordgap",
-      "services_kernel_src_selfext_registry_normalizecomposition",
-      "services_kernel_test_a2ui_test_toolreg",
-      "services_kernel_test_agent_test_maketools",
-      "services_kernel_test_argvalidation_test_makeloop",
-      "services_kernel_test_gateway_tools_test_loopwith"
-    ],
-    "20": [
+    "16": [
       "services_kernel_src_devices_contract",
       "services_kernel_src_devices_contract_device_risk",
       "services_kernel_src_devices_contract_devicecommand",
@@ -972,7 +839,7 @@
       "services_kernel_test_homeassistant_test_captured",
       "services_kernel_test_homeassistant_test_mockha"
     ],
-    "21": [
+    "17": [
       "services_kernel_src_knowledge_contract",
       "services_kernel_src_knowledge_contract_direntry",
       "services_kernel_src_knowledge_contract_editoutcome",
@@ -1006,81 +873,18 @@
       "services_kernel_src_knowledge_workspace_looksbinary",
       "services_kernel_src_knowledge_workspace_trimpreview"
     ],
-    "22": [
-      "services_kernel_src_settings_registry",
-      "services_kernel_src_settings_registry_dynamicspecinput",
-      "services_kernel_src_settings_registry_effectivesetting",
-      "services_kernel_src_settings_registry_jaccard",
-      "services_kernel_src_settings_registry_normkey",
-      "services_kernel_src_settings_registry_override",
-      "services_kernel_src_settings_registry_settingorigin",
-      "services_kernel_src_settings_registry_settingspec",
-      "services_kernel_src_settings_registry_settingsregistry",
-      "services_kernel_src_settings_registry_settingsregistry_bool",
-      "services_kernel_src_settings_registry_settingsregistry_constructor",
-      "services_kernel_src_settings_registry_settingsregistry_effective",
-      "services_kernel_src_settings_registry_settingsregistry_get",
-      "services_kernel_src_settings_registry_settingsregistry_has",
-      "services_kernel_src_settings_registry_settingsregistry_init",
-      "services_kernel_src_settings_registry_settingsregistry_notify",
-      "services_kernel_src_settings_registry_settingsregistry_notifyremove",
-      "services_kernel_src_settings_registry_settingsregistry_onchange",
-      "services_kernel_src_settings_registry_settingsregistry_onremove",
-      "services_kernel_src_settings_registry_settingsregistry_origin",
-      "services_kernel_src_settings_registry_settingsregistry_override",
-      "services_kernel_src_settings_registry_settingsregistry_register",
-      "services_kernel_src_settings_registry_settingsregistry_remove",
-      "services_kernel_src_settings_registry_settingsregistry_reset",
-      "services_kernel_src_settings_registry_settingsregistry_row",
-      "services_kernel_src_settings_registry_settingsregistry_set",
-      "services_kernel_src_settings_registry_settingsregistry_str",
-      "services_kernel_src_settings_registry_settingtype",
-      "services_kernel_src_settings_registry_settingvalue",
-      "services_kernel_src_settings_registry_tokens",
-      "services_kernel_src_settings_registry_validate"
-    ],
-    "23": [
-      "services_kernel_src_memory_entities",
-      "services_kernel_src_memory_entities_contentwords",
-      "services_kernel_src_memory_entities_dicecoefficient",
-      "services_kernel_src_memory_entities_entity",
-      "services_kernel_src_memory_entities_entitykind",
-      "services_kernel_src_memory_entities_entitymemory_fuzzycandidates",
-      "services_kernel_src_memory_entities_entitymemory_resolvecanonical",
-      "services_kernel_src_memory_entities_fact",
-      "services_kernel_src_memory_entities_fullestname",
-      "services_kernel_src_memory_entities_graph_stop",
-      "services_kernel_src_memory_entities_graphneighborhood",
-      "services_kernel_src_memory_entities_graphrecall",
-      "services_kernel_src_memory_entities_mergeattrs",
-      "services_kernel_src_memory_entities_namesimilar",
-      "services_kernel_src_memory_entities_preferfuller",
-      "services_kernel_src_memory_entities_recall",
-      "services_kernel_src_memory_entities_relation",
-      "services_kernel_src_memory_entities_sharedcontent",
-      "services_kernel_src_memory_entities_stem",
-      "services_kernel_src_memory_entities_stop_words",
-      "services_kernel_src_memory_entity_tools",
-      "services_kernel_src_memory_entitytools",
-      "services_kernel_src_memory_entitytools_entitymemorytools",
-      "services_kernel_src_memory_entitytools_rendergraphrecall",
-      "services_kernel_src_memory_entitytools_renderneighborhood",
-      "services_kernel_src_memory_entitytools_renderrecall",
-      "services_kernel_test_retrieval_fidelity_test",
-      "services_kernel_test_retrieval_fidelity_test_audit",
-      "services_kernel_test_retrieval_fidelity_test_neighbourfirst",
-      "services_kernel_test_retrieval_fidelity_test_run"
-    ],
-    "24": [
+    "18": [
       "services_kernel_src_cors",
+      "services_kernel_src_gateway_config_parserolepin",
+      "services_kernel_src_gateway_overrides",
+      "services_kernel_src_gateway_overrides_loadroleoverrides",
       "services_kernel_src_gateway_overrides_persistroleoverrides",
+      "services_kernel_src_gateway_overrides_store",
+      "services_kernel_src_gateway_overrides_store_get",
+      "services_kernel_src_gateway_overrides_store_remember",
+      "services_kernel_src_gateway_overrides_storedroleoverrides",
       "services_kernel_src_gateway_router_gatewayrouter",
-      "services_kernel_src_gateway_router_gatewayrouter_audit",
-      "services_kernel_src_gateway_router_gatewayrouter_chat",
-      "services_kernel_src_gateway_router_gatewayrouter_chatstream",
       "services_kernel_src_gateway_router_gatewayrouter_clearroleoverride",
-      "services_kernel_src_gateway_router_gatewayrouter_eligibletargets",
-      "services_kernel_src_gateway_router_gatewayrouter_embed",
       "services_kernel_src_gateway_router_gatewayrouter_isoffline",
       "services_kernel_src_gateway_router_gatewayrouter_overriderole",
       "services_kernel_src_gateway_router_gatewayrouter_overrides",
@@ -1092,17 +896,49 @@
       "services_kernel_src_gateway_routes",
       "services_kernel_src_gateway_routes_chatbodyschema",
       "services_kernel_src_gateway_routes_registergatewayroutes",
-      "services_kernel_src_gateway_schema_chatrequest",
-      "services_kernel_src_gateway_schema_chatresult",
       "services_kernel_src_gateway_schema_modelrole",
+      "services_kernel_src_gateway_schema_modelroles",
+      "services_kernel_src_gateway_tools",
+      "services_kernel_src_gateway_tools_clearrouteargs",
+      "services_kernel_src_gateway_tools_routeargs",
       "services_kernel_test_gateway_overrides_test",
       "services_kernel_test_gateway_overrides_test_config",
       "services_kernel_test_gateway_overrides_test_fakepool",
-      "services_kernel_test_gateway_overrides_test_store",
-      "services_kernel_test_judge_test",
-      "services_kernel_test_judge_test_stubgateway"
+      "services_kernel_test_gateway_overrides_test_store"
     ],
-    "25": [
+    "19": [
+      "services_kernel_src_context_contract",
+      "services_kernel_src_context_contract_commitmentcontext",
+      "services_kernel_src_context_contract_contextprovider",
+      "services_kernel_src_context_contract_contextprovider_get",
+      "services_kernel_src_context_contract_contextsnapshot",
+      "services_kernel_src_context_contract_episodesource",
+      "services_kernel_src_context_contract_episodesource_recentforcontext",
+      "services_kernel_src_context_contract_knowledgesource",
+      "services_kernel_src_context_contract_knowledgesource_recentforcontext",
+      "services_kernel_src_context_contract_knownentity",
+      "services_kernel_src_context_contract_pinnedfact",
+      "services_kernel_src_context_contract_proactivecontext",
+      "services_kernel_src_context_contract_recentepisode",
+      "services_kernel_src_context_service",
+      "services_kernel_src_context_service_contextservice",
+      "services_kernel_src_context_service_contextservice_addprovider",
+      "services_kernel_src_context_service_contextservice_commitments",
+      "services_kernel_src_context_service_contextservice_constructor",
+      "services_kernel_src_context_service_contextservice_describe",
+      "services_kernel_src_context_service_contextservice_knownentities",
+      "services_kernel_src_context_service_contextservice_pinnedfacts",
+      "services_kernel_src_context_service_contextservice_proactive",
+      "services_kernel_src_context_service_contextservice_recentepisodes",
+      "services_kernel_src_context_service_contextservice_snapshot",
+      "services_kernel_src_context_service_partofday",
+      "services_kernel_src_context_service_relativetime",
+      "services_kernel_src_core_untrusted_wraprecalledmemory",
+      "services_kernel_test_context_test",
+      "services_kernel_test_context_test_fakes",
+      "services_kernel_test_context_test_now"
+    ],
+    "20": [
       "apps_command_center_app_page",
       "apps_command_center_app_page_activitycolor",
       "apps_command_center_app_page_activityevent",
@@ -1132,7 +968,7 @@
       "apps_command_center_app_page_systempage_setmcptrust",
       "apps_command_center_app_page_systempage_storesecret"
     ],
-    "26": [
+    "21": [
       "apps_command_center_tsconfig",
       "apps_command_center_tsconfig_compileroptions",
       "apps_command_center_tsconfig_compileroptions_allowjs",
@@ -1162,7 +998,7 @@
       "ref_ts",
       "ref_tsx"
     ],
-    "27": [
+    "22": [
       "docs_requirements_traceability_at1_1",
       "docs_requirements_traceability_at1_10",
       "docs_requirements_traceability_at1_11",
@@ -1192,7 +1028,7 @@
       "services_kernel_claude_policy_engine",
       "services_kernel_claude_registries"
     ],
-    "28": [
+    "23": [
       "docs_verification_longitude_xl_2026_09_01_assert_embeddings_live",
       "docs_verification_longitude_xl_2026_09_01_assert_model_live",
       "docs_verification_longitude_xl_2026_09_01_audit_log",
@@ -1222,7 +1058,7 @@
       "docs_verification_longitude_xl_2026_09_01_schema_migrations",
       "docs_verification_longitude_xl_2026_09_01_supersession_mechanism"
     ],
-    "29": [
+    "24": [
       "apps_companion_src_tauri_tauri_conf",
       "apps_companion_src_tauri_tauri_conf_app",
       "apps_companion_src_tauri_tauri_conf_app_security",
@@ -1251,7 +1087,7 @@
       "ref_icons_icon_icns",
       "ref_icons_icon_png"
     ],
-    "30": [
+    "25": [
       "path",
       "scripts_acceptance_platform",
       "scripts_acceptance_platform_main",
@@ -1280,36 +1116,36 @@
       "scripts_lab_bench_run_rubric",
       "scripts_lab_bench_telemetry"
     ],
-    "31": [
-      "services_kernel_src_lab_bench",
-      "services_kernel_src_lab_bench_exec",
-      "services_kernel_src_lab_bench_pybenchopts",
-      "services_kernel_src_lab_bench_pybenchrunner",
-      "services_kernel_src_lab_bench_pybenchrunner_constructor",
-      "services_kernel_src_lab_bench_pybenchrunner_run",
-      "services_kernel_src_lab_engine",
-      "services_kernel_src_lab_engine_benchgate",
-      "services_kernel_src_lab_engine_benchreport",
-      "services_kernel_src_lab_engine_benchrunner",
-      "services_kernel_src_lab_engine_benchrunner_run",
-      "services_kernel_src_lab_engine_benchscores",
-      "services_kernel_src_lab_engine_episodeslike",
-      "services_kernel_src_lab_engine_episodeslike_record",
-      "services_kernel_src_lab_engine_experimentrow",
-      "services_kernel_src_lab_engine_labengineopts",
-      "services_kernel_src_lab_engine_validatecampaign",
-      "services_kernel_src_lab_surface_lab_settings_surface",
-      "services_kernel_src_lab_surface_labcandidate",
-      "services_kernel_test_lab_test",
-      "services_kernel_test_lab_test_audit",
-      "services_kernel_test_lab_test_auditrows",
-      "services_kernel_test_lab_test_baseline",
-      "services_kernel_test_lab_test_campaign",
-      "services_kernel_test_lab_test_episodes",
-      "services_kernel_test_lab_test_report",
-      "services_kernel_test_lab_test_scriptedrunner"
+    "26": [
+      "services_kernel_src_memory_entities",
+      "services_kernel_src_memory_entities_contentwords",
+      "services_kernel_src_memory_entities_dicecoefficient",
+      "services_kernel_src_memory_entities_entity",
+      "services_kernel_src_memory_entities_entitykind",
+      "services_kernel_src_memory_entities_entitymemory_fuzzycandidates",
+      "services_kernel_src_memory_entities_entitymemory_pickcorrectiontargets",
+      "services_kernel_src_memory_entities_fact",
+      "services_kernel_src_memory_entities_graph_stop",
+      "services_kernel_src_memory_entities_graphneighborhood",
+      "services_kernel_src_memory_entities_graphrecall",
+      "services_kernel_src_memory_entities_namesimilar",
+      "services_kernel_src_memory_entities_recall",
+      "services_kernel_src_memory_entities_relation",
+      "services_kernel_src_memory_entities_sharedcontent",
+      "services_kernel_src_memory_entities_stem",
+      "services_kernel_src_memory_entities_stop_words",
+      "services_kernel_src_memory_entity_tools",
+      "services_kernel_src_memory_entitytools",
+      "services_kernel_src_memory_entitytools_pickpreference",
+      "services_kernel_src_memory_entitytools_preferencehome",
+      "services_kernel_src_memory_entitytools_rendergraphrecall",
+      "services_kernel_src_memory_entitytools_renderneighborhood",
+      "services_kernel_src_memory_entitytools_renderrecall",
+      "services_kernel_src_memory_entitytools_updateindisguise",
+      "services_kernel_src_memory_memory_memoryservice_matchkeys",
+      "services_kernel_src_memory_memory_normalizekeytokens"
     ],
-    "32": [
+    "27": [
       "enum",
       "services_ears_src_jarvis_ears_engines",
       "services_ears_src_jarvis_ears_engines_rationale_1",
@@ -1337,35 +1173,62 @@
       "services_ears_tests_test_turn_taking_test_no_barge_in_when_idle_or_listening",
       "services_ears_tests_test_turn_taking_test_short_cough_does_not_barge_in"
     ],
-    "33": [
-      "services_kernel_src_a2ui_tools",
-      "services_kernel_src_a2ui_tools_a2uitools",
-      "services_kernel_src_autonomy_agenda",
-      "services_kernel_src_autonomy_agenda_agendaitem",
-      "services_kernel_src_autonomy_agenda_agendatools",
-      "services_kernel_src_autonomy_announce_announcetools",
-      "services_kernel_src_autonomy_projects_projecttools",
-      "services_kernel_src_control_tools_computercontroltools",
-      "services_kernel_src_core_estop_emergencystop_load",
-      "services_kernel_src_core_estop_emergencystop_onchange",
-      "services_kernel_src_core_index",
-      "services_kernel_src_core_index_buildcore",
-      "services_kernel_src_core_loop_coreloop_loaddurablegrants",
-      "services_kernel_src_core_tools_recallpreferences_recallpreferencestool",
-      "services_kernel_src_core_tools_rememberpreference_rememberpreferencetool",
-      "services_kernel_src_gateway_tools_gatewaytools",
-      "services_kernel_src_gateway_tools_reasoningtools",
-      "services_kernel_src_knowledge_tools_knowledgetools",
-      "services_kernel_src_memory_episodetools_episodememorytools",
-      "services_kernel_src_memory_judge_seedjudgetemplates",
-      "services_kernel_src_research_tools_researchtools",
-      "services_kernel_src_selfext_activation_activationtools",
-      "services_kernel_src_selfext_activation_authoringtools",
-      "services_kernel_src_settings_tools",
-      "services_kernel_src_settings_tools_settingstools",
-      "services_kernel_src_terminal_tools_terminaltools"
+    "28": [
+      "services_kernel_src_research_contract",
+      "services_kernel_src_research_contract_evidence",
+      "services_kernel_src_research_contract_gatheroptions",
+      "services_kernel_src_research_contract_researcher",
+      "services_kernel_src_research_contract_researcher_checktargets",
+      "services_kernel_src_research_contract_researcher_gather",
+      "services_kernel_src_research_contract_researchfindings",
+      "services_kernel_src_research_contract_sourcestatus",
+      "services_kernel_src_research_contract_targetcheck",
+      "services_kernel_src_research_gather",
+      "services_kernel_src_research_gather_queryterms",
+      "services_kernel_src_research_gather_scorepassages",
+      "services_kernel_src_research_gather_webresearcher",
+      "services_kernel_src_research_gather_webresearcher_checktargets",
+      "services_kernel_src_research_gather_webresearcher_constructor",
+      "services_kernel_src_research_gather_webresearcher_gather",
+      "services_kernel_src_web_contract_webbrowser",
+      "services_kernel_src_web_contract_webbrowser_checktarget",
+      "services_kernel_src_web_contract_webbrowser_click",
+      "services_kernel_src_web_contract_webbrowser_close",
+      "services_kernel_src_web_contract_webbrowser_currenturl",
+      "services_kernel_src_web_contract_webbrowser_fill",
+      "services_kernel_src_web_contract_webbrowser_links",
+      "services_kernel_src_web_contract_webbrowser_open",
+      "services_kernel_src_web_contract_webbrowser_readtext",
+      "services_kernel_src_web_contract_webbrowser_screenshot"
     ],
-    "34": [
+    "29": [
+      "services_kernel_src_gateway_schema_privacyclass",
+      "services_kernel_src_memory_judge",
+      "services_kernel_src_memory_judge_entitycandidate",
+      "services_kernel_src_memory_judge_entityformerge",
+      "services_kernel_src_memory_judge_entitymergegroup",
+      "services_kernel_src_memory_judge_factformerge",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_ask",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_assessagendafreshness",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_constructor",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_enabled",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_extracttopics",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_mergeentities",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_mergefacts",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_resolveentity",
+      "services_kernel_src_memory_judge_gatewaymemoryjudge_template",
+      "services_kernel_src_memory_judge_judgegateway",
+      "services_kernel_src_memory_judge_judgegateway_chat",
+      "services_kernel_src_memory_judge_judgetemplatename",
+      "services_kernel_src_memory_judge_judgetemplateresolver",
+      "services_kernel_src_memory_judge_mergegroup",
+      "services_kernel_src_memory_judge_parsejson",
+      "services_kernel_src_memory_judge_slicespan",
+      "services_kernel_test_entities_test",
+      "services_kernel_test_entities_test_audit"
+    ],
+    "30": [
       "apps_companion_core_src_lib",
       "apps_companion_core_src_lib_engage_estop",
       "apps_companion_core_src_lib_estop_engaged",
@@ -1391,22 +1254,48 @@
       "formatter",
       "option"
     ],
-    "35": [
+    "31": [
+      "bench_campaigns_persona_adherence",
+      "services_kernel_src_lab_bench",
+      "services_kernel_src_lab_bench_exec",
+      "services_kernel_src_lab_bench_pybenchopts",
+      "services_kernel_src_lab_bench_pybenchrunner",
+      "services_kernel_src_lab_bench_pybenchrunner_constructor",
+      "services_kernel_src_lab_bench_pybenchrunner_run",
+      "services_kernel_src_lab_engine",
+      "services_kernel_src_lab_engine_benchgate",
+      "services_kernel_src_lab_engine_benchreport",
+      "services_kernel_src_lab_engine_benchrunner",
+      "services_kernel_src_lab_engine_benchrunner_run",
+      "services_kernel_src_lab_engine_benchscores",
+      "services_kernel_src_lab_engine_episodeslike",
+      "services_kernel_src_lab_engine_episodeslike_record",
+      "services_kernel_src_lab_engine_experimentrow",
+      "services_kernel_src_lab_engine_labengineopts",
+      "services_kernel_src_lab_surface",
+      "services_kernel_src_lab_surface_lab_forbidden_setting_prefixes",
+      "services_kernel_src_lab_surface_lab_prompt_surface",
+      "services_kernel_src_lab_surface_lab_settings_surface",
+      "services_kernel_src_lab_surface_labcandidate",
+      "services_kernel_src_lab_surface_labpromptsurface",
+      "services_kernel_src_lab_surface_surfaceverdict"
+    ],
+    "32": [
+      "services_kernel_src_a2ui_registry_a2uiregistry",
+      "services_kernel_src_a2ui_registry_a2uiregistry_create",
+      "services_kernel_src_a2ui_registry_a2uiregistry_get",
+      "services_kernel_src_a2ui_registry_a2uiregistry_list",
       "services_kernel_src_a2ui_registry_a2uiregistry_prunesetting",
       "services_kernel_src_a2ui_registry_a2uiregistry_remove",
-      "services_kernel_src_autonomy_agenda_agenda",
-      "services_kernel_src_autonomy_agenda_agenda_add",
-      "services_kernel_src_autonomy_agenda_agenda_constructor",
-      "services_kernel_src_autonomy_agenda_agenda_due",
-      "services_kernel_src_autonomy_agenda_agenda_hydrate",
-      "services_kernel_src_autonomy_agenda_agenda_list",
-      "services_kernel_src_autonomy_agenda_agenda_resolve",
-      "services_kernel_src_core_approvals_approvalbroker_denyall",
-      "services_kernel_src_core_approvals_approvalbroker_resolve",
+      "services_kernel_src_a2ui_registry_a2uiregistry_validate",
       "services_kernel_src_core_audit_auditlog_append",
-      "services_kernel_src_core_audit_redactsecrets",
       "services_kernel_src_core_estop_emergencystop_engage",
       "services_kernel_src_core_estop_emergencystop_resume",
+      "services_kernel_src_devices_interlock_interlockmanager",
+      "services_kernel_src_devices_interlock_interlockmanager_arm",
+      "services_kernel_src_devices_interlock_interlockmanager_constructor",
+      "services_kernel_src_devices_interlock_interlockmanager_consume",
+      "services_kernel_src_devices_interlock_interlockmanager_isarmed",
       "services_kernel_src_prompts_registry_promptregistry",
       "services_kernel_src_prompts_registry_promptregistry_activate",
       "services_kernel_src_prompts_registry_promptregistry_activepersonaor",
@@ -1417,58 +1306,33 @@
       "services_kernel_src_prompts_registry_promptregistry_remove",
       "services_kernel_src_prompts_registry_promptregistry_set"
     ],
-    "36": [
-      "services_kernel_src_memory_entities_assertnotsecret",
-      "services_kernel_src_memory_entities_entitymemory",
-      "services_kernel_src_memory_entities_entitymemory_constructor",
-      "services_kernel_src_memory_entities_entitymemory_correctfact",
-      "services_kernel_src_memory_entities_entitymemory_correctiontargets",
-      "services_kernel_src_memory_entities_entitymemory_dec",
-      "services_kernel_src_memory_entities_entitymemory_enc",
-      "services_kernel_src_memory_entities_entitymemory_ensureentity",
-      "services_kernel_src_memory_entities_entitymemory_factbyid",
-      "services_kernel_src_memory_entities_entitymemory_findentity",
-      "services_kernel_src_memory_entities_entitymemory_hydrateentity",
-      "services_kernel_src_memory_entities_entitymemory_hydratefact",
-      "services_kernel_src_memory_entities_entitymemory_hydraterelation",
-      "services_kernel_src_memory_entities_entitymemory_listentities",
-      "services_kernel_src_memory_entities_entitymemory_pickcorrectiontargets",
-      "services_kernel_src_memory_entities_entitymemory_recall",
-      "services_kernel_src_memory_entities_entitymemory_recentforcontext",
-      "services_kernel_src_memory_entities_entitymemory_relate",
-      "services_kernel_src_memory_entities_entitymemory_rememberentity",
-      "services_kernel_src_memory_entities_entitymemory_rememberfact",
-      "services_kernel_src_memory_entities_entitymemory_traverse",
-      "services_kernel_src_memory_semantic_semanticmemory_index",
-      "services_kernel_test_graph_test_seedchain",
-      "services_kernel_test_retrieval_fidelity_test_seedvendors"
+    "33": [
+      "services_kernel_src_core_tools_recallpreferences",
+      "services_kernel_src_core_tools_recallpreferences_recallargs",
+      "services_kernel_src_core_tools_recallpreferences_recallpreferencestool",
+      "services_kernel_src_memory_memory",
+      "services_kernel_src_memory_memory_assertnotsecret",
+      "services_kernel_src_memory_memory_key_filler",
+      "services_kernel_src_memory_memory_memoryservice",
+      "services_kernel_src_memory_memory_memoryservice_addturn",
+      "services_kernel_src_memory_memory_memoryservice_constructor",
+      "services_kernel_src_memory_memory_memoryservice_conversation",
+      "services_kernel_src_memory_memory_memoryservice_correct",
+      "services_kernel_src_memory_memory_memoryservice_decfield",
+      "services_kernel_src_memory_memory_memoryservice_delete",
+      "services_kernel_src_memory_memory_memoryservice_encfield",
+      "services_kernel_src_memory_memory_memoryservice_get",
+      "services_kernel_src_memory_memory_memoryservice_list",
+      "services_kernel_src_memory_memory_memoryservice_remember",
+      "services_kernel_src_memory_memory_memoryservice_search",
+      "services_kernel_src_memory_memory_memoryservice_tidyduplicates",
+      "services_kernel_src_memory_memory_preference",
+      "services_kernel_test_longitude_fixes_test",
+      "services_kernel_test_longitude_fixes_test_audit",
+      "services_kernel_test_memory_test",
+      "services_kernel_test_memory_test_audit"
     ],
-    "37": [
-      "services_kernel_src_gateway_schema_privacyclass",
-      "services_kernel_src_memory_judge",
-      "services_kernel_src_memory_judge_entitycandidate",
-      "services_kernel_src_memory_judge_entityformerge",
-      "services_kernel_src_memory_judge_entitymergegroup",
-      "services_kernel_src_memory_judge_factformerge",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_ask",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_assessagendafreshness",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_constructor",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_enabled",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_extracttopics",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_mergeentities",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_mergefacts",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_resolveentity",
-      "services_kernel_src_memory_judge_gatewaymemoryjudge_template",
-      "services_kernel_src_memory_judge_judgegateway",
-      "services_kernel_src_memory_judge_judgegateway_chat",
-      "services_kernel_src_memory_judge_judgetemplatename",
-      "services_kernel_src_memory_judge_judgetemplateresolver",
-      "services_kernel_src_memory_judge_mergegroup",
-      "services_kernel_src_memory_judge_parsejson",
-      "services_kernel_src_memory_judge_slicespan"
-    ],
-    "38": [
+    "34": [
       "services_kernel_src_lab_apply",
       "services_kernel_src_lab_apply_announcerlike",
       "services_kernel_src_lab_apply_announcerlike_raise",
@@ -1493,81 +1357,107 @@
       "services_kernel_test_labapply_test_audit",
       "services_kernel_test_labapply_test_seedkept"
     ],
+    "35": [
+      "services_kernel_src_memory_entities_assertnotsecret",
+      "services_kernel_src_memory_entities_entitymemory",
+      "services_kernel_src_memory_entities_entitymemory_constructor",
+      "services_kernel_src_memory_entities_entitymemory_correctfact",
+      "services_kernel_src_memory_entities_entitymemory_correctiontargets",
+      "services_kernel_src_memory_entities_entitymemory_dec",
+      "services_kernel_src_memory_entities_entitymemory_enc",
+      "services_kernel_src_memory_entities_entitymemory_ensureentity",
+      "services_kernel_src_memory_entities_entitymemory_factbyid",
+      "services_kernel_src_memory_entities_entitymemory_findentity",
+      "services_kernel_src_memory_entities_entitymemory_hydrateentity",
+      "services_kernel_src_memory_entities_entitymemory_hydratefact",
+      "services_kernel_src_memory_entities_entitymemory_hydraterelation",
+      "services_kernel_src_memory_entities_entitymemory_listentities",
+      "services_kernel_src_memory_entities_entitymemory_recall",
+      "services_kernel_src_memory_entities_entitymemory_recentforcontext",
+      "services_kernel_src_memory_entities_entitymemory_relate",
+      "services_kernel_src_memory_entities_entitymemory_rememberentity",
+      "services_kernel_src_memory_entities_entitymemory_rememberfact",
+      "services_kernel_src_memory_entities_entitymemory_traverse",
+      "services_kernel_src_memory_semantic_semanticmemory_index",
+      "services_kernel_test_graph_test_seedchain",
+      "services_kernel_test_retrieval_fidelity_test_seedvendors"
+    ],
+    "36": [
+      "services_kernel_src_memory_episodes_episodicmemory_constructor",
+      "services_kernel_src_memory_semantic",
+      "services_kernel_src_memory_semantic_embedfn",
+      "services_kernel_src_memory_semantic_semantichit",
+      "services_kernel_src_memory_semantic_semanticmemory",
+      "services_kernel_src_memory_semantic_semanticmemory_available",
+      "services_kernel_src_memory_semantic_semanticmemory_constructor",
+      "services_kernel_src_memory_semantic_semanticmemory_count",
+      "services_kernel_src_memory_semantic_semanticmemory_search",
+      "services_kernel_src_memory_semantic_semanticsource",
+      "services_kernel_src_memory_semantic_tovectorliteral",
+      "services_kernel_test_graph_test",
+      "services_kernel_test_graph_test_audit",
+      "services_kernel_test_graph_test_embed",
+      "services_kernel_test_graph_test_hashembed",
+      "services_kernel_test_retrieval_fidelity_test",
+      "services_kernel_test_retrieval_fidelity_test_audit",
+      "services_kernel_test_retrieval_fidelity_test_neighbourfirst",
+      "services_kernel_test_retrieval_fidelity_test_run",
+      "services_kernel_test_semantic_test",
+      "services_kernel_test_semantic_test_audit",
+      "services_kernel_test_semantic_test_embed",
+      "services_kernel_test_semantic_test_hashembed"
+    ],
+    "37": [
+      "services_kernel_src_gateway_provider",
+      "services_kernel_src_gateway_provider_provideradapter",
+      "services_kernel_src_gateway_provider_provideradapter_chatstream",
+      "services_kernel_src_gateway_provider_provideradapter_embed",
+      "services_kernel_src_gateway_provider_provideradapter_ping",
+      "services_kernel_src_gateway_provider_providererror",
+      "services_kernel_src_gateway_provider_providererror_constructor",
+      "services_kernel_src_gateway_providers_anthropic",
+      "services_kernel_src_gateway_providers_anthropic_buildtoolnamemap",
+      "services_kernel_src_gateway_providers_anthropic_thinkingfield",
+      "services_kernel_src_gateway_providers_anthropic_toanthropicpayload",
+      "services_kernel_src_gateway_providers_ollama",
+      "services_kernel_src_gateway_providers_ollama_ollamamessage",
+      "services_kernel_src_gateway_providers_ollama_thinkfield",
+      "services_kernel_src_gateway_providers_ollama_toollamamessages",
+      "services_kernel_src_gateway_providers_openaicompat",
+      "services_kernel_src_gateway_providers_openaicompat_reasoningeffort",
+      "services_kernel_src_gateway_providers_openaicompat_toopenaimessages",
+      "services_kernel_src_gateway_schema_chatevent",
+      "services_kernel_src_gateway_schema_neutralmessage",
+      "services_kernel_src_gateway_schema_targetoptions",
+      "services_kernel_src_gateway_schema_toolcall"
+    ],
+    "38": [
+      "services_kernel_src_memory_episodes",
+      "services_kernel_src_memory_episodes_episode",
+      "services_kernel_src_memory_episodes_episodekind",
+      "services_kernel_src_memory_episodes_episodicmemory",
+      "services_kernel_src_memory_episodes_episodicmemory_autolink",
+      "services_kernel_src_memory_episodes_episodicmemory_dec",
+      "services_kernel_src_memory_episodes_episodicmemory_enc",
+      "services_kernel_src_memory_episodes_episodicmemory_hydrate",
+      "services_kernel_src_memory_episodes_episodicmemory_recall",
+      "services_kernel_src_memory_episodes_episodicmemory_recentforcontext",
+      "services_kernel_src_memory_episodes_episodicmemory_record",
+      "services_kernel_src_memory_episodes_episodicmemory_resolveentity",
+      "services_kernel_src_memory_episodes_episodicmemory_semanticrecall",
+      "services_kernel_src_memory_episodes_episodicmemory_timeline",
+      "services_kernel_src_memory_episodes_kinds",
+      "services_kernel_src_memory_episodes_normalizekind",
+      "services_kernel_src_memory_episodes_recalloptions",
+      "services_kernel_src_memory_memory_epistemicstatus",
+      "services_kernel_src_memory_memory_sensitivity",
+      "services_kernel_src_memory_routes",
+      "services_kernel_test_episodes_test",
+      "services_kernel_test_episodes_test_audit"
+    ],
     "39": [
-      "services_kernel_src_terminal_contract",
-      "services_kernel_src_terminal_contract_commandresult",
-      "services_kernel_src_terminal_contract_provenance",
-      "services_kernel_src_terminal_contract_runoptions",
-      "services_kernel_src_terminal_contract_terminalrunner",
-      "services_kernel_src_terminal_contract_terminalrunner_resolvecwd",
-      "services_kernel_src_terminal_contract_terminalrunner_run",
-      "services_kernel_src_terminal_policy",
-      "services_kernel_src_terminal_policy_assesscommand",
-      "services_kernel_src_terminal_policy_assessment",
-      "services_kernel_src_terminal_policy_deny",
-      "services_kernel_src_terminal_policy_read_only",
-      "services_kernel_src_terminal_policy_verdict",
-      "services_kernel_src_terminal_runner",
-      "services_kernel_src_terminal_runner_localterminal",
-      "services_kernel_src_terminal_runner_localterminal_constructor",
-      "services_kernel_src_terminal_runner_localterminal_resolvecwd",
-      "services_kernel_src_terminal_runner_localterminal_run",
-      "services_kernel_src_terminal_test_terminal_test",
-      "services_kernel_src_terminal_tools",
-      "services_kernel_src_terminal_tools_terminal_inspect",
-      "services_kernel_src_terminal_tools_terminal_run",
-      "services_kernel_src_terminal_tools_toolresult"
-    ],
-    "40": [
-      "services_kernel_src_gateway_config",
-      "services_kernel_src_gateway_config_env_default_kinds",
-      "services_kernel_src_gateway_config_loadgatewayconfig",
-      "services_kernel_src_gateway_config_non_generative_roles",
-      "services_kernel_src_gateway_config_parserolepin",
-      "services_kernel_src_gateway_config_resolvegatewayconfig",
-      "services_kernel_src_gateway_overrides",
-      "services_kernel_src_gateway_overrides_loadroleoverrides",
-      "services_kernel_src_gateway_overrides_store",
-      "services_kernel_src_gateway_overrides_store_get",
-      "services_kernel_src_gateway_overrides_store_remember",
-      "services_kernel_src_gateway_overrides_storedroleoverrides",
-      "services_kernel_src_gateway_schema_effortlevel",
-      "services_kernel_src_gateway_schema_effortlevels",
-      "services_kernel_src_gateway_schema_gatewayconfigschema",
-      "services_kernel_src_gateway_schema_modelroles",
-      "services_kernel_src_gateway_tools",
-      "services_kernel_src_gateway_tools_clearrouteargs",
-      "services_kernel_src_gateway_tools_routeargs",
-      "services_kernel_src_gateway_tools_store",
-      "services_kernel_src_gateway_tools_store_get",
-      "services_kernel_src_gateway_tools_store_remember"
-    ],
-    "41": [
-      "services_kernel_src_a2ui_registry",
-      "services_kernel_src_a2ui_registry_a2uipanel",
-      "services_kernel_src_a2ui_registry_a2uiregistry",
-      "services_kernel_src_a2ui_registry_a2uiregistry_create",
-      "services_kernel_src_a2ui_registry_a2uiregistry_get",
-      "services_kernel_src_a2ui_registry_a2uiregistry_list",
-      "services_kernel_src_a2ui_registry_a2uiregistry_validate",
-      "services_kernel_src_a2ui_schema",
-      "services_kernel_src_a2ui_schema_a2uicomponent",
-      "services_kernel_src_a2ui_schema_a2uicomponentschema",
-      "services_kernel_src_a2ui_schema_a2uispec",
-      "services_kernel_src_a2ui_schema_a2uispecschema",
-      "services_kernel_src_a2ui_schema_action",
-      "services_kernel_src_a2ui_schema_heading",
-      "services_kernel_src_a2ui_schema_setting",
-      "services_kernel_src_a2ui_schema_settingsgroup",
-      "services_kernel_src_a2ui_schema_text",
-      "services_kernel_src_a2ui_schema_validatereferences",
-      "services_kernel_test_a2ui_test",
-      "services_kernel_test_a2ui_test_audit",
-      "services_kernel_test_a2ui_test_settings"
-    ],
-    "42": [
-      "services_kernel_src_core_activity_actiondisclosure",
-      "services_kernel_src_core_tools_tool_disclose",
+      "services_kernel_src_crypto_secrets",
+      "services_kernel_src_crypto_secrets_secretinfo",
       "services_kernel_src_mcp_client",
       "services_kernel_src_mcp_client_hashtools",
       "services_kernel_src_mcp_client_mcpclienthost",
@@ -1588,97 +1478,30 @@
       "services_kernel_test_mcp_test_clients",
       "services_kernel_test_mcp_test_serverpath"
     ],
-    "43": [
-      "services_kernel_src_crypto_vault_vault_encrypt",
-      "services_kernel_src_memory_memory_assertnotsecret",
-      "services_kernel_src_memory_memory_memoryservice",
-      "services_kernel_src_memory_memory_memoryservice_addturn",
-      "services_kernel_src_memory_memory_memoryservice_constructor",
-      "services_kernel_src_memory_memory_memoryservice_conversation",
-      "services_kernel_src_memory_memory_memoryservice_correct",
-      "services_kernel_src_memory_memory_memoryservice_decfield",
-      "services_kernel_src_memory_memory_memoryservice_delete",
-      "services_kernel_src_memory_memory_memoryservice_encfield",
-      "services_kernel_src_memory_memory_memoryservice_export",
-      "services_kernel_src_memory_memory_memoryservice_forget",
-      "services_kernel_src_memory_memory_memoryservice_get",
-      "services_kernel_src_memory_memory_memoryservice_list",
-      "services_kernel_src_memory_memory_memoryservice_matchkeys",
-      "services_kernel_src_memory_memory_memoryservice_pin",
-      "services_kernel_src_memory_memory_memoryservice_remember",
-      "services_kernel_src_memory_memory_memoryservice_search",
-      "services_kernel_src_memory_memory_memoryservice_tidyduplicates",
-      "services_kernel_src_memory_memory_normalizekeytokens",
-      "services_kernel_src_memory_routes_registermemoryroutes"
+    "40": [
+      "services_kernel_src_terminal_contract",
+      "services_kernel_src_terminal_contract_commandresult",
+      "services_kernel_src_terminal_contract_provenance",
+      "services_kernel_src_terminal_contract_runoptions",
+      "services_kernel_src_terminal_contract_terminalrunner",
+      "services_kernel_src_terminal_contract_terminalrunner_resolvecwd",
+      "services_kernel_src_terminal_contract_terminalrunner_run",
+      "services_kernel_src_terminal_policy",
+      "services_kernel_src_terminal_policy_assesscommand",
+      "services_kernel_src_terminal_policy_assessment",
+      "services_kernel_src_terminal_policy_deny",
+      "services_kernel_src_terminal_policy_read_only",
+      "services_kernel_src_terminal_policy_verdict",
+      "services_kernel_src_terminal_runner",
+      "services_kernel_src_terminal_runner_localterminal",
+      "services_kernel_src_terminal_runner_localterminal_constructor",
+      "services_kernel_src_terminal_runner_localterminal_resolvecwd",
+      "services_kernel_src_terminal_runner_localterminal_run",
+      "services_kernel_src_terminal_test_terminal_test",
+      "services_kernel_src_terminal_tools_terminal_inspect",
+      "services_kernel_src_terminal_tools_terminal_run"
     ],
-    "44": [
-      "services_kernel_src_memory_entities_entitymemory_recallgraph",
-      "services_kernel_src_memory_entities_identitymatch",
-      "services_kernel_src_memory_episodes_episodicmemory_constructor",
-      "services_kernel_src_memory_semantic",
-      "services_kernel_src_memory_semantic_embedfn",
-      "services_kernel_src_memory_semantic_semantichit",
-      "services_kernel_src_memory_semantic_semanticmemory",
-      "services_kernel_src_memory_semantic_semanticmemory_available",
-      "services_kernel_src_memory_semantic_semanticmemory_constructor",
-      "services_kernel_src_memory_semantic_semanticmemory_count",
-      "services_kernel_src_memory_semantic_semanticmemory_search",
-      "services_kernel_src_memory_semantic_semanticsource",
-      "services_kernel_src_memory_semantic_tovectorliteral",
-      "services_kernel_test_graph_test",
-      "services_kernel_test_graph_test_audit",
-      "services_kernel_test_graph_test_embed",
-      "services_kernel_test_graph_test_hashembed",
-      "services_kernel_test_semantic_test",
-      "services_kernel_test_semantic_test_audit",
-      "services_kernel_test_semantic_test_embed",
-      "services_kernel_test_semantic_test_hashembed"
-    ],
-    "45": [
-      "services_kernel_src_gateway_config_default_gateway_config",
-      "services_kernel_src_gateway_providers_anthropic_createanthropicadapter",
-      "services_kernel_src_gateway_providers_ollama_createollamaadapter",
-      "services_kernel_src_gateway_providers_openaicompat_createopenaicompatadapter",
-      "services_kernel_src_gateway_router_gatewayrouter_constructor",
-      "services_kernel_src_gateway_schema_gatewayconfig",
-      "services_kernel_test_anthropic_adapter_test",
-      "services_kernel_test_anthropic_adapter_test_adapter",
-      "services_kernel_test_anthropic_adapter_test_bodies",
-      "services_kernel_test_anthropic_adapter_test_drain",
-      "services_kernel_test_anthropic_adapter_test_req",
-      "services_kernel_test_anthropic_adapter_test_tool",
-      "services_kernel_test_gateway_secrets_test",
-      "services_kernel_test_gateway_secrets_test_captured",
-      "services_kernel_test_gateway_secrets_test_mockfetch",
-      "services_kernel_test_translator_test",
-      "services_kernel_test_translator_test_bodies",
-      "services_kernel_test_translator_test_drain",
-      "services_kernel_test_translator_test_req",
-      "services_kernel_test_translator_test_stubfetch"
-    ],
-    "46": [
-      "services_kernel_src_memory_episodes",
-      "services_kernel_src_memory_episodes_episode",
-      "services_kernel_src_memory_episodes_episodekind",
-      "services_kernel_src_memory_episodes_episodicmemory",
-      "services_kernel_src_memory_episodes_episodicmemory_autolink",
-      "services_kernel_src_memory_episodes_episodicmemory_dec",
-      "services_kernel_src_memory_episodes_episodicmemory_enc",
-      "services_kernel_src_memory_episodes_episodicmemory_hydrate",
-      "services_kernel_src_memory_episodes_episodicmemory_recall",
-      "services_kernel_src_memory_episodes_episodicmemory_recentforcontext",
-      "services_kernel_src_memory_episodes_episodicmemory_record",
-      "services_kernel_src_memory_episodes_episodicmemory_resolveentity",
-      "services_kernel_src_memory_episodes_episodicmemory_semanticrecall",
-      "services_kernel_src_memory_episodes_episodicmemory_timeline",
-      "services_kernel_src_memory_episodes_kinds",
-      "services_kernel_src_memory_episodes_normalizekind",
-      "services_kernel_src_memory_episodes_recalloptions",
-      "services_kernel_src_memory_memory_epistemicstatus",
-      "services_kernel_src_memory_memory_sensitivity",
-      "services_kernel_src_memory_routes"
-    ],
-    "47": [
+    "41": [
       "docs_verification_retrieval_fidelity_s3_manual_sonnet5",
       "docs_verification_retrieval_fidelity_s3_manual_sonnet5_c1",
       "docs_verification_retrieval_fidelity_s3_manual_sonnet5_c1b",
@@ -1699,7 +1522,7 @@
       "docs_verification_retrieval_fidelity_s3_manual_sonnet5_topics_delete_endpoint",
       "docs_verification_retrieval_fidelity_s3_manual_sonnet5_topics_preference"
     ],
-    "48": [
+    "42": [
       "services_ears_src_jarvis_ears_engines_py_ndarray",
       "services_ears_src_jarvis_ears_engines_py_protocol",
       "services_ears_src_jarvis_ears_engines_rationale_28",
@@ -1720,28 +1543,28 @@
       "services_ears_src_jarvis_ears_engines_wakewordengine_push",
       "services_ears_src_jarvis_ears_engines_wakewordengine_reset"
     ],
-    "49": [
-      "services_kernel_src_lab_engine_campaignspec",
-      "services_kernel_src_lab_night",
-      "services_kernel_src_lab_night_announcerlike",
-      "services_kernel_src_lab_night_announcerlike_raise",
-      "services_kernel_src_lab_night_append",
-      "services_kernel_src_lab_night_gatewaylike",
-      "services_kernel_src_lab_night_gatewaylike_chat",
-      "services_kernel_src_lab_night_labnightdeps",
-      "services_kernel_src_lab_night_nightsummary",
-      "services_kernel_src_lab_night_overlayonsurface",
-      "services_kernel_src_lab_night_settingslike",
-      "services_kernel_src_lab_night_settingslike_bool",
-      "services_kernel_src_lab_night_settingslike_str",
-      "services_kernel_src_lab_night_surfacesnapshot",
-      "services_kernel_src_lab_researcher",
-      "services_kernel_src_lab_researcher_gatewaylike",
-      "services_kernel_src_lab_researcher_gatewaylike_chat",
-      "services_kernel_src_lab_researcher_generatecandidate",
-      "services_kernel_src_lab_researcher_parsejson"
+    "43": [
+      "services_kernel_src_settings_registry_settingspec",
+      "services_kernel_src_settings_registry_settingsregistry",
+      "services_kernel_src_settings_registry_settingsregistry_bool",
+      "services_kernel_src_settings_registry_settingsregistry_constructor",
+      "services_kernel_src_settings_registry_settingsregistry_effective",
+      "services_kernel_src_settings_registry_settingsregistry_get",
+      "services_kernel_src_settings_registry_settingsregistry_init",
+      "services_kernel_src_settings_registry_settingsregistry_notify",
+      "services_kernel_src_settings_registry_settingsregistry_notifyremove",
+      "services_kernel_src_settings_registry_settingsregistry_onchange",
+      "services_kernel_src_settings_registry_settingsregistry_onremove",
+      "services_kernel_src_settings_registry_settingsregistry_origin",
+      "services_kernel_src_settings_registry_settingsregistry_override",
+      "services_kernel_src_settings_registry_settingsregistry_remove",
+      "services_kernel_src_settings_registry_settingsregistry_reset",
+      "services_kernel_src_settings_registry_settingsregistry_row",
+      "services_kernel_src_settings_registry_settingsregistry_set",
+      "services_kernel_src_settings_registry_settingsregistry_str",
+      "services_kernel_src_settings_registry_validate"
     ],
-    "50": [
+    "44": [
       "services_ears_src_jarvis_ears_engines_wakeevent",
       "services_ears_src_jarvis_ears_wake_openwakeword",
       "services_ears_src_jarvis_ears_wake_openwakeword_openwakeword",
@@ -1761,7 +1584,27 @@
       "services_ears_src_jarvis_ears_wake_sherpa_sherpakeywordwake_reset",
       "services_ears_tests_test_engines_wake"
     ],
-    "51": [
+    "45": [
+      "services_kernel_src_selfext_activation",
+      "services_kernel_src_selfext_activation_activationcheck",
+      "services_kernel_src_selfext_activation_risk_order",
+      "services_kernel_src_selfext_activation_steprunner",
+      "services_kernel_src_selfext_activation_steprunner_runtool",
+      "services_kernel_src_selfext_guard_capabilityguard",
+      "services_kernel_src_selfext_guard_capabilityguard_constructor",
+      "services_kernel_src_selfext_protected_compositionstep",
+      "services_kernel_src_selfext_registry",
+      "services_kernel_src_selfext_registry_capabilitystate",
+      "services_kernel_src_selfext_stagea",
+      "services_kernel_src_selfext_stagea_stageapipeline",
+      "services_kernel_src_selfext_stagea_stageapipeline_constructor",
+      "services_kernel_test_activation_test",
+      "services_kernel_test_activation_test_activationwith",
+      "services_kernel_test_activation_test_audit",
+      "services_kernel_test_activation_test_seededtools",
+      "services_kernel_test_activation_test_stub"
+    ],
+    "46": [
       "agent_run_endpoint",
       "defect_b_two_homes",
       "defect_tool_choice_miss",
@@ -1780,7 +1623,7 @@
       "s4_minilife_script",
       "spec_5_3"
     ],
-    "52": [
+    "47": [
       "scripts_longitude_sim",
       "scripts_longitude_sim_agent",
       "scripts_longitude_sim_converse",
@@ -1799,26 +1642,63 @@
       "scripts_longitude_sim_shift_world_one_day",
       "scripts_longitude_sim_snapshot"
     ],
-    "53": [
-      "services_kernel_src_autonomy_announce_announcer",
-      "services_kernel_src_autonomy_announce_announcer_constructor",
-      "services_kernel_src_autonomy_announce_announcer_dismiss",
-      "services_kernel_src_autonomy_announce_announcer_hydrate",
-      "services_kernel_src_autonomy_announce_announcer_inquiethours",
-      "services_kernel_src_autonomy_announce_announcer_list",
-      "services_kernel_src_autonomy_announce_announcer_markdelivered",
-      "services_kernel_src_autonomy_announce_announcer_pending",
-      "services_kernel_src_autonomy_announce_announcer_raise",
-      "services_kernel_src_core_activity_activitybus_emit",
-      "services_kernel_src_settings_registry_settingsregistry_num",
-      "services_kernel_test_announce_test",
-      "services_kernel_test_announce_test_activity",
-      "services_kernel_test_announce_test_audit",
-      "services_kernel_test_announce_test_day",
-      "services_kernel_test_announce_test_night",
-      "services_kernel_test_announce_test_settings"
+    "48": [
+      "services_kernel_src_crypto_kek",
+      "services_kernel_src_crypto_kek_exec",
+      "services_kernel_src_crypto_kek_randomkek",
+      "services_kernel_src_crypto_kek_resolvekek",
+      "services_kernel_src_crypto_vault_vault_kekfromenv",
+      "services_kernel_src_index",
+      "services_kernel_src_index_app",
+      "services_kernel_src_index_config",
+      "services_kernel_src_index_gateway",
+      "services_kernel_src_index_here",
+      "services_kernel_src_index_keyfile",
+      "services_kernel_src_index_migrationsdir",
+      "services_kernel_src_index_pkg",
+      "services_kernel_src_index_pool",
+      "services_kernel_src_index_secrets",
+      "services_kernel_src_index_shutdown",
+      "services_kernel_src_index_startedat"
     ],
-    "54": [
+    "49": [
+      "services_kernel_src_gateway_config",
+      "services_kernel_src_gateway_config_default_gateway_config",
+      "services_kernel_src_gateway_config_env_default_kinds",
+      "services_kernel_src_gateway_config_loadgatewayconfig",
+      "services_kernel_src_gateway_config_non_generative_roles",
+      "services_kernel_src_gateway_config_resolvegatewayconfig",
+      "services_kernel_src_gateway_providers_ollama_createollamaadapter",
+      "services_kernel_src_gateway_router_gatewayrouter_constructor",
+      "services_kernel_src_gateway_schema_effortlevel",
+      "services_kernel_src_gateway_schema_effortlevels",
+      "services_kernel_src_gateway_schema_gatewayconfig",
+      "services_kernel_src_gateway_schema_gatewayconfigschema",
+      "services_kernel_test_translator_test",
+      "services_kernel_test_translator_test_bodies",
+      "services_kernel_test_translator_test_drain",
+      "services_kernel_test_translator_test_req",
+      "services_kernel_test_translator_test_stubfetch"
+    ],
+    "50": [
+      "services_kernel_src_autonomy_projects_projects_constructor",
+      "services_kernel_src_crypto_vault",
+      "services_kernel_src_crypto_vault_gcmdecrypt",
+      "services_kernel_src_crypto_vault_gcmencrypt",
+      "services_kernel_src_crypto_vault_safeequal",
+      "services_kernel_src_crypto_vault_vault",
+      "services_kernel_src_crypto_vault_vault_constructor",
+      "services_kernel_src_crypto_vault_vault_decrypt",
+      "services_kernel_src_crypto_vault_vault_isciphertext",
+      "services_kernel_src_crypto_vault_vault_open",
+      "services_kernel_src_crypto_vault_wrap_info",
+      "services_kernel_test_secrets_test",
+      "services_kernel_test_secrets_test_audit",
+      "services_kernel_test_secrets_test_auditpayloads",
+      "services_kernel_test_secrets_test_makevault",
+      "services_kernel_test_vault_test"
+    ],
+    "51": [
       "concept_d0050_plasma_containment",
       "concept_d0052_pin_negotiation",
       "docs_verification_longitude_2026_08_30_day29_finding",
@@ -1835,7 +1715,7 @@
       "jarvis_life_reasoning_decisions",
       "jarvis_life_schema_migrations"
     ],
-    "55": [
+    "52": [
       "defect_a_similarity_beats_identity",
       "defect_b_update_coherence",
       "defect_c_generic_term_promotion",
@@ -1852,7 +1732,7 @@
       "slice_s3_judge_confirmed_promotion",
       "slice_s4_route_agnostic_correction"
     ],
-    "56": [
+    "53": [
       "docs_implementation_plan_d0038",
       "docs_verification_full_evidence_2026_08_29_d0023",
       "docs_verification_full_evidence_2026_08_29_d0024",
@@ -1869,7 +1749,7 @@
       "docs_verification_full_evidence_2026_08_29_genealogy",
       "docs_verification_full_evidence_2026_08_29_platform_acceptance_harness"
     ],
-    "57": [
+    "54": [
       "ref_es2023",
       "tsconfig_base",
       "tsconfig_base_compileroptions",
@@ -1886,40 +1766,74 @@
       "tsconfig_base_compileroptions_strict",
       "tsconfig_base_compileroptions_target"
     ],
+    "55": [
+      "services_kernel_src_autonomy_announce_announcer",
+      "services_kernel_src_autonomy_announce_announcer_constructor",
+      "services_kernel_src_autonomy_announce_announcer_dismiss",
+      "services_kernel_src_autonomy_announce_announcer_hydrate",
+      "services_kernel_src_autonomy_announce_announcer_inquiethours",
+      "services_kernel_src_autonomy_announce_announcer_list",
+      "services_kernel_src_autonomy_announce_announcer_markdelivered",
+      "services_kernel_src_autonomy_announce_announcer_pending",
+      "services_kernel_src_settings_registry_settingsregistry_num",
+      "services_kernel_test_announce_test",
+      "services_kernel_test_announce_test_activity",
+      "services_kernel_test_announce_test_audit",
+      "services_kernel_test_announce_test_day",
+      "services_kernel_test_announce_test_night",
+      "services_kernel_test_announce_test_settings"
+    ],
+    "56": [
+      "services_kernel_src_core_grants",
+      "services_kernel_src_core_grants_durablegrantrow",
+      "services_kernel_src_core_grants_durablegrants",
+      "services_kernel_src_core_grants_durablegrants_constructor",
+      "services_kernel_src_core_grants_durablegrants_list",
+      "services_kernel_src_core_grants_durablegrants_load",
+      "services_kernel_src_core_grants_durablegrants_remember",
+      "services_kernel_src_core_grants_durablegrants_revoke",
+      "services_kernel_src_core_policy_grant",
+      "services_kernel_src_core_policy_riskclass",
+      "services_kernel_test_autonomy_test",
+      "services_kernel_test_autonomy_test_audit",
+      "services_kernel_test_autonomy_test_fakesettings",
+      "services_kernel_test_autonomy_test_isengaged",
+      "services_kernel_test_autonomy_test_makescheduler"
+    ],
+    "57": [
+      "services_kernel_src_lab_engine_campaignspec",
+      "services_kernel_src_lab_engine_validatecampaign",
+      "services_kernel_src_lab_researcher",
+      "services_kernel_src_lab_researcher_gatewaylike",
+      "services_kernel_src_lab_researcher_gatewaylike_chat",
+      "services_kernel_src_lab_researcher_generatecandidate",
+      "services_kernel_src_lab_researcher_parsejson",
+      "services_kernel_test_lab_test",
+      "services_kernel_test_lab_test_audit",
+      "services_kernel_test_lab_test_auditrows",
+      "services_kernel_test_lab_test_baseline",
+      "services_kernel_test_lab_test_campaign",
+      "services_kernel_test_lab_test_episodes",
+      "services_kernel_test_lab_test_report",
+      "services_kernel_test_lab_test_scriptedrunner"
+    ],
     "58": [
-      "services_kernel_src_core_loop_coreloop",
-      "services_kernel_src_core_loop_coreloop_constructor",
-      "services_kernel_src_core_loop_coreloop_remembergrant",
-      "services_kernel_src_core_loop_coreloop_runconversation",
-      "services_kernel_src_core_loop_coreloop_runtool",
-      "services_kernel_src_core_loop_coreloop_touch",
-      "services_kernel_src_core_loop_coreloop_verify",
-      "services_kernel_src_core_reasoning_assessdepth",
-      "services_kernel_test_reasoning_test",
-      "services_kernel_test_reasoning_test_announceloop",
-      "services_kernel_test_reasoning_test_audit",
-      "services_kernel_test_reasoning_test_convloop",
-      "services_kernel_test_reasoning_test_drain",
-      "services_kernel_test_reasoning_test_estop",
-      "services_kernel_test_reasoning_test_fakestore"
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler",
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler_constructor",
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler_now",
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler_reconcile",
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler_status",
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler_stop",
+      "services_kernel_src_autonomy_scheduler_backgroundscheduler_tick",
+      "services_kernel_test_labnight_test",
+      "services_kernel_test_labnight_test_countingrunner",
+      "services_kernel_test_labnight_test_gatewayfake",
+      "services_kernel_test_labnight_test_isengaged",
+      "services_kernel_test_labnight_test_night",
+      "services_kernel_test_labnight_test_report",
+      "services_kernel_test_labnight_test_settingsfake"
     ],
     "59": [
-      "services_kernel_src_devices_interlock",
-      "services_kernel_src_devices_interlock_interlockmanager",
-      "services_kernel_src_devices_interlock_interlockmanager_arm",
-      "services_kernel_src_devices_interlock_interlockmanager_constructor",
-      "services_kernel_src_devices_interlock_interlockmanager_consume",
-      "services_kernel_src_devices_interlock_interlockmanager_isarmed",
-      "services_kernel_src_devices_tools",
-      "services_kernel_src_devices_tools_devicetools",
-      "services_kernel_src_devices_tools_high_risk_prefixes",
-      "services_kernel_src_devices_tools_ishighrisk",
-      "services_kernel_test_devices_test",
-      "services_kernel_test_devices_test_audit",
-      "services_kernel_test_devices_test_ctx",
-      "services_kernel_test_devices_test_setup"
-    ],
-    "60": [
       "docs_verification_chat_parity_audit_2026_07_19_report",
       "docs_verification_evolution_2026_07_19_report",
       "docs_verification_full_reverification_2026_07_19_report",
@@ -1934,7 +1848,7 @@
       "services_kernel_src_selfext_claude_module",
       "services_kernel_src_settings_claude_module"
     ],
-    "61": [
+    "60": [
       "package",
       "package_description",
       "package_engines",
@@ -1949,7 +1863,7 @@
       "package_scripts_typecheck",
       "package_version"
     ],
-    "62": [
+    "61": [
       "services_ears_tests_test_engines",
       "services_ears_tests_test_engines_kokoro",
       "services_ears_tests_test_engines_py_ndarray",
@@ -1963,6 +1877,21 @@
       "services_ears_tests_test_engines_test_vad_distinguishes_speech_from_silence",
       "services_ears_tests_test_engines_test_wake_word_detects_spoken_hey_jarvis",
       "services_ears_tests_test_engines_test_wake_word_ignores_other_speech"
+    ],
+    "62": [
+      "services_kernel_src_core_audit_auditlog_verifychain",
+      "services_kernel_src_core_audit_canonicaljson",
+      "services_kernel_src_ops_ops",
+      "services_kernel_src_ops_ops_brain_tables",
+      "services_kernel_src_ops_ops_healthreport",
+      "services_kernel_src_ops_ops_ops",
+      "services_kernel_src_ops_ops_ops_backup",
+      "services_kernel_src_ops_ops_ops_constructor",
+      "services_kernel_src_ops_ops_ops_count",
+      "services_kernel_src_ops_ops_ops_health",
+      "services_kernel_src_ops_ops_ops_restore",
+      "services_kernel_test_ops_test",
+      "services_kernel_test_ops_test_settings"
     ],
     "63": [
       "services_kernel_src_core_budget",
@@ -1980,6 +1909,36 @@
       "services_kernel_test_budget_test_settings"
     ],
     "64": [
+      "services_kernel_src_gateway_adapters_anthropic",
+      "services_kernel_src_gateway_adapters_ollama",
+      "services_kernel_src_gateway_adapters_openai_compat",
+      "services_kernel_src_gateway_router",
+      "services_kernel_src_gateway_router_ajv",
+      "services_kernel_src_gateway_router_roleoverride",
+      "services_kernel_src_gateway_schema",
+      "services_kernel_src_gateway_schema_contentpart",
+      "services_kernel_src_gateway_schema_imagepart",
+      "services_kernel_src_gateway_schema_roletarget",
+      "services_kernel_src_gateway_schema_roletargetschema",
+      "services_kernel_src_gateway_schema_textpart",
+      "services_kernel_src_gateway_schema_tooldefinition"
+    ],
+    "65": [
+      "services_kernel_src_lab_night",
+      "services_kernel_src_lab_night_announcerlike",
+      "services_kernel_src_lab_night_announcerlike_raise",
+      "services_kernel_src_lab_night_append",
+      "services_kernel_src_lab_night_gatewaylike",
+      "services_kernel_src_lab_night_gatewaylike_chat",
+      "services_kernel_src_lab_night_labnightdeps",
+      "services_kernel_src_lab_night_nightsummary",
+      "services_kernel_src_lab_night_overlayonsurface",
+      "services_kernel_src_lab_night_settingslike",
+      "services_kernel_src_lab_night_settingslike_bool",
+      "services_kernel_src_lab_night_settingslike_str",
+      "services_kernel_src_lab_night_surfacesnapshot"
+    ],
+    "66": [
       "services_kernel_src_lab_night_labnightrun",
       "services_kernel_src_lab_night_labnightrun_constructor",
       "services_kernel_src_lab_night_labnightrun_currentsurfacecontent",
@@ -1994,22 +1953,22 @@
       "services_kernel_src_lab_night_promptslike_getactive",
       "services_kernel_src_lab_night_settingslike_num"
     ],
-    "65": [
+    "67": [
       "services_kernel_src_memory_entities_anypairshareword",
       "services_kernel_src_memory_entities_entitymemory_consolidate",
-      "services_kernel_src_memory_entities_entitymemory_forgetentity",
-      "services_kernel_src_memory_entities_entitymemory_forgetfact",
       "services_kernel_src_memory_entities_entitymemory_mergeentityinto",
-      "services_kernel_src_memory_episodes_episodicmemory_forget",
+      "services_kernel_src_memory_entities_entitymemory_resolvecanonical",
+      "services_kernel_src_memory_entities_fullestname",
+      "services_kernel_src_memory_entities_mergeattrs",
+      "services_kernel_src_memory_entities_preferfuller",
       "services_kernel_src_memory_judge_memoryjudge",
       "services_kernel_src_memory_judge_memoryjudge_extracttopics",
       "services_kernel_src_memory_judge_memoryjudge_mergeentities",
       "services_kernel_src_memory_judge_memoryjudge_mergefacts",
       "services_kernel_src_memory_judge_memoryjudge_resolveentity",
-      "services_kernel_src_memory_judge_privacyforsensitivities",
-      "services_kernel_src_memory_semantic_semanticmemory_remove"
+      "services_kernel_src_memory_judge_privacyforsensitivities"
     ],
-    "66": [
+    "68": [
       "ajv",
       "fastify",
       "modelcontextprotocol_sdk",
@@ -2023,7 +1982,7 @@
       "services_kernel_package_dependencies_zod",
       "zod"
     ],
-    "67": [
+    "69": [
       "apps_command_center_app_files_page",
       "apps_command_center_app_files_page_btn",
       "apps_command_center_app_files_page_entry",
@@ -2037,7 +1996,7 @@
       "apps_command_center_app_files_page_pending",
       "apps_command_center_app_files_page_pipecolor"
     ],
-    "68": [
+    "70": [
       "apps_command_center_app_pulse_page",
       "apps_command_center_app_pulse_page_beat",
       "apps_command_center_app_pulse_page_card",
@@ -2051,7 +2010,7 @@
       "apps_command_center_app_pulse_page_pulsepage",
       "apps_command_center_app_pulse_page_status"
     ],
-    "69": [
+    "71": [
       "apps_command_center_app_skills_page",
       "apps_command_center_app_skills_page_agentresult",
       "apps_command_center_app_skills_page_btn",
@@ -2065,7 +2024,7 @@
       "apps_command_center_app_skills_page_skillspage",
       "apps_command_center_app_skills_page_step"
     ],
-    "70": [
+    "72": [
       "apps_companion_package",
       "apps_companion_package_description",
       "apps_companion_package_devdependencies",
@@ -2079,7 +2038,7 @@
       "apps_companion_package_version",
       "tauri_apps_cli"
     ],
-    "71": [
+    "73": [
       "ref_node",
       "ref_src_test_ts",
       "ref_src_ts",
@@ -2093,21 +2052,21 @@
       "services_kernel_tsconfig_extends",
       "services_kernel_tsconfig_include"
     ],
-    "72": [
-      "services_kernel_src_autonomy_projects_projects",
-      "services_kernel_src_autonomy_projects_projects_active",
-      "services_kernel_src_autonomy_projects_projects_assertclean",
-      "services_kernel_src_autonomy_projects_projects_dec",
-      "services_kernel_src_autonomy_projects_projects_enc",
-      "services_kernel_src_autonomy_projects_projects_hydrate",
-      "services_kernel_src_autonomy_projects_projects_list",
-      "services_kernel_src_autonomy_projects_projects_log",
-      "services_kernel_src_autonomy_projects_projects_note",
-      "services_kernel_src_autonomy_projects_projects_setstatus",
-      "services_kernel_src_autonomy_projects_projects_start",
-      "services_kernel_src_crypto_vault_vault_decrypt"
+    "74": [
+      "services_kernel_src_settings_registry",
+      "services_kernel_src_settings_registry_dynamicspecinput",
+      "services_kernel_src_settings_registry_effectivesetting",
+      "services_kernel_src_settings_registry_jaccard",
+      "services_kernel_src_settings_registry_normkey",
+      "services_kernel_src_settings_registry_override",
+      "services_kernel_src_settings_registry_settingorigin",
+      "services_kernel_src_settings_registry_settingsregistry_has",
+      "services_kernel_src_settings_registry_settingsregistry_register",
+      "services_kernel_src_settings_registry_settingtype",
+      "services_kernel_src_settings_registry_settingvalue",
+      "services_kernel_src_settings_registry_tokens"
     ],
-    "73": [
+    "75": [
       "apps_command_center_app_memory_page",
       "apps_command_center_app_memory_page_btn",
       "apps_command_center_app_memory_page_entity",
@@ -2120,7 +2079,7 @@
       "apps_command_center_app_memory_page_rel",
       "apps_command_center_app_memory_page_relativetime"
     ],
-    "74": [
+    "76": [
       "apps_command_center_app_selfext_page",
       "apps_command_center_app_selfext_page_activecap",
       "apps_command_center_app_selfext_page_benign",
@@ -2133,7 +2092,7 @@
       "apps_command_center_app_selfext_page_verdict",
       "apps_command_center_app_selfext_page_violation"
     ],
-    "75": [
+    "77": [
       "apps_companion_src_tauri_capabilities_default",
       "apps_companion_src_tauri_capabilities_default_description",
       "apps_companion_src_tauri_capabilities_default_identifier",
@@ -2146,7 +2105,7 @@
       "ref_global_shortcut_allow_register",
       "ref_main"
     ],
-    "76": [
+    "78": [
       "concept_graphify_pipeline",
       "dot_claude_claude_md_doc",
       "dot_claude_skills_graphify_references_add_watch_md_doc",
@@ -2159,7 +2118,7 @@
       "dot_claude_skills_graphify_references_update_md_doc",
       "dot_claude_skills_graphify_skill_md_doc"
     ],
-    "77": [
+    "79": [
       "docs_implementation_plan_d0079",
       "docs_verification_full_evidence_2026_08_29_command_center_build",
       "docs_verification_full_evidence_2026_08_29_command_center_panels",
@@ -2172,7 +2131,7 @@
       "docs_verification_full_evidence_2026_08_29_report",
       "docs_verification_full_evidence_2026_08_29_sessionstart_hook"
     ],
-    "78": [
+    "80": [
       "services_ears_src_jarvis_ears_engines_sttpartial",
       "services_ears_src_jarvis_ears_stt_sherpa",
       "services_ears_src_jarvis_ears_stt_sherpa_py_ndarray",
@@ -2185,7 +2144,33 @@
       "services_ears_src_jarvis_ears_stt_sherpa_sherpastreamingstt_push",
       "services_ears_src_jarvis_ears_stt_sherpa_sherpastreamingstt_reset"
     ],
-    "79": [
+    "81": [
+      "services_kernel_src_autonomy_projects_projects",
+      "services_kernel_src_autonomy_projects_projects_active",
+      "services_kernel_src_autonomy_projects_projects_assertclean",
+      "services_kernel_src_autonomy_projects_projects_dec",
+      "services_kernel_src_autonomy_projects_projects_enc",
+      "services_kernel_src_autonomy_projects_projects_hydrate",
+      "services_kernel_src_autonomy_projects_projects_list",
+      "services_kernel_src_autonomy_projects_projects_log",
+      "services_kernel_src_autonomy_projects_projects_note",
+      "services_kernel_src_autonomy_projects_projects_setstatus",
+      "services_kernel_src_autonomy_projects_projects_start"
+    ],
+    "82": [
+      "services_kernel_src_gateway_providers_anthropic_createanthropicadapter",
+      "services_kernel_src_gateway_providers_openaicompat_createopenaicompatadapter",
+      "services_kernel_test_anthropic_adapter_test",
+      "services_kernel_test_anthropic_adapter_test_adapter",
+      "services_kernel_test_anthropic_adapter_test_bodies",
+      "services_kernel_test_anthropic_adapter_test_drain",
+      "services_kernel_test_anthropic_adapter_test_req",
+      "services_kernel_test_anthropic_adapter_test_tool",
+      "services_kernel_test_gateway_secrets_test",
+      "services_kernel_test_gateway_secrets_test_captured",
+      "services_kernel_test_gateway_secrets_test_mockfetch"
+    ],
+    "83": [
       "apps_command_center_app_agent_page",
       "apps_command_center_app_agent_page_agentpage",
       "apps_command_center_app_agent_page_agentresult",
@@ -2197,7 +2182,7 @@
       "apps_command_center_app_agent_page_pipecolor",
       "apps_command_center_app_agent_page_step"
     ],
-    "80": [
+    "84": [
       "apps_command_center_package",
       "apps_command_center_package_description",
       "apps_command_center_package_name",
@@ -2209,7 +2194,7 @@
       "apps_command_center_package_scripts_typecheck",
       "apps_command_center_package_version"
     ],
-    "81": [
+    "85": [
       "apps_command_center_package_devdependencies_types_node",
       "services_kernel_package_devdependencies",
       "services_kernel_package_devdependencies_tsx",
@@ -2221,7 +2206,7 @@
       "types_pg",
       "vitest"
     ],
-    "82": [
+    "86": [
       "claude",
       "command_center",
       "decision_d0002",
@@ -2233,7 +2218,7 @@
       "postgres_pgvector",
       "tauri_companion"
     ],
-    "83": [
+    "87": [
       "concept_z1_protected_paths",
       "decision_d0051",
       "decision_d0052",
@@ -2245,7 +2230,7 @@
       "docs_implementation_plan_d0052",
       "docs_verification_night_lab_2026_08_28"
     ],
-    "84": [
+    "88": [
       "docs_verification_argval_2026_08_29_arm_a",
       "docs_verification_argval_2026_08_29_arm_b",
       "docs_verification_argval_2026_08_29_commit_c197d7e",
@@ -2257,7 +2242,7 @@
       "docs_verification_argval_2026_08_29_test_suite",
       "docs_verification_argval_2026_08_29_tools_validateargs"
     ],
-    "85": [
+    "89": [
       "docs_verification_platform_acceptance_d_0043",
       "docs_verification_platform_acceptance_d_0044",
       "docs_verification_platform_acceptance_d_0048",
@@ -2269,7 +2254,7 @@
       "docs_verification_platform_acceptance_p_skill_01",
       "docs_verification_platform_acceptance_r_cap_01"
     ],
-    "86": [
+    "90": [
       "scripts_mac_preflight",
       "scripts_mac_preflight_bad",
       "scripts_mac_preflight_have",
@@ -2281,19 +2266,43 @@
       "scripts_mac_preflight_sh__entry",
       "scripts_mac_preflight_skip"
     ],
-    "87": [
-      "services_kernel_src_core_grants",
-      "services_kernel_src_core_grants_durablegrantrow",
-      "services_kernel_src_core_grants_durablegrants",
-      "services_kernel_src_core_grants_durablegrants_constructor",
-      "services_kernel_src_core_grants_durablegrants_list",
-      "services_kernel_src_core_grants_durablegrants_load",
-      "services_kernel_src_core_grants_durablegrants_remember",
-      "services_kernel_src_core_grants_durablegrants_revoke",
-      "services_kernel_src_core_policy_grant",
-      "services_kernel_src_core_policy_riskclass"
+    "91": [
+      "services_kernel_src_a2ui_registry_a2uipanel",
+      "services_kernel_src_a2ui_schema",
+      "services_kernel_src_a2ui_schema_a2uicomponent",
+      "services_kernel_src_a2ui_schema_a2uicomponentschema",
+      "services_kernel_src_a2ui_schema_a2uispec",
+      "services_kernel_src_a2ui_schema_action",
+      "services_kernel_src_a2ui_schema_heading",
+      "services_kernel_src_a2ui_schema_setting",
+      "services_kernel_src_a2ui_schema_settingsgroup",
+      "services_kernel_src_a2ui_schema_text"
     ],
-    "88": [
+    "92": [
+      "services_kernel_src_config",
+      "services_kernel_src_config_configschema",
+      "services_kernel_src_config_loadconfig",
+      "services_kernel_src_db_migrate_cli",
+      "services_kernel_src_db_migrate_cli_config",
+      "services_kernel_src_db_migrate_cli_migrationsdir",
+      "services_kernel_src_db_migrate_cli_pool",
+      "services_kernel_src_db_pool",
+      "services_kernel_src_db_pool_createpool",
+      "services_kernel_test_config_test"
+    ],
+    "93": [
+      "services_kernel_src_config_kernelconfig",
+      "services_kernel_src_core_index_core",
+      "services_kernel_src_core_routes_registercoreroutes",
+      "services_kernel_src_core_routes_ssecorsheaders",
+      "services_kernel_src_db_pool_pingdatabase",
+      "services_kernel_src_http_health",
+      "services_kernel_src_http_health_buildhealthreport",
+      "services_kernel_src_http_health_healthreport",
+      "services_kernel_src_http_server",
+      "services_kernel_src_http_server_createserver"
+    ],
+    "94": [
       "services_kernel_src_core_untrusted",
       "services_kernel_src_research_research",
       "services_kernel_src_web_web",
@@ -2305,7 +2314,43 @@
       "services_kernel_test_untrusted_test_tc",
       "services_kernel_test_untrusted_test_toolreturning"
     ],
-    "89": [
+    "95": [
+      "services_kernel_src_crypto_secrets_normalizename",
+      "services_kernel_src_crypto_secrets_secretsvault",
+      "services_kernel_src_crypto_secrets_secretsvault_constructor",
+      "services_kernel_src_crypto_secrets_secretsvault_delete",
+      "services_kernel_src_crypto_secrets_secretsvault_get",
+      "services_kernel_src_crypto_secrets_secretsvault_has",
+      "services_kernel_src_crypto_secrets_secretsvault_list",
+      "services_kernel_src_crypto_secrets_secretsvault_resolveenv",
+      "services_kernel_src_crypto_secrets_secretsvault_set",
+      "services_kernel_src_crypto_vault_vault_encrypt"
+    ],
+    "96": [
+      "services_kernel_src_gateway_router_gatewayrouter_audit",
+      "services_kernel_src_gateway_router_gatewayrouter_chat",
+      "services_kernel_src_gateway_router_gatewayrouter_chatstream",
+      "services_kernel_src_gateway_router_gatewayrouter_eligibletargets",
+      "services_kernel_src_gateway_router_gatewayrouter_embed",
+      "services_kernel_src_gateway_schema_chatrequest",
+      "services_kernel_src_gateway_schema_chatresult",
+      "services_kernel_src_memory_judge_judge_templates",
+      "services_kernel_test_judge_test",
+      "services_kernel_test_judge_test_stubgateway"
+    ],
+    "97": [
+      "services_kernel_src_memory_entities_entitymemory_forgetentity",
+      "services_kernel_src_memory_entities_entitymemory_forgetfact",
+      "services_kernel_src_memory_entities_entitymemory_recallgraph",
+      "services_kernel_src_memory_entities_identitymatch",
+      "services_kernel_src_memory_episodes_episodicmemory_forget",
+      "services_kernel_src_memory_memory_memoryservice_export",
+      "services_kernel_src_memory_memory_memoryservice_forget",
+      "services_kernel_src_memory_memory_memoryservice_pin",
+      "services_kernel_src_memory_routes_registermemoryroutes",
+      "services_kernel_src_memory_semantic_semanticmemory_remove"
+    ],
+    "98": [
       "apps_command_center_app_devices_page",
       "apps_command_center_app_devices_page_btn",
       "apps_command_center_app_devices_page_devicespage",
@@ -2316,7 +2361,7 @@
       "apps_command_center_app_devices_page_pipecolor",
       "apps_command_center_app_devices_page_runoutcome"
     ],
-    "90": [
+    "99": [
       "apps_command_center_app_models_page",
       "apps_command_center_app_models_page_callrow",
       "apps_command_center_app_models_page_h2",
@@ -2327,7 +2372,7 @@
       "apps_command_center_app_models_page_sec",
       "apps_command_center_app_models_page_td"
     ],
-    "91": [
+    "100": [
       "apps_command_center_app_proactive_page",
       "apps_command_center_app_proactive_page_btn",
       "apps_command_center_app_proactive_page_panel",
@@ -2338,7 +2383,7 @@
       "apps_command_center_app_proactive_page_suppression",
       "apps_command_center_app_proactive_page_surfaced"
     ],
-    "92": [
+    "101": [
       "decisions_d0080",
       "docs_requirements_traceability_r_mem_07",
       "docs_requirements_traceability_r_mem_08",
@@ -2349,7 +2394,7 @@
       "memory_recall_graph",
       "memory_remember_facts"
     ],
-    "93": [
+    "102": [
       "docs_capability_parity_matrix_g2",
       "docs_capability_parity_matrix_g3",
       "docs_decision_log_d0073",
@@ -2360,7 +2405,7 @@
       "docs_implementation_plan_phase_6",
       "docs_requirements_r_cap_08"
     ],
-    "94": [
+    "103": [
       "docs_retrieval_fidelity_spec",
       "docs_retrieval_fidelity_spec_defect_a",
       "docs_retrieval_fidelity_spec_defect_b",
@@ -2371,7 +2416,7 @@
       "docs_retrieval_fidelity_spec_rmem09",
       "docs_retrieval_fidelity_spec_rmem10"
     ],
-    "95": [
+    "104": [
       "services_kernel_src_agent_contract_agentruntime_run",
       "services_kernel_src_skills_registry_skillregistry",
       "services_kernel_src_skills_registry_skillregistry_create",
@@ -2382,7 +2427,7 @@
       "services_kernel_src_skills_registry_skillregistry_run",
       "services_kernel_src_skills_registry_toskill"
     ],
-    "96": [
+    "105": [
       "services_kernel_src_mcp_client_mcpdiscovery",
       "services_kernel_src_mcp_registry_mcpregistry",
       "services_kernel_src_mcp_registry_mcpregistry_constructor",
@@ -2393,7 +2438,7 @@
       "services_kernel_src_mcp_registry_mcpregistry_register",
       "services_kernel_src_mcp_registry_mcpregistry_settrust"
     ],
-    "97": [
+    "106": [
       "apps_command_center_app_a2ui_page",
       "apps_command_center_app_a2ui_page_a2uipage",
       "apps_command_center_app_a2ui_page_chip",
@@ -2403,7 +2448,7 @@
       "apps_command_center_app_a2ui_page_panel",
       "apps_command_center_app_a2ui_page_setting"
     ],
-    "98": [
+    "107": [
       "apps_command_center_app_control_page",
       "apps_command_center_app_control_page_btn",
       "apps_command_center_app_control_page_controlpage",
@@ -2413,7 +2458,7 @@
       "apps_command_center_app_control_page_pipecolor",
       "apps_command_center_app_control_page_runoutcome"
     ],
-    "99": [
+    "108": [
       "apps_command_center_app_graph_page",
       "apps_command_center_app_graph_page_bundle",
       "apps_command_center_app_graph_page_chip",
@@ -2423,7 +2468,7 @@
       "apps_command_center_app_graph_page_graphpage",
       "apps_command_center_app_graph_page_input"
     ],
-    "100": [
+    "109": [
       "apps_command_center_app_reasoning_page",
       "apps_command_center_app_reasoning_page_autotune",
       "apps_command_center_app_reasoning_page_chip",
@@ -2433,7 +2478,7 @@
       "apps_command_center_app_reasoning_page_report",
       "apps_command_center_app_reasoning_page_sec"
     ],
-    "101": [
+    "110": [
       "apps_command_center_app_terminal_page",
       "apps_command_center_app_terminal_page_btn",
       "apps_command_center_app_terminal_page_ev",
@@ -2443,7 +2488,7 @@
       "apps_command_center_app_terminal_page_runoutcome",
       "apps_command_center_app_terminal_page_terminalpage"
     ],
-    "102": [
+    "111": [
       "apps_command_center_app_web_page",
       "apps_command_center_app_web_page_btn",
       "apps_command_center_app_web_page_ev",
@@ -2453,7 +2498,7 @@
       "apps_command_center_app_web_page_runoutcome",
       "apps_command_center_app_web_page_webpage"
     ],
-    "103": [
+    "112": [
       "apps_command_center_package_devdependencies",
       "apps_command_center_package_devdependencies_types_react",
       "apps_command_center_package_devdependencies_types_react_dom",
@@ -2463,7 +2508,7 @@
       "types_react",
       "types_react_dom"
     ],
-    "104": [
+    "113": [
       "docs_implementation_plan_d0002",
       "docs_implementation_plan_d0003",
       "docs_implementation_plan_d0004",
@@ -2473,7 +2518,7 @@
       "docs_implementation_plan_phase_1",
       "docs_implementation_plan_phase_2"
     ],
-    "105": [
+    "114": [
       "services_ears_src_jarvis_ears_vad_silero_py_ndarray",
       "services_ears_src_jarvis_ears_vad_silero_py_path",
       "services_ears_src_jarvis_ears_vad_silero_silerovad",
@@ -2483,27 +2528,17 @@
       "services_ears_src_jarvis_ears_vad_silero_silerovad_run",
       "services_ears_tests_test_engines_vad"
     ],
-    "106": [
-      "services_kernel_src_core_audit_auditlog_verifychain",
-      "services_kernel_src_core_audit_canonicaljson",
-      "services_kernel_src_ops_ops_ops",
-      "services_kernel_src_ops_ops_ops_backup",
-      "services_kernel_src_ops_ops_ops_constructor",
-      "services_kernel_src_ops_ops_ops_count",
-      "services_kernel_src_ops_ops_ops_health",
-      "services_kernel_src_ops_ops_ops_restore"
+    "115": [
+      "services_kernel_src_db_migrate",
+      "services_kernel_src_db_migrate_appliedmigration",
+      "services_kernel_src_db_migrate_listmigrationfiles",
+      "services_kernel_src_db_migrate_migrationstatus",
+      "services_kernel_src_db_migrate_runmigrations",
+      "services_kernel_src_scripts_build",
+      "services_kernel_test_migrate_test",
+      "services_kernel_vitest_config"
     ],
-    "107": [
-      "services_kernel_src_crypto_secrets_normalizename",
-      "services_kernel_src_crypto_secrets_secretsvault",
-      "services_kernel_src_crypto_secrets_secretsvault_delete",
-      "services_kernel_src_crypto_secrets_secretsvault_get",
-      "services_kernel_src_crypto_secrets_secretsvault_has",
-      "services_kernel_src_crypto_secrets_secretsvault_list",
-      "services_kernel_src_crypto_secrets_secretsvault_resolveenv",
-      "services_kernel_src_crypto_secrets_secretsvault_set"
-    ],
-    "108": [
+    "116": [
       "services_kernel_src_lab_engine_auditlike",
       "services_kernel_src_lab_engine_auditlike_append",
       "services_kernel_src_lab_engine_labengine",
@@ -2513,7 +2548,7 @@
       "services_kernel_src_lab_engine_labengine_persist",
       "services_kernel_src_lab_engine_labengine_runexperiment"
     ],
-    "109": [
+    "117": [
       "apps_command_center_app_lab_page",
       "apps_command_center_app_lab_page_experiment",
       "apps_command_center_app_lab_page_labpage",
@@ -2522,7 +2557,7 @@
       "apps_command_center_app_lab_page_labsetting",
       "apps_command_center_app_lab_page_verdict_color"
     ],
-    "110": [
+    "118": [
       "apps_command_center_package_dependencies",
       "apps_command_center_package_dependencies_next",
       "apps_command_center_package_dependencies_react",
@@ -2531,16 +2566,7 @@
       "react",
       "react_dom"
     ],
-    "111": [
-      "bench_campaigns_persona_adherence",
-      "services_kernel_src_lab_surface",
-      "services_kernel_src_lab_surface_lab_forbidden_setting_prefixes",
-      "services_kernel_src_lab_surface_lab_prompt_surface",
-      "services_kernel_src_lab_surface_labpromptsurface",
-      "services_kernel_src_lab_surface_surfaceverdict",
-      "services_kernel_src_memory_judge_judge_templates"
-    ],
-    "112": [
+    "119": [
       "crypto_secrets",
       "decisions_d0013",
       "decisions_d0028",
@@ -2549,7 +2575,7 @@
       "docs_requirements_traceability_r_mem_06",
       "migrations_0008"
     ],
-    "113": [
+    "120": [
       "docs_decision_log_d0002",
       "docs_decision_log_d0006",
       "docs_decision_log_d0008",
@@ -2558,7 +2584,7 @@
       "docs_decision_log_d0013",
       "docs_decision_log_d0014"
     ],
-    "114": [
+    "121": [
       "services_kernel_package",
       "services_kernel_package_description",
       "services_kernel_package_main",
@@ -2567,7 +2593,7 @@
       "services_kernel_package_type",
       "services_kernel_package_version"
     ],
-    "115": [
+    "122": [
       "services_kernel_package_scripts",
       "services_kernel_package_scripts_build",
       "services_kernel_package_scripts_dev",
@@ -2576,25 +2602,16 @@
       "services_kernel_package_scripts_test",
       "services_kernel_package_scripts_typecheck"
     ],
-    "116": [
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler",
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler_constructor",
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler_now",
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler_reconcile",
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler_status",
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler_stop",
-      "services_kernel_src_autonomy_scheduler_backgroundscheduler_tick"
+    "123": [
+      "services_kernel_src_a2ui_registry",
+      "services_kernel_src_a2ui_schema_a2uispecschema",
+      "services_kernel_src_a2ui_schema_validatereferences",
+      "services_kernel_test_a2ui_test",
+      "services_kernel_test_a2ui_test_audit",
+      "services_kernel_test_a2ui_test_settings",
+      "services_kernel_test_a2ui_test_toolreg"
     ],
-    "117": [
-      "services_kernel_test_labnight_test",
-      "services_kernel_test_labnight_test_countingrunner",
-      "services_kernel_test_labnight_test_gatewayfake",
-      "services_kernel_test_labnight_test_isengaged",
-      "services_kernel_test_labnight_test_night",
-      "services_kernel_test_labnight_test_report",
-      "services_kernel_test_labnight_test_settingsfake"
-    ],
-    "118": [
+    "124": [
       "services_kernel_test_router_test",
       "services_kernel_test_router_test_auditrows",
       "services_kernel_test_router_test_baseconfig",
@@ -2603,7 +2620,7 @@
       "services_kernel_test_router_test_req",
       "services_kernel_test_router_test_stubadapters"
     ],
-    "119": [
+    "125": [
       "decision_d0046",
       "decision_d0047",
       "decision_d0048",
@@ -2611,7 +2628,7 @@
       "docs_implementation_plan_d0050",
       "docs_verification_full_evidence_2026_08_29_voice_roundtrip"
     ],
-    "120": [
+    "126": [
       "decisions_d0003",
       "decisions_d0018",
       "decisions_d0019",
@@ -2619,7 +2636,7 @@
       "docs_requirements_traceability_r_auto_04",
       "docs_requirements_traceability_r_class_01"
     ],
-    "121": [
+    "127": [
       "docs_verification_ab_observation_2026_07_20_report",
       "docs_verification_d0075_memory_judgment_2026_07_20_report",
       "docs_verification_fresh_observation_2026_07_20_report",
@@ -2627,7 +2644,7 @@
       "services_kernel_src_agent_claude_module",
       "services_kernel_src_skills_claude_module"
     ],
-    "122": [
+    "128": [
       "services_kernel_src_affect_service",
       "services_kernel_src_affect_service_affectreading",
       "services_kernel_src_affect_service_inferaffect",
@@ -2635,7 +2652,7 @@
       "services_kernel_src_autonomy_announce_urgency",
       "services_kernel_test_affect_test"
     ],
-    "123": [
+    "129": [
       "services_kernel_src_db_migrations_0006_proactive",
       "services_kernel_src_db_migrations_0006_proactive_calendar_events",
       "services_kernel_src_db_migrations_0006_proactive_commitments",
@@ -2643,7 +2660,7 @@
       "services_kernel_src_db_migrations_0006_proactive_proactive_items",
       "services_kernel_src_db_migrations_0006_proactive_proactive_snoozes"
     ],
-    "124": [
+    "130": [
       "services_kernel_src_db_migrations_0010_entities",
       "services_kernel_src_db_migrations_0010_entities_memory_entities",
       "services_kernel_src_db_migrations_0010_entities_memory_facts",
@@ -2651,1171 +2668,1169 @@
       "services_kernel_src_db_migrations_0011_episodes",
       "services_kernel_src_db_migrations_0011_episodes_memory_episodes"
     ],
-    "125": [
+    "131": [
       "apps_command_center_app_chat_page",
       "apps_command_center_app_chat_page_appendtolastassistant",
       "apps_command_center_app_chat_page_applyframe",
       "apps_command_center_app_chat_page_chatpage",
       "apps_command_center_app_chat_page_turn"
     ],
-    "126": [
+    "132": [
       "apps_command_center_app_orb_page",
       "apps_command_center_app_orb_page_orbpage",
       "apps_command_center_app_orb_page_orbstate",
       "apps_command_center_app_orb_page_state_color",
       "apps_command_center_app_orb_page_state_label"
     ],
-    "127": [
+    "133": [
       "apps_command_center_app_persona_page",
       "apps_command_center_app_persona_page_btn",
       "apps_command_center_app_persona_page_inputstyle",
       "apps_command_center_app_persona_page_personapage",
       "apps_command_center_app_persona_page_prompt"
     ],
-    "128": [
+    "134": [
       "apps_command_center_app_settings_page",
       "apps_command_center_app_settings_page_ctl",
       "apps_command_center_app_settings_page_input",
       "apps_command_center_app_settings_page_setting",
       "apps_command_center_app_settings_page_settingspage"
     ],
-    "129": [
+    "135": [
       "docs_capability_parity_matrix_a8",
       "docs_decision_log_d0024",
       "docs_decision_log_d0031",
       "docs_decision_log_d0043",
       "docs_decision_log_d0044"
     ],
-    "130": [
+    "136": [
       "docs_verification_platform_acceptance_d_0033",
       "docs_verification_platform_acceptance_d_0046",
       "docs_verification_platform_acceptance_d_0047",
       "docs_verification_platform_acceptance_p_models_01",
       "docs_verification_platform_acceptance_r_model_03"
     ],
-    "131": [
+    "137": [
       "scripts_db_up",
       "scripts_db_up_db_ready",
       "scripts_db_up_interactive",
       "scripts_db_up_say",
       "scripts_db_up_sh__entry"
     ],
-    "132": [
+    "138": [
       "scripts_graphify_setup",
       "scripts_graphify_setup_bad",
       "scripts_graphify_setup_ok",
       "scripts_graphify_setup_sh__entry",
       "scripts_graphify_setup_warn"
     ],
-    "133": [
+    "139": [
       "services_ears_scripts_fetch_models",
       "services_ears_scripts_fetch_models_fetch",
       "services_ears_scripts_fetch_models_main",
       "services_ears_scripts_fetch_models_py_path",
       "services_ears_scripts_fetch_models_rationale_1"
     ],
-    "134": [
-      "services_kernel_src_core_activity_activityevent",
-      "services_kernel_test_knowledge_test",
-      "services_kernel_test_knowledge_test_audit",
-      "services_kernel_test_knowledge_test_makeestop",
-      "services_kernel_test_knowledge_test_makeloop"
-    ],
-    "135": [
+    "140": [
       "apps_companion_readme_doc",
       "apps_companion_src_tauri_icons_readme_doc",
       "apps_companion_ui_index_html_doc",
       "pnpm_workspace_yaml_config"
     ],
-    "136": [
+    "141": [
       "docs_requirements_traceability_d_0007",
       "docs_requirements_traceability_d_0010",
       "docs_requirements_traceability_r_oss_01",
       "docs_requirements_traceability_r_oss_03"
     ],
-    "137": [
+    "142": [
       "docs_verification_platform_acceptance_d_0038",
       "docs_verification_platform_acceptance_p_entmem_01",
       "docs_verification_platform_acceptance_p_mem_02",
       "docs_verification_platform_acceptance_r_mem_06"
     ],
-    "138": [
+    "143": [
       "docs_verification_platform_acceptance_d_0041",
       "docs_verification_platform_acceptance_p_episode_01",
       "docs_verification_platform_acceptance_p_mem_01",
       "docs_verification_platform_acceptance_r_mem_04"
     ],
-    "139": [
+    "144": [
       "scripts_longitude_replay",
       "scripts_longitude_replay_has",
       "scripts_longitude_replay_main",
       "scripts_longitude_replay_scoped_prefs"
     ],
-    "140": [
+    "145": [
       "apps_command_center_app_layout",
       "apps_command_center_app_layout_metadata",
       "apps_command_center_app_layout_rootlayout"
     ],
-    "141": [
+    "146": [
       "decisions_d0052",
       "docs_requirements_traceability_r_lab_06",
       "labapply_test"
     ],
-    "142": [
+    "147": [
       "decisions_d0077",
       "docs_requirements_traceability_r_lab_07",
       "lab_morning_report"
     ],
-    "143": [
+    "148": [
       "docs_capability_parity_matrix_b4",
       "docs_decision_log_d0019",
       "docs_decision_log_d0072"
     ],
-    "144": [
+    "149": [
       "docs_capability_parity_matrix_c2",
       "docs_decision_log_d0022",
       "docs_decision_log_d0035"
     ],
-    "145": [
+    "150": [
       "docs_capability_parity_matrix_document",
       "docs_decision_log_document",
       "docs_implementation_plan_document"
     ],
-    "146": [
+    "151": [
       "docs_capability_parity_matrix_e1",
       "docs_capability_parity_matrix_e2",
       "docs_decision_log_d0025"
     ],
-    "147": [
+    "152": [
       "docs_requirements_traceability_d_0005",
       "docs_requirements_traceability_module_level_claude_md",
       "docs_requirements_traceability_r_scope_01"
     ],
-    "148": [
+    "153": [
       "docs_requirements_traceability_r_lab_01",
       "docs_requirements_traceability_r_lab_09",
       "lab_test"
     ],
-    "149": [
+    "154": [
       "docs_requirements_traceability_r_lab_04",
       "lab_persist",
       "migrations_0026_lab_experiments"
     ],
-    "150": [
+    "155": [
       "docs_verification_full_evidence_2026_08_29_d0022",
       "docs_verification_full_evidence_2026_08_29_d0025",
       "docs_verification_full_evidence_2026_08_29_needs_mac_ledger"
     ],
-    "151": [
+    "156": [
       "docs_verification_longitude_2026_08_30_finding_address_recall",
       "docs_verification_longitude_2026_08_30_finding_preference_write_only",
       "docs_verification_longitude_2026_08_30_preference_read_tool"
     ],
-    "152": [
+    "157": [
       "docs_verification_platform_acceptance_d_0004a",
       "docs_verification_platform_acceptance_p_voice_01",
       "jarvisaudio"
     ],
-    "153": [
+    "158": [
       "docs_verification_platform_acceptance_d_0022",
       "docs_verification_platform_acceptance_p_ctrl_02",
       "jarviscontrol"
     ],
-    "154": [
+    "159": [
       "docs_verification_platform_acceptance_d_0025",
       "docs_verification_platform_acceptance_p_dev_02",
       "homeassistantfromvault"
     ],
-    "155": [
+    "160": [
       "docs_verification_platform_acceptance_d_0034",
       "docs_verification_platform_acceptance_d_0037",
       "docs_verification_platform_acceptance_p_web_01"
     ],
-    "156": [
+    "161": [
       "docs_verification_platform_acceptance_d_0051",
       "docs_verification_platform_acceptance_d_0052",
       "docs_verification_platform_acceptance_p_sleep_01"
     ],
-    "157": [
+    "162": [
       "docs_verification_platform_acceptance_d_0053",
       "docs_verification_platform_acceptance_d_0054",
       "docs_verification_platform_acceptance_p_config_01"
     ],
-    "158": [
+    "163": [
       "services_kernel_src_crypto_claude_module",
       "services_kernel_src_devices_claude_module",
       "services_kernel_src_mcp_claude_module"
     ],
-    "159": [
+    "164": [
       "services_kernel_src_db_migrations_0003_audit_and_estop",
       "services_kernel_src_db_migrations_0003_audit_and_estop_audit_log",
       "services_kernel_src_db_migrations_0003_audit_and_estop_estop"
     ],
-    "160": [
+    "165": [
       "services_kernel_src_db_migrations_0004_memory",
       "services_kernel_src_db_migrations_0004_memory_conversation_memory",
       "services_kernel_src_db_migrations_0004_memory_preferences"
     ],
-    "161": [
+    "166": [
       "services_kernel_src_db_migrations_0005_selfext",
       "services_kernel_src_db_migrations_0005_selfext_capabilities",
       "services_kernel_src_db_migrations_0005_selfext_capability_gaps"
     ],
-    "162": [
+    "167": [
       "services_kernel_src_db_migrations_0021_heartbeat",
       "services_kernel_src_db_migrations_0021_heartbeat_agenda_items",
       "services_kernel_src_db_migrations_0021_heartbeat_heartbeats"
     ],
-    "163": [
+    "168": [
       "services_kernel_src_db_migrations_0023_projects",
       "services_kernel_src_db_migrations_0023_projects_project_log",
       "services_kernel_src_db_migrations_0023_projects_projects"
     ],
-    "164": [
+    "169": [
+      "services_kernel_src_gateway_tools_store",
+      "services_kernel_src_gateway_tools_store_get",
+      "services_kernel_src_gateway_tools_store_remember"
+    ],
+    "170": [
       "services_kernel_test_fixtures_mcp_test_server",
       "services_kernel_test_fixtures_mcp_test_server_basetools",
       "services_kernel_test_fixtures_mcp_test_server_server"
     ],
-    "165": [
+    "171": [
       "apps_command_center_next_config",
       "apps_command_center_next_config_nextconfig"
     ],
-    "166": [
+    "172": [
       "apps_command_center_next_env_d",
       "apps_command_center_next_env_d_rationale_5"
     ],
-    "167": [
+    "173": [
       "apps_companion_core_examples_smoke",
       "apps_companion_core_examples_smoke_main"
     ],
-    "168": [
+    "174": [
       "apps_companion_src_tauri_build",
       "apps_companion_src_tauri_build_main"
     ],
-    "169": [
+    "175": [
       "apps_companion_src_tauri_src_main",
       "apps_companion_src_tauri_src_main_main"
     ],
-    "170": [
+    "176": [
       "apps_companion_swift_package",
       "packagedescription"
     ],
-    "171": [
+    "177": [
       "decision_d0078",
       "docs_graphify"
     ],
-    "172": [
+    "178": [
       "decisions_d0079",
       "docs_requirements_traceability_r_lab_08"
     ],
-    "173": [
+    "179": [
       "docs_capability_parity_matrix_b1",
       "docs_decision_log_d0029"
     ],
-    "174": [
+    "180": [
       "docs_capability_parity_matrix_i1",
       "docs_decision_log_d0026"
     ],
-    "175": [
+    "181": [
       "docs_implementation_plan_d0046",
       "docs_implementation_plan_d0047"
     ],
-    "176": [
+    "182": [
       "docs_implementation_plan_d0053",
       "docs_implementation_plan_d0058"
     ],
-    "177": [
+    "183": [
       "docs_requirements_traceability_affect_emotion_inference",
       "docs_requirements_traceability_d_0019"
     ],
-    "178": [
+    "184": [
       "docs_requirements_traceability_d_0016",
       "docs_requirements_traceability_r_oss_02"
     ],
-    "179": [
+    "185": [
       "docs_requirements_traceability_d_0017",
       "docs_requirements_traceability_r_cont_01"
     ],
-    "180": [
+    "186": [
       "docs_requirements_traceability_d_0020",
       "docs_requirements_traceability_personal_health_telemetry"
     ],
-    "181": [
+    "187": [
       "docs_requirements_traceability_r_cap_08",
       "docs_requirements_traceability_r_lab_02"
     ],
-    "182": [
+    "188": [
       "docs_requirements_traceability_r_ctrl_01",
       "docs_requirements_traceability_r_ctrl_02"
     ],
-    "183": [
+    "189": [
       "docs_requirements_traceability_r_lab_05",
       "labnight_test"
     ],
-    "184": [
+    "190": [
       "docs_requirements_traceability_r_lab_10",
       "lab_bench_hash"
     ],
-    "185": [
+    "191": [
       "docs_verification_platform_acceptance_d_0032",
       "docs_verification_platform_acceptance_p_know_01"
     ],
-    "186": [
+    "192": [
       "docs_verification_platform_acceptance_d_0035",
       "docs_verification_platform_acceptance_p_term_01"
     ],
-    "187": [
+    "193": [
       "docs_verification_platform_acceptance_d_0036",
       "docs_verification_platform_acceptance_p_research_01"
     ],
-    "188": [
+    "194": [
       "docs_verification_platform_acceptance_d_0039",
       "docs_verification_platform_acceptance_p_ctx_01"
     ],
-    "189": [
+    "195": [
       "docs_verification_platform_acceptance_d_0040",
       "docs_verification_platform_acceptance_p_ui_01"
     ],
-    "190": [
+    "196": [
       "docs_verification_platform_acceptance_d_0042",
       "docs_verification_platform_acceptance_p_semantic_01"
     ],
-    "191": [
+    "197": [
       "docs_verification_platform_acceptance_d_0045",
       "docs_verification_platform_acceptance_p_graph_01"
     ],
-    "192": [
+    "198": [
       "docs_verification_platform_acceptance_p_ext_01",
       "docs_verification_platform_acceptance_r_cap_08"
     ],
-    "193": [
+    "199": [
       "docs_verification_platform_acceptance_p_offline_01",
       "docs_verification_platform_acceptance_r_model_04"
     ],
-    "194": [
+    "200": [
       "pkg_jarvis_companion",
       "pkg_jarvis_companion_core"
     ],
-    "195": [
+    "201": [
       "scripts_acceptance_phase1",
       "scripts_acceptance_phase1_main"
     ],
-    "196": [
+    "202": [
       "scripts_graphify_auto_update",
       "scripts_graphify_auto_update_sh__entry"
     ],
-    "197": [
+    "203": [
       "scripts_graphify_refresh",
       "scripts_graphify_refresh_sh__entry"
     ],
-    "198": [
+    "204": [
       "scripts_longitude_xl_preserve",
       "scripts_longitude_xl_preserve_sh__entry"
     ],
-    "199": [
+    "205": [
       "scripts_longitude_xl_rewind",
       "scripts_longitude_xl_rewind_replay"
     ],
-    "200": [
+    "206": [
       "services_kernel_src_db_migrations_0001_init",
       "services_kernel_src_db_migrations_0001_init_system_events"
     ],
-    "201": [
+    "207": [
       "services_kernel_src_db_migrations_0002_model_calls",
       "services_kernel_src_db_migrations_0002_model_calls_model_calls"
     ],
-    "202": [
+    "208": [
       "services_kernel_src_db_migrations_0007_mcp",
       "services_kernel_src_db_migrations_0007_mcp_mcp_servers"
     ],
-    "203": [
+    "209": [
       "services_kernel_src_db_migrations_0008_secrets",
       "services_kernel_src_db_migrations_0008_secrets_integration_secrets"
     ],
-    "204": [
+    "210": [
       "services_kernel_src_db_migrations_0009_skills",
       "services_kernel_src_db_migrations_0009_skills_skills"
     ],
-    "205": [
+    "211": [
       "services_kernel_src_db_migrations_0012_semantic",
       "services_kernel_src_db_migrations_0012_semantic_memory_embeddings"
     ],
-    "206": [
+    "212": [
       "services_kernel_src_db_migrations_0013_prompts",
       "services_kernel_src_db_migrations_0013_prompts_prompts"
     ],
-    "207": [
+    "213": [
       "services_kernel_src_db_migrations_0014_proactive_rules",
       "services_kernel_src_db_migrations_0014_proactive_rules_proactive_rules"
     ],
-    "208": [
+    "214": [
       "services_kernel_src_db_migrations_0015_reasoning_decisions",
       "services_kernel_src_db_migrations_0015_reasoning_decisions_reasoning_decisions"
     ],
-    "209": [
+    "215": [
       "services_kernel_src_db_migrations_0017_runtime_settings",
       "services_kernel_src_db_migrations_0017_runtime_settings_runtime_settings"
     ],
-    "210": [
+    "216": [
       "services_kernel_src_db_migrations_0018_durable_grants",
       "services_kernel_src_db_migrations_0018_durable_grants_durable_grants"
     ],
-    "211": [
+    "217": [
       "services_kernel_src_db_migrations_0019_setting_specs",
       "services_kernel_src_db_migrations_0019_setting_specs_setting_specs"
     ],
-    "212": [
+    "218": [
       "services_kernel_src_db_migrations_0020_ui_panels",
       "services_kernel_src_db_migrations_0020_ui_panels_ui_panels"
     ],
-    "213": [
+    "219": [
       "services_kernel_src_db_migrations_0022_announcements",
       "services_kernel_src_db_migrations_0022_announcements_announcements"
     ],
-    "214": [
+    "220": [
       "services_kernel_src_db_migrations_0026_lab_experiments",
       "services_kernel_src_db_migrations_0026_lab_experiments_lab_experiments"
     ],
-    "215": [
+    "221": [
       "apps_command_center"
     ],
-    "216": [
+    "222": [
       "apps_command_center_claude_md"
     ],
-    "217": [
+    "223": [
       "concept_z1_trust_core"
     ],
-    "218": [
+    "224": [
       "decision_d0059"
     ],
-    "219": [
+    "225": [
       "decision_d0062"
     ],
-    "220": [
+    "226": [
       "docs_03_spatial_hardware_oss_doc"
     ],
-    "221": [
+    "227": [
       "docs_04_stack_and_phases_doc"
     ],
-    "222": [
+    "228": [
       "docs_05_security_scope_locality_doc"
     ],
-    "223": [
+    "229": [
       "docs_07_session_continuity_doc"
     ],
-    "224": [
+    "230": [
       "docs_capability_parity_matrix_a5"
     ],
-    "225": [
+    "231": [
       "docs_capability_parity_matrix_i3"
     ],
-    "226": [
+    "232": [
       "docs_decision_log_d0001"
     ],
-    "227": [
+    "233": [
       "docs_decision_log_d0004"
     ],
-    "228": [
+    "234": [
       "docs_decision_log_d0005"
     ],
-    "229": [
+    "235": [
       "docs_decision_log_d0007"
     ],
-    "230": [
+    "236": [
       "docs_decision_log_d0011"
     ],
-    "231": [
+    "237": [
       "docs_decision_log_d0012"
     ],
-    "232": [
+    "238": [
       "docs_decision_log_d0015"
     ],
-    "233": [
+    "239": [
       "docs_decision_log_d0016"
     ],
-    "234": [
+    "240": [
       "docs_decision_log_d0017"
     ],
-    "235": [
+    "241": [
       "docs_decision_log_d0021"
     ],
-    "236": [
+    "242": [
       "docs_decision_log_d0023"
     ],
-    "237": [
+    "243": [
       "docs_decision_log_d0028"
     ],
-    "238": [
+    "244": [
       "docs_decision_log_d0030"
     ],
-    "239": [
+    "245": [
       "docs_decision_log_d0040"
     ],
-    "240": [
+    "246": [
       "docs_decision_log_d0057_pgvector_hnsw"
     ],
-    "241": [
+    "247": [
       "docs_decision_log_d0062_memory_evolution_completeness"
     ],
-    "242": [
+    "248": [
       "docs_decision_log_d0066"
     ],
-    "243": [
+    "249": [
       "docs_decision_log_d0068"
     ],
-    "244": [
+    "250": [
       "docs_decision_log_d0069"
     ],
-    "245": [
+    "251": [
       "docs_decision_log_d0070"
     ],
-    "246": [
+    "252": [
       "docs_decision_log_d0076"
     ],
-    "247": [
+    "253": [
       "docs_decision_log_d0078"
     ],
-    "248": [
+    "254": [
       "docs_implementation_plan_d0022"
     ],
-    "249": [
+    "255": [
       "docs_implementation_plan_d0023"
     ],
-    "250": [
+    "256": [
       "docs_implementation_plan_d0024"
     ],
-    "251": [
+    "257": [
       "docs_implementation_plan_d0025"
     ],
-    "252": [
+    "258": [
       "docs_implementation_plan_d0026"
     ],
-    "253": [
+    "259": [
       "docs_implementation_plan_d0027"
     ],
-    "254": [
+    "260": [
       "docs_implementation_plan_d0028"
     ],
-    "255": [
+    "261": [
       "docs_implementation_plan_d0029"
     ],
-    "256": [
+    "262": [
       "docs_implementation_plan_d0030"
     ],
-    "257": [
+    "263": [
       "docs_implementation_plan_d0031"
     ],
-    "258": [
+    "264": [
       "docs_implementation_plan_d0032"
     ],
-    "259": [
+    "265": [
       "docs_implementation_plan_d0033"
     ],
-    "260": [
+    "266": [
       "docs_implementation_plan_d0037"
     ],
-    "261": [
+    "267": [
       "docs_implementation_plan_d0039"
     ],
-    "262": [
+    "268": [
       "docs_implementation_plan_d0040"
     ],
-    "263": [
+    "269": [
       "docs_implementation_plan_d0041"
     ],
-    "264": [
+    "270": [
       "docs_implementation_plan_d0042"
     ],
-    "265": [
+    "271": [
       "docs_implementation_plan_d0043"
     ],
-    "266": [
+    "272": [
       "docs_implementation_plan_d0044"
     ],
-    "267": [
+    "273": [
       "docs_implementation_plan_d0045"
     ],
-    "268": [
+    "274": [
       "docs_implementation_plan_d0066"
     ],
-    "269": [
+    "275": [
       "docs_implementation_plan_d0071"
     ],
-    "270": [
+    "276": [
       "docs_implementation_plan_d0074"
     ],
-    "271": [
+    "277": [
       "docs_implementation_plan_d0075"
     ],
-    "272": [
+    "278": [
       "docs_requirements_r_model_03"
     ],
-    "273": [
+    "279": [
       "docs_requirements_traceability_d_0004"
     ],
-    "274": [
+    "280": [
       "docs_requirements_traceability_d_0015"
     ],
-    "275": [
+    "281": [
       "docs_requirements_traceability_r_auto_01"
     ],
-    "276": [
+    "282": [
       "docs_requirements_traceability_r_auto_02"
     ],
-    "277": [
+    "283": [
       "docs_requirements_traceability_r_auto_03"
     ],
-    "278": [
+    "284": [
       "docs_requirements_traceability_r_cap_01"
     ],
-    "279": [
+    "285": [
       "docs_requirements_traceability_r_cap_02"
     ],
-    "280": [
+    "286": [
       "docs_requirements_traceability_r_cap_03"
     ],
-    "281": [
+    "287": [
       "docs_requirements_traceability_r_cap_04"
     ],
-    "282": [
+    "288": [
       "docs_requirements_traceability_r_cap_05"
     ],
-    "283": [
+    "289": [
       "docs_requirements_traceability_r_cap_06"
     ],
-    "284": [
+    "290": [
       "docs_requirements_traceability_r_cap_07"
     ],
-    "285": [
+    "291": [
       "docs_requirements_traceability_r_cap_09"
     ],
-    "286": [
+    "292": [
       "docs_requirements_traceability_r_class_02"
     ],
-    "287": [
+    "293": [
       "docs_requirements_traceability_r_class_03"
     ],
-    "288": [
+    "294": [
       "docs_requirements_traceability_r_cont_02"
     ],
-    "289": [
+    "295": [
       "docs_requirements_traceability_r_cont_03"
     ],
-    "290": [
+    "296": [
       "docs_requirements_traceability_r_cont_04"
     ],
-    "291": [
+    "297": [
       "docs_requirements_traceability_r_core_01"
     ],
-    "292": [
+    "298": [
       "docs_requirements_traceability_r_core_02"
     ],
-    "293": [
+    "299": [
       "docs_requirements_traceability_r_core_03"
     ],
-    "294": [
+    "300": [
       "docs_requirements_traceability_r_core_04"
     ],
-    "295": [
+    "301": [
       "docs_requirements_traceability_r_ctrl_03"
     ],
-    "296": [
+    "302": [
       "docs_requirements_traceability_r_ctrl_04"
     ],
-    "297": [
+    "303": [
       "docs_requirements_traceability_r_hw_01"
     ],
-    "298": [
+    "304": [
       "docs_requirements_traceability_r_hw_02"
     ],
-    "299": [
+    "305": [
       "docs_requirements_traceability_r_hw_03"
     ],
-    "300": [
+    "306": [
       "docs_requirements_traceability_r_lab_03"
     ],
-    "301": [
+    "307": [
       "docs_requirements_traceability_r_loc_01"
     ],
-    "302": [
+    "308": [
       "docs_requirements_traceability_r_loc_02"
     ],
-    "303": [
+    "309": [
       "docs_requirements_traceability_r_loc_03"
     ],
-    "304": [
+    "310": [
       "docs_requirements_traceability_r_mem_01"
     ],
-    "305": [
+    "311": [
       "docs_requirements_traceability_r_mem_04"
     ],
-    "306": [
+    "312": [
       "docs_requirements_traceability_r_mem_05"
     ],
-    "307": [
+    "313": [
       "docs_requirements_traceability_r_model_01"
     ],
-    "308": [
+    "314": [
       "docs_requirements_traceability_r_model_02"
     ],
-    "309": [
+    "315": [
       "docs_requirements_traceability_r_model_03"
     ],
-    "310": [
+    "316": [
       "docs_requirements_traceability_r_model_04"
     ],
-    "311": [
+    "317": [
       "docs_requirements_traceability_r_pro_01"
     ],
-    "312": [
+    "318": [
       "docs_requirements_traceability_r_pro_02"
     ],
-    "313": [
+    "319": [
       "docs_requirements_traceability_r_pro_03"
     ],
-    "314": [
+    "320": [
       "docs_requirements_traceability_r_sec_01"
     ],
-    "315": [
+    "321": [
       "docs_requirements_traceability_r_sec_02"
     ],
-    "316": [
+    "322": [
       "docs_requirements_traceability_r_sec_04"
     ],
-    "317": [
+    "323": [
       "docs_requirements_traceability_r_sec_05"
     ],
-    "318": [
+    "324": [
       "docs_requirements_traceability_r_spa_02"
     ],
-    "319": [
+    "325": [
       "docs_requirements_traceability_r_spa_04"
     ],
-    "320": [
+    "326": [
       "docs_requirements_traceability_r_spa_05"
     ],
-    "321": [
+    "327": [
       "docs_requirements_traceability_r_ui_02"
     ],
-    "322": [
+    "328": [
       "docs_requirements_traceability_r_ui_03"
     ],
-    "323": [
+    "329": [
       "docs_requirements_traceability_r_ui_04"
     ],
-    "324": [
+    "330": [
       "docs_requirements_traceability_r_ui_05"
     ],
-    "325": [
+    "331": [
       "docs_requirements_traceability_r_ver_01"
     ],
-    "326": [
+    "332": [
       "docs_requirements_traceability_r_ver_02"
     ],
-    "327": [
+    "333": [
       "docs_requirements_traceability_r_ver_03"
     ],
-    "328": [
+    "334": [
       "docs_requirements_traceability_r_ver_04"
     ],
-    "329": [
+    "335": [
       "docs_requirements_traceability_r_ver_06"
     ],
-    "330": [
+    "336": [
       "docs_requirements_traceability_r_voice_01"
     ],
-    "331": [
+    "337": [
       "docs_requirements_traceability_r_voice_02"
     ],
-    "332": [
+    "338": [
       "docs_requirements_traceability_r_voice_03"
     ],
-    "333": [
+    "339": [
       "docs_requirements_traceability_r_voice_04"
     ],
-    "334": [
+    "340": [
       "docs_requirements_traceability_r_voice_05"
     ],
-    "335": [
+    "341": [
       "docs_requirements_traceability_r_voice_06"
     ],
-    "336": [
+    "342": [
       "docs_requirements_traceability_r_voice_07"
     ],
-    "337": [
+    "343": [
       "docs_requirements_traceability_r_voice_08"
     ],
-    "338": [
+    "344": [
       "docs_requirements_traceability_r_voice_09"
     ],
-    "339": [
+    "345": [
       "docs_requirements_traceability_r_voice_10"
     ],
-    "340": [
+    "346": [
       "docs_requirements_traceability_r_voice_11"
     ],
-    "341": [
+    "347": [
       "docs_requirements_traceability_r_voice_12"
     ],
-    "342": [
+    "348": [
       "docs_retrieval_fidelity_spec_defect_d"
     ],
-    "343": [
+    "349": [
       "docs_verification_platform_acceptance"
     ],
-    "344": [
+    "350": [
       "docs_verification_platform_acceptance_p_core_01"
     ],
-    "345": [
+    "351": [
       "docs_verification_platform_acceptance_p_core_02"
     ],
-    "346": [
+    "352": [
       "docs_verification_platform_acceptance_p_core_03"
     ],
-    "347": [
+    "353": [
       "docs_verification_platform_acceptance_p_ctrl_01"
     ],
-    "348": [
+    "354": [
       "docs_verification_platform_acceptance_p_dev_01"
     ],
-    "349": [
+    "355": [
       "docs_verification_platform_acceptance_p_enc_01"
     ],
-    "350": [
+    "356": [
       "docs_verification_platform_acceptance_p_gw_01"
     ],
-    "351": [
+    "357": [
       "docs_verification_platform_acceptance_p_loop_01"
     ],
-    "352": [
+    "358": [
       "docs_verification_platform_acceptance_p_loop_02"
     ],
-    "353": [
+    "359": [
       "docs_verification_platform_acceptance_p_mcp_01"
     ],
-    "354": [
+    "360": [
       "docs_verification_platform_acceptance_p_persist_01"
     ],
-    "355": [
+    "361": [
       "docs_verification_platform_acceptance_p_pro_01"
     ],
-    "356": [
+    "362": [
       "docs_verification_platform_acceptance_p_sec_01"
     ],
-    "357": [
+    "363": [
       "docs_verification_platform_acceptance_r_core_02"
     ],
-    "358": [
+    "364": [
       "docs_verification_platform_acceptance_r_ver_05"
     ],
-    "359": [
+    "365": [
       "infra_docker_compose_config"
     ],
-    "360": [
+    "366": [
       "jarvisd_agent_run"
     ],
-    "361": [
+    "367": [
       "jarvisd_context"
     ],
-    "362": [
+    "368": [
       "jarvisd_core_activity"
     ],
-    "363": [
+    "369": [
       "jarvisd_core_approvals"
     ],
-    "364": [
+    "370": [
       "jarvisd_core_converse"
     ],
-    "365": [
+    "371": [
       "jarvisd_core_estop"
     ],
-    "366": [
+    "372": [
       "jarvisd_core_health"
     ],
-    "367": [
+    "373": [
       "jarvisd_core_reasoning_topics"
     ],
-    "368": [
+    "374": [
       "jarvisd_core_run_tool"
     ],
-    "369": [
+    "375": [
       "jarvisd_gateway_calls"
     ],
-    "370": [
+    "376": [
       "jarvisd_gateway_roles"
     ],
-    "371": [
+    "377": [
       "jarvisd_gateway_status"
     ],
-    "372": [
+    "378": [
       "jarvisd_knowledge_routes"
     ],
-    "373": [
+    "379": [
       "jarvisd_lab_experiments"
     ],
-    "374": [
+    "380": [
       "jarvisd_lab_night"
     ],
-    "375": [
+    "381": [
       "jarvisd_mcp_connect"
     ],
-    "376": [
+    "382": [
       "jarvisd_mcp_servers"
     ],
-    "377": [
+    "383": [
       "jarvisd_mcp_trust"
     ],
-    "378": [
+    "384": [
       "jarvisd_memory_entities"
     ],
-    "379": [
+    "385": [
       "jarvisd_memory_episodes"
     ],
-    "380": [
+    "386": [
       "jarvisd_memory_graph"
     ],
-    "381": [
+    "387": [
       "jarvisd_proactive_items"
     ],
-    "382": [
+    "388": [
       "jarvisd_proactive_rules"
     ],
-    "383": [
+    "389": [
       "jarvisd_proactive_run"
     ],
-    "384": [
+    "390": [
       "jarvisd_prompts"
     ],
-    "385": [
+    "391": [
       "jarvisd_secrets"
     ],
-    "386": [
+    "392": [
       "jarvisd_selfext_registry"
     ],
-    "387": [
+    "393": [
       "jarvisd_settings"
     ],
-    "388": [
+    "394": [
       "pkg_jarvis_ears"
     ],
-    "389": [
+    "395": [
       "services_kernel_claude"
     ],
-    "390": [
+    "396": [
       "services_kernel_claude_md"
     ],
-    "391": [
+    "397": [
       "services_kernel_src_context_claude_module"
     ],
-    "392": [
+    "398": [
       "services_kernel_src_control_claude_module"
     ],
-    "393": [
+    "399": [
       "services_kernel_src_db_migrations_0016_embeddings_hnsw"
     ],
-    "394": [
+    "400": [
       "services_kernel_src_db_migrations_0024_capability_activation"
     ],
-    "395": [
+    "401": [
       "services_kernel_src_db_migrations_0025_entity_aliases"
     ],
-    "396": [
+    "402": [
       "services_kernel_src_db_system_events"
     ],
-    "397": [
+    "403": [
       "services_kernel_src_knowledge_claude_module"
     ],
-    "398": [
+    "404": [
       "services_kernel_src_migrations_0016_embeddings_hnsw"
     ],
-    "399": [
+    "405": [
       "services_kernel_src_prompts_claude_module"
     ],
-    "400": [
+    "406": [
       "services_kernel_src_research_claude_module"
     ],
-    "401": [
+    "407": [
       "services_kernel_src_routes_health"
     ],
-    "402": [
+    "408": [
       "services_kernel_src_server"
     ],
-    "403": [
+    "409": [
       "services_kernel_src_web_contract_checktarget"
     ]
   },
   "cohesion": {
-    "0": 0.06346153846153846,
-    "1": 0.05837173579109063,
-    "2": 0.06708595387840671,
-    "3": 0.08627450980392157,
-    "4": 0.041666666666666664,
-    "5": 0.07142857142857142,
-    "6": 0.061979648473635525,
-    "7": 0.08695652173913043,
-    "8": 0.0782608695652174,
-    "9": 0.08599033816425121,
-    "10": 0.07474747474747474,
-    "11": 0.09595959595959595,
-    "12": 0.09059233449477352,
-    "13": 0.07112375533428165,
-    "14": 0.07207207207207207,
-    "15": 0.0960960960960961,
-    "16": 0.0957983193277311,
-    "17": 0.10588235294117647,
-    "18": 0.11764705882352941,
-    "19": 0.1028225806451613,
-    "20": 0.12903225806451613,
-    "21": 0.13709677419354838,
-    "22": 0.11827956989247312,
-    "23": 0.09425287356321839,
-    "24": 0.14285714285714285,
-    "25": 0.08994708994708994,
-    "26": 0.07142857142857142,
-    "27": 0.07671957671957672,
-    "28": 0.08994708994708994,
-    "29": 0.07407407407407407,
-    "30": 0.1282051282051282,
-    "31": 0.11396011396011396,
-    "32": 0.14153846153846153,
-    "33": 0.14153846153846153,
-    "34": 0.17753623188405798,
-    "35": 0.12681159420289856,
-    "36": 0.21014492753623187,
-    "37": 0.1225296442687747,
-    "38": 0.1067193675889328,
-    "39": 0.1383399209486166,
-    "40": 0.1471861471861472,
-    "41": 0.1523809523809524,
-    "42": 0.1619047619047619,
-    "43": 0.1761904761904762,
-    "44": 0.11904761904761904,
-    "45": 0.12105263157894737,
-    "46": 0.20526315789473684,
-    "47": 0.16374269005847952,
-    "48": 0.12280701754385964,
-    "49": 0.1286549707602339,
-    "50": 0.13725490196078433,
-    "51": 0.19117647058823528,
-    "52": 0.23529411764705882,
-    "53": 0.15441176470588236,
-    "54": 0.17142857142857143,
-    "55": 0.17142857142857143,
-    "56": 0.1619047619047619,
-    "57": 0.13333333333333333,
-    "58": 0.18095238095238095,
-    "59": 0.2087912087912088,
-    "60": 0.19230769230769232,
-    "61": 0.15384615384615385,
-    "62": 0.20512820512820512,
+    "0": 0.06887366818873668,
+    "1": 0.058173076923076925,
+    "2": 0.061581920903954805,
+    "3": 0.07922077922077922,
+    "4": 0.06708595387840671,
+    "5": 0.08627450980392157,
+    "6": 0.06612244897959184,
+    "7": 0.041666666666666664,
+    "8": 0.061979648473635525,
+    "9": 0.08695652173913043,
+    "10": 0.09634146341463415,
+    "11": 0.07112375533428165,
+    "12": 0.07207207207207207,
+    "13": 0.0960960960960961,
+    "14": 0.0957983193277311,
+    "15": 0.08712121212121213,
+    "16": 0.12903225806451613,
+    "17": 0.13709677419354838,
+    "18": 0.13118279569892474,
+    "19": 0.14022988505747128,
+    "20": 0.08994708994708994,
+    "21": 0.07142857142857142,
+    "22": 0.07671957671957672,
+    "23": 0.08994708994708994,
+    "24": 0.07407407407407407,
+    "25": 0.1282051282051282,
+    "26": 0.10256410256410256,
+    "27": 0.14153846153846153,
+    "28": 0.12615384615384614,
+    "29": 0.11,
+    "30": 0.17753623188405798,
+    "31": 0.13043478260869565,
+    "32": 0.11231884057971014,
+    "33": 0.14130434782608695,
+    "34": 0.1067193675889328,
+    "35": 0.2134387351778656,
+    "36": 0.11067193675889328,
+    "37": 0.16017316017316016,
+    "38": 0.18181818181818182,
+    "39": 0.15714285714285714,
+    "40": 0.14285714285714285,
+    "41": 0.16374269005847952,
+    "42": 0.12280701754385964,
+    "43": 0.19298245614035087,
+    "44": 0.13725490196078433,
+    "45": 0.1830065359477124,
+    "46": 0.19117647058823528,
+    "47": 0.23529411764705882,
+    "48": 0.13970588235294118,
+    "49": 0.18382352941176472,
+    "50": 0.16666666666666666,
+    "51": 0.17142857142857143,
+    "52": 0.17142857142857143,
+    "53": 0.1619047619047619,
+    "54": 0.13333333333333333,
+    "55": 0.1619047619047619,
+    "56": 0.18095238095238095,
+    "57": 0.1619047619047619,
+    "58": 0.18681318681318682,
+    "59": 0.19230769230769232,
+    "60": 0.15384615384615385,
+    "61": 0.20512820512820512,
+    "62": 0.19230769230769232,
     "63": 0.19230769230769232,
-    "64": 0.32051282051282054,
-    "65": 0.1794871794871795,
-    "66": 0.16666666666666666,
-    "67": 0.21212121212121213,
-    "68": 0.18181818181818182,
+    "64": 0.21794871794871795,
+    "65": 0.15384615384615385,
+    "66": 0.32051282051282054,
+    "67": 0.19230769230769232,
+    "68": 0.16666666666666666,
     "69": 0.21212121212121213,
-    "70": 0.16666666666666666,
-    "71": 0.16666666666666666,
-    "72": 0.3181818181818182,
-    "73": 0.21818181818181817,
-    "74": 0.2,
-    "75": 0.18181818181818182,
+    "70": 0.18181818181818182,
+    "71": 0.21212121212121213,
+    "72": 0.16666666666666666,
+    "73": 0.16666666666666666,
+    "74": 0.19696969696969696,
+    "75": 0.21818181818181817,
     "76": 0.2,
     "77": 0.18181818181818182,
-    "78": 0.2727272727272727,
-    "79": 0.26666666666666666,
-    "80": 0.2,
-    "81": 0.2,
+    "78": 0.2,
+    "79": 0.18181818181818182,
+    "80": 0.2727272727272727,
+    "81": 0.36363636363636365,
     "82": 0.2,
-    "83": 0.2,
-    "84": 0.28888888888888886,
+    "83": 0.26666666666666666,
+    "84": 0.2,
     "85": 0.2,
-    "86": 0.35555555555555557,
-    "87": 0.26666666666666666,
+    "86": 0.2,
+    "87": 0.2,
     "88": 0.28888888888888886,
-    "89": 0.3055555555555556,
-    "90": 0.2777777777777778,
-    "91": 0.25,
-    "92": 0.2222222222222222,
-    "93": 0.2222222222222222,
-    "94": 0.25,
-    "95": 0.3333333333333333,
-    "96": 0.2777777777777778,
-    "97": 0.2857142857142857,
-    "98": 0.35714285714285715,
-    "99": 0.2857142857142857,
-    "100": 0.35714285714285715,
-    "101": 0.35714285714285715,
-    "102": 0.35714285714285715,
+    "89": 0.2,
+    "90": 0.35555555555555557,
+    "91": 0.2,
+    "92": 0.28888888888888886,
+    "93": 0.28888888888888886,
+    "94": 0.28888888888888886,
+    "95": 0.28888888888888886,
+    "96": 0.35555555555555557,
+    "97": 0.2222222222222222,
+    "98": 0.3055555555555556,
+    "99": 0.2777777777777778,
+    "100": 0.25,
+    "101": 0.2222222222222222,
+    "102": 0.2222222222222222,
     "103": 0.25,
-    "104": 0.25,
-    "105": 0.32142857142857145,
-    "106": 0.32142857142857145,
-    "107": 0.39285714285714285,
-    "108": 0.32142857142857145,
-    "109": 0.2857142857142857,
-    "110": 0.2857142857142857,
-    "111": 0.2857142857142857,
-    "112": 0.38095238095238093,
-    "113": 0.2857142857142857,
-    "114": 0.2857142857142857,
-    "115": 0.2857142857142857,
-    "116": 0.38095238095238093,
-    "117": 0.38095238095238093,
+    "104": 0.3333333333333333,
+    "105": 0.2777777777777778,
+    "106": 0.2857142857142857,
+    "107": 0.35714285714285715,
+    "108": 0.2857142857142857,
+    "109": 0.35714285714285715,
+    "110": 0.35714285714285715,
+    "111": 0.35714285714285715,
+    "112": 0.25,
+    "113": 0.25,
+    "114": 0.32142857142857145,
+    "115": 0.42857142857142855,
+    "116": 0.32142857142857145,
+    "117": 0.2857142857142857,
     "118": 0.2857142857142857,
-    "119": 0.4,
-    "120": 0.3333333333333333,
-    "121": 0.3333333333333333,
-    "122": 0.4,
-    "123": 0.3333333333333333,
-    "124": 0.4666666666666667,
-    "125": 0.5,
-    "126": 0.4,
-    "127": 0.5,
-    "128": 0.5,
-    "129": 0.4,
-    "130": 0.4,
-    "131": 0.7,
-    "132": 0.7,
-    "133": 0.6,
+    "119": 0.38095238095238093,
+    "120": 0.2857142857142857,
+    "121": 0.2857142857142857,
+    "122": 0.2857142857142857,
+    "123": 0.38095238095238093,
+    "124": 0.2857142857142857,
+    "125": 0.4,
+    "126": 0.3333333333333333,
+    "127": 0.3333333333333333,
+    "128": 0.4,
+    "129": 0.3333333333333333,
+    "130": 0.4666666666666667,
+    "131": 0.5,
+    "132": 0.4,
+    "133": 0.5,
     "134": 0.5,
-    "135": 0.5,
-    "136": 0.5,
-    "137": 0.5,
-    "138": 0.5,
-    "139": 0.8333333333333334,
-    "140": 0.6666666666666666,
-    "141": 0.6666666666666666,
-    "142": 0.6666666666666666,
-    "143": 1.0,
-    "144": 0.6666666666666666,
+    "135": 0.4,
+    "136": 0.4,
+    "137": 0.7,
+    "138": 0.7,
+    "139": 0.6,
+    "140": 0.5,
+    "141": 0.5,
+    "142": 0.5,
+    "143": 0.5,
+    "144": 0.8333333333333334,
     "145": 0.6666666666666666,
     "146": 0.6666666666666666,
     "147": 0.6666666666666666,
-    "148": 0.6666666666666666,
+    "148": 1.0,
     "149": 0.6666666666666666,
     "150": 0.6666666666666666,
-    "151": 1.0,
+    "151": 0.6666666666666666,
     "152": 0.6666666666666666,
     "153": 0.6666666666666666,
     "154": 0.6666666666666666,
     "155": 0.6666666666666666,
-    "156": 0.6666666666666666,
+    "156": 1.0,
     "157": 0.6666666666666666,
     "158": 0.6666666666666666,
     "159": 0.6666666666666666,
     "160": 0.6666666666666666,
     "161": 0.6666666666666666,
     "162": 0.6666666666666666,
-    "163": 1.0,
+    "163": 0.6666666666666666,
     "164": 0.6666666666666666,
-    "165": 1.0,
-    "166": 1.0,
-    "167": 1.0,
+    "165": 0.6666666666666666,
+    "166": 0.6666666666666666,
+    "167": 0.6666666666666666,
     "168": 1.0,
-    "169": 1.0,
-    "170": 1.0,
+    "169": 0.6666666666666666,
+    "170": 0.6666666666666666,
     "171": 1.0,
     "172": 1.0,
     "173": 1.0,
@@ -4048,7 +4063,13 @@
     "400": 1.0,
     "401": 1.0,
     "402": 1.0,
-    "403": 1.0
+    "403": 1.0,
+    "404": 1.0,
+    "405": 1.0,
+    "406": 1.0,
+    "407": 1.0,
+    "408": 1.0,
+    "409": 1.0
   },
   "gods": [
     {
@@ -4067,13 +4088,13 @@
       "degree": 39
     },
     {
-      "id": "services_kernel_src_memory_entities_entitymemory",
-      "label": "EntityMemory",
+      "id": "services_kernel_src_memory_memory_memoryservice",
+      "label": "MemoryService",
       "degree": 36
     },
     {
-      "id": "services_kernel_src_memory_memory_memoryservice",
-      "label": "MemoryService",
+      "id": "services_kernel_src_memory_entities_entitymemory",
+      "label": "EntityMemory",
       "degree": 36
     },
     {
@@ -4082,23 +4103,23 @@
       "degree": 36
     },
     {
-      "id": "services_kernel_src_core_estop_emergencystop",
-      "label": "EmergencyStop",
-      "degree": 32
-    },
-    {
       "id": "services_kernel_src_core_tools_tool",
       "label": "Tool",
       "degree": 32
     },
     {
-      "id": "services_kernel_src_core_tools_toolregistry",
-      "label": "ToolRegistry",
-      "degree": 27
+      "id": "services_kernel_src_core_estop_emergencystop",
+      "label": "EmergencyStop",
+      "degree": 32
     },
     {
       "id": "services_kernel_src_core_activity_activitybus",
       "label": "ActivityBus",
+      "degree": 27
+    },
+    {
+      "id": "services_kernel_src_core_tools_toolregistry",
+      "label": "ToolRegistry",
       "degree": 27
     }
   ],
@@ -4160,7 +4181,7 @@
     }
   ],
   "tokens": {
-    "input": 111185,
-    "output": 141852
+    "input": 0,
+    "output": 0
   }
 }

@@ -876,10 +876,10 @@
     "semantic_hash": "2492e282a0a7f6c8aff9fdb825a7532c"
   },
   "services/kernel/src/memory/entityTools.ts": {
-    "mtime": 1788302724.3288338,
-    "seen": 1788303997.6905282,
-    "ast_hash": "9865549d3504762f9e4ceb8bfd78019f",
-    "semantic_hash": "9865549d3504762f9e4ceb8bfd78019f"
+    "mtime": 1788309158.2772164,
+    "seen": 1788309160.1034102,
+    "ast_hash": "08170a2e86ce630ce915046614e139fd",
+    "semantic_hash": "08170a2e86ce630ce915046614e139fd"
   },
   "services/kernel/src/memory/episodeTools.ts": {
     "mtime": 1787690225.0374923,
@@ -900,10 +900,10 @@
     "semantic_hash": "ad3c75482eb7fd53648348936d0e39c4"
   },
   "services/kernel/src/memory/memory.ts": {
-    "mtime": 1788301603.9527674,
-    "seen": 1788301605.6653135,
-    "ast_hash": "6644aed927a2fa8470ed2ca5e014e08c",
-    "semantic_hash": "6644aed927a2fa8470ed2ca5e014e08c"
+    "mtime": 1788309303.0852249,
+    "seen": 1788309304.8155975,
+    "ast_hash": "3f68a030c601b715dd898ad47480ace4",
+    "semantic_hash": "3f68a030c601b715dd898ad47480ace4"
   },
   "services/kernel/src/memory/routes.ts": {
     "mtime": 1787690225.0374923,
@@ -2034,10 +2034,10 @@
     "semantic_hash": "a5827b7b49d47f587df12f0b11bdac4d"
   },
   "services/kernel/test/retrieval_fidelity.test.ts": {
-    "mtime": 1788302731.8288343,
-    "seen": 1788303997.6924922,
-    "ast_hash": "d8cb106525105475508b573bf8fc540c",
-    "semantic_hash": "d8cb106525105475508b573bf8fc540c"
+    "mtime": 1788309307.8372252,
+    "seen": 1788309309.5405538,
+    "ast_hash": "aa57c889c5efaa8efc21e465a640916d",
+    "semantic_hash": "aa57c889c5efaa8efc21e465a640916d"
   },
   "docs/verification/retrieval_fidelity/S3_manual_sonnet5.md": {
     "mtime": 1788301396.236755,
