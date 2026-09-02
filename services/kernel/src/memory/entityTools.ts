@@ -28,6 +28,40 @@ async function preferenceHome(
   return null;
 }
 
+/**
+ * Which of the preferences about a subject a correction means (D-0080 B1).
+ * Second-act audit 2026-09-02: 'morning_swim_status_colour' vs its twin
+ * 'morning swim two status colour' tie on attribute overlap (the twin's tokens
+ * are a superset), and the agent sometimes passes the KEY itself as the entity
+ * ('preferred_workday_start' beside 'weekend_preferred_workday_start') — both
+ * were refused as ambiguous and the flips never landed. Order:
+ *   1. a key whose tokens equal the subject's or the hint's tokens exactly;
+ *   2. the best attribute-hint overlap;
+ *   3. on an overlap tie, the key with FEWER extra tokens (closest to the
+ *      subject — the twin carries 'two');
+ *   4. otherwise genuinely ambiguous → null (the caller refuses, writes nothing).
+ */
+function pickPreference(
+  matches: { key: string; value: string; hintOverlap: number; extra: number }[],
+  entity: string,
+  hint: string | undefined,
+): { key: string; value: string } | null {
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0]!;
+  const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((t) => b.has(t));
+  const subject = normalizeKeyTokens(entity);
+  const hintToks = hint ? normalizeKeyTokens(hint) : null;
+  const exact = matches.find((m) => {
+    const k = normalizeKeyTokens(m.key);
+    return same(k, subject) || (hintToks !== null && same(k, hintToks));
+  });
+  if (exact) return exact;
+  const [top, second] = matches; // matchKeys sorts by hintOverlap desc, extra asc
+  if (top!.hintOverlap > second!.hintOverlap) return top!;
+  if (top!.hintOverlap === second!.hintOverlap && top!.extra < second!.extra) return top!;
+  return null;
+}
+
 function updateInDisguise(entity: string, statement: string, home: { key: string; value: string }): string {
   return (
     `refused: "${statement}" looks like an UPDATE to what I already hold for '${entity}' — preference '${home.key}' = '${home.value}'. ` +
@@ -356,11 +390,10 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
         if (a.factId || probe.targets.length) return await viaFact();
         if (prefs) {
           // the attribute hint: what the model says it replaces, else the new statement itself
-          const matches = await prefs.matchKeys(a.entity, a.replaces ?? a.newStatement);
-          const unambiguous =
-            matches.length === 1 || (matches.length > 1 && matches[0]!.hintOverlap > matches[1]!.hintOverlap);
-          if (unambiguous) {
-            const m = matches[0]!;
+          const hint = a.replaces ?? a.newStatement;
+          const matches = await prefs.matchKeys(a.entity, hint);
+          const m = pickPreference(matches, a.entity, hint);
+          if (m) {
             const updated = await prefs.correct(m.key, a.value ?? a.newStatement, provenance);
             return {
               ok: true,

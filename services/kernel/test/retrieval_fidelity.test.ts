@@ -258,7 +258,47 @@ describe.skipIf(!pool)("D-0080 S4 — route-agnostic memory.correct (R-MEM-08)",
     expect((await prefs.get("coffee_order"))!.value).toBe("cortado");
   });
 
+  // --- second-act audit 2026-09-02: twin keys and key-as-entity were refused as ambiguous ---
+  it("a twin key ('… two …') that ties on attribute overlap does not block the exact subject's key", async () => {
+    await prefs.remember({ key: "morning_swim_status_colour", value: "slate", provenance: "chat" });
+    await prefs.remember({ key: "morning swim two status colour", value: "olive", provenance: "chat" });
+    await prefs.remember({ key: "morning_swim_assigned_number", value: "91", provenance: "chat" });
+    const r = await correct.run({ entity: "morning swim", replaces: "morning_swim_status_colour", newStatement: "morning swim's status colour is crimson", value: "crimson" });
+    expect(r.data).toMatchObject({ route: "preference", key: "morning_swim_status_colour", to: "crimson" });
+    expect((await prefs.get("morning swim two status colour"))!.value).toBe("olive");
+    // and the twin itself is reachable by its own subject
+    const r2 = await correct.run({ entity: "morning swim two", replaces: "status colour", newStatement: "morning swim two's status colour is teal", value: "teal" });
+    expect(r2.data).toMatchObject({ route: "preference", key: "morning swim two status colour", to: "teal" });
+  });
+
+  it("the agent passing the preference KEY as the entity hits that key exactly, not its prefixed sibling", async () => {
+    await prefs.remember({ key: "preferred_workday_start", value: "7 (7:00 AM)", provenance: "chat" });
+    await prefs.remember({ key: "weekend_preferred_workday_start", value: "9", provenance: "chat" });
+    const r = await correct.run({ entity: "preferred_workday_start", newStatement: "preferred workday start is now 22", value: "22" });
+    expect(r.data).toMatchObject({ route: "preference", key: "preferred_workday_start", to: "22" });
+    expect((await prefs.get("weekend_preferred_workday_start"))!.value).toBe("9");
+  });
+
+  it("a genuine tie (same overlap, same specificity, no attribute hint) is still refused", async () => {
+    await prefs.remember({ key: "morning_swim_status_colour", value: "slate", provenance: "chat" });
+    await prefs.remember({ key: "morning_swim_assigned_number", value: "91", provenance: "chat" });
+    const r = await correct.run({ entity: "morning swim", newStatement: "morning swim is now 5", value: "5" });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toMatch(/ambiguous/);
+    expect((await prefs.list()).map((p) => p.value).sort()).toEqual(["91", "slate"]);
+  });
+
   // --- mini-life round D: the agent chose rememberFact for a flip → second home ---
+  it("a key the agent phrased with a preposition ('status colour FOR dawn swim') still counts as the attribute's home", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    await prefs.remember({ key: "status colour for dawn swim", value: "slate", provenance: "chat" });
+    const r = await remember.run({ entity: "dawn swim", statement: "dawn swim's status colour is crimson" });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toContain("status colour for dawn swim");
+    const c = await correct.run({ entity: "dawn swim", replaces: "status colour", newStatement: "dawn swim's status colour is crimson", value: "crimson" });
+    expect(c.data).toMatchObject({ route: "preference", key: "status colour for dawn swim", to: "crimson" });
+  });
+
   it("rememberFact refuses an update-in-disguise when a preference already holds that attribute (one home)", async () => {
     const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
     await prefs.remember({ key: "south_beacon_five_service_day", value: "Thursday", provenance: "chat" });

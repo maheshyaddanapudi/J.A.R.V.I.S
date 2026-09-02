@@ -59,7 +59,14 @@ const MACHINERY_KEY = /^(reasoning_|gateway_|a2ui_|lab_)/;
 /** The ONE key normalizer (spec §7 / D-0080): lower-case, split on
  *  non-alphanumerics, drop 1-char tokens and filler words. Shared by the
  *  duplicate tidy and the route-agnostic correction so both see keys alike. */
-const KEY_FILLER = new Set(["usual", "my", "default", "current", "the", "a", "preferred"]);
+// Filler = words that carry no attribute meaning in a key. The agent names
+// keys freely ('status colour FOR dawn swim', 'service_day_OF_the_kiln'), so
+// small prepositions/articles are filler too (second-act probe 2026-09-02:
+// 'for' inside a key defeated the one-home write guard).
+const KEY_FILLER = new Set([
+  "usual", "my", "default", "current", "the", "a", "an", "preferred",
+  "for", "of", "in", "on", "at", "to", "is", "and", "with", "by",
+]);
 export function normalizeKeyTokens(key: string): Set<string> {
   return new Set(key.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !KEY_FILLER.has(t)));
 }
