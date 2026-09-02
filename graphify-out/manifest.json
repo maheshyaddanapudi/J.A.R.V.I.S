@@ -1974,10 +1974,10 @@
     "semantic_hash": "2343a986d2d649fff5196fe6d7520113"
   },
   "scripts/longitude_xl.py": {
-    "mtime": 1788214329.5591087,
-    "seen": 1788214332.9624414,
-    "ast_hash": "26e459a407cbd6297f082ea87872b464",
-    "semantic_hash": "26e459a407cbd6297f082ea87872b464"
+    "mtime": 1788305985.9850278,
+    "seen": 1788307700.622061,
+    "ast_hash": "1994d6cb207b4619a51ceb4dd5f0ae52",
+    "semantic_hash": "1994d6cb207b4619a51ceb4dd5f0ae52"
   },
   "services/kernel/test/longitude_fixes.test.ts": {
     "mtime": 1788301167.9927413,
@@ -2056,5 +2056,17 @@
     "seen": 1788303997.6939936,
     "ast_hash": "27f784aa928e5676cd07a9556a1e1506",
     "semantic_hash": "27f784aa928e5676cd07a9556a1e1506"
+  },
+  "docs/verification/longitude_xl/replay_s4_final.json": {
+    "mtime": 1788302849.089365,
+    "seen": 1788307700.6217468,
+    "ast_hash": "7dcdfe221c185fa048730b25d441077a",
+    "semantic_hash": "7dcdfe221c185fa048730b25d441077a"
+  },
+  "scripts/longitude_xl_rewind.py": {
+    "mtime": 1788305949.8370256,
+    "seen": 1788307700.6221206,
+    "ast_hash": "e098f2a73acfa87c298e3df479f8fc79",
+    "semantic_hash": "e098f2a73acfa87c298e3df479f8fc79"
   }
 }
