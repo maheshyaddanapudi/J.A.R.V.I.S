@@ -332,6 +332,20 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
         stmts = "; ".join(relation_statement(r) for r in due_rels[i:i + 3])
         acts.append(("agent-teach", f"Remember how these connect: {stmts}."))
 
+    # 1c) chapter two: nicknames, retirements, and plans that span both chapters
+    if day >= EXPANSION_FROM:
+        for a in EXPANSION["aliases"]:
+            if a["day"] == day:
+                acts.append(("agent-teach", f"By the way, {a['person']} usually just goes by {a['alias']} — same person, remember that."))
+        for r in EXPANSION["retirements"]:
+            if r["day"] == day:
+                acts.append(("agent-teach", f"We've wrapped up the {r['name']} — consider it closed. Keep its records, but it is no longer active."))
+        if day % 10 == 5 and day >= EXPANSION_FROM + 70:
+            people = sorted(EXP_PEOPLE)
+            who = people[(day // 10) % len(people)]
+            acts.append(("agent", f"Plan next week's maintenance round: which devices does {who} maintain, "
+                                  "and where is each of them located? Use what you know; say 'not found' for anything you don't."))
+
     # 2) deep-topic corrections on schedule (the REAL promotion signal)
     for t in CATALOG:
         if t["kind"] == "deep" and day in t.get("correct_days", []):
@@ -341,7 +355,8 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
                          else f"How would you approach tuning the {t['name']} side of things?"))
 
     # 3) attention chats — mention topics naturally (keeps retrieval honest)
-    due = [t for t in CATALOG if t["facts"] and attention_due(t, day, rng)]
+    pool = CATALOG + ([t for t in EXPANSION["topics"] if t["facts"][0]["teach"] < day] if day >= EXPANSION_FROM else [])
+    due = [t for t in pool if t["facts"] and attention_due(t, day, rng)]
     for t in due[:3]:
         f = t["facts"][0]
         acts.append(("chat", f"Thinking about the {t['name']} today — anything on file I should remember?"))
@@ -368,7 +383,7 @@ def teach_due(day: int) -> list[dict]:
     The seq tag keeps items unique (two queued flips of one fact must not
     alias each other when the drain removes delivered items)."""
     items = []
-    for f in ALL_FACTS:
+    for f in ALL_FACTS + (EXP_FACTS if day >= EXPANSION_FROM else []):
         if f["teach"] == day:
             items.append({"fid": f["fid"], "kind": "teach", "seq": f"{f['fid']}:t"})
         for i, flip in enumerate(f["flips"]):
@@ -378,6 +393,113 @@ def teach_due(day: int) -> list[dict]:
 
 
 FACT_BY_ID = {f["fid"]: f for f in ALL_FACTS}
+
+
+# ------------------------------------------------------ chapter two layer ---
+# SECOND ACT, CHAPTER TWO (day >= EXPANSION_FROM). The base catalog was fully
+# delivered by day 500, so days 501+ only re-exercised the same 178 topics.
+# Real lives keep changing: new people arrive, new kinds of things appear,
+# people get nicknames, old projects are wrapped up, changes reach you through
+# third parties, and plans span what you knew long ago and what you learned
+# last week. This layer adds exactly that — deterministically, seeded apart
+# from the base, hashed apart from CATALOG_HASH (a run in progress resumes
+# untouched; the chapter simply begins at EXPANSION_FROM) — and the quiz is
+# stratified old/new so the two curves can be read separately.
+EXPANSION_FROM = int(os.environ.get("XL_EXPANSION_FROM", "540"))
+FIRST2 = ["amara", "bjorn", "celeste", "dmitri", "esme", "farid", "greta", "hiro", "ines", "jonas",
+          "kavya", "leon", "mireille", "nils", "odalys", "pavel", "quinn", "ravi", "selene", "theo"]
+LAST2 = ["adeyemi", "bergstrom", "carvalho", "dubois", "eriksen", "ferreira", "gallo", "hoffmann",
+         "ivanova", "jensen", "kowalski", "lindholm", "mendes", "nakamura", "okoro", "pereira"]
+NEW_THINGS = {
+    "vehicle": ["cargo bike", "field truck", "survey drone", "canal boat", "snow tractor", "rail trolley"],
+    "course": ["welding course", "orbital mechanics seminar", "fermentation workshop",
+               "first-aid refresher", "celestial navigation class", "soil chemistry course"],
+    "collection": ["fossil cabinet", "seed vault", "map archive", "mineral tray", "tide log", "radio log"],
+}
+NEW_PREFS = [("weekend brunch drink", "drink"), ("gym day", "day"), ("bike colour", "color"),
+             ("preferred podcast length", "smallnum"), ("study plant", "plant"),
+             ("preferred sauna hour", "hour"), ("preferred camping city", "city"),
+             ("preferred rope material", "material")]
+RETIRE_DAYS = [600, 660, 720, 780, 840, 900]
+RETIRED_RE = re.compile(r"\b(closed|wrapped|no longer|inactive|finished|retired|not active|concluded|shut down)\b", re.I)
+
+
+def build_expansion() -> dict:
+    rng = random.Random(SEED + 4242)
+    topics: list[dict] = []
+    tid = 1000  # base tids are < 200; chapter-two fids never collide
+
+    def mk(topic: str, slot: str, pool: str, teach: int, pref: bool) -> dict:
+        vals = rng.sample(VALUE_POOLS[pool], k=min(4, len(VALUE_POOLS[pool])))
+        flips: list[int] = []
+        if rng.random() < 0.30 and teach + 40 < LIFE - 20:
+            n = rng.choice([1, 1, 2])
+            flips = sorted(rng.sample(range(teach + 30, LIFE - 20), k=n))
+        return {"slot": slot, "pool": pool, "values": vals, "teach": teach, "flips": flips, "pref": pref}
+
+    people = list(dict.fromkeys(f"{rng.choice(FIRST2)} {rng.choice(LAST2)}" for _ in range(24)))[:20]
+    for i, name in enumerate(people):
+        teach = EXPANSION_FROM + i * 11 + rng.randint(0, 4)
+        att = rng.choices(["weekly", "monthly", "rare"], weights=[2, 3, 3])[0]
+        slot, pool = ("preferred material", "material") if rng.random() < 0.2 else ("based in", "city")
+        topics.append({"id": tid, "name": name, "kind": "person", "attention": att, "facts": [
+            mk(name, slot, pool, teach, False),
+            mk(name, "meets on", "day", teach + rng.randint(0, 3), False),
+        ]}); tid += 1
+    i = 0
+    for kind, names in NEW_THINGS.items():
+        for base in names:
+            teach = EXPANSION_FROM + 5 + i * 13 + rng.randint(0, 5); i += 1
+            slots = rng.sample([("status colour", "color"), ("assigned number", "number"),
+                                ("home city", "city"), ("service day", "day"),
+                                ("core material", "material")], k=rng.choice([2, 2, 3]))
+            topics.append({"id": tid, "name": base, "kind": kind,
+                           "attention": rng.choices(["weekly", "monthly", "rare"], weights=[1, 3, 4])[0],
+                           "facts": [mk(base, s, p, teach + rng.randint(0, 4), False) for s, p in slots]}); tid += 1
+    for i, (pname, pool) in enumerate(NEW_PREFS):
+        teach = EXPANSION_FROM + 20 + i * 25 + rng.randint(0, 6)
+        topics.append({"id": tid, "name": pname, "kind": "preference", "attention": rng.choice(["monthly", "rare"]),
+                       "facts": [mk(pname, "is", pool, teach, True)]}); tid += 1
+
+    # nicknames: four new people pick up a short handle ~45 days after arrival
+    aliases = []
+    for idx in (2, 7, 12, 17):
+        if idx < len(people):
+            full = people[idx]
+            aliases.append({"person": full, "alias": full.split()[0], "day": topics[idx]["facts"][0]["teach"] + 45})
+    # retirements: six long-lived base projects/devices get wrapped up
+    candidates = [t for t in CATALOG if t["kind"] in ("project", "device") and t["attention"] in ("rare", "fading")]
+    retirements = [{"name": t["name"], "day": d} for t, d in zip(rng.sample(candidates, len(RETIRE_DAYS)), RETIRE_DAYS)]
+    # cross-links between the chapters, on the verbs the multi-hop question supports
+    by = lambda k: [t for t in CATALOG if t["kind"] == k]
+    rels, day = [], EXPANSION_FROM + 60
+    devices, places, vendors = by("device"), by("place"), by("vendor")
+    vehicles = [t for t in topics if t["kind"] == "vehicle"]
+    for i, p in enumerate(people[:8]):
+        rels.append({"rid": f"x{len(rels)}", "from": p, "verb": "maintains", "to": devices[(i * 5) % len(devices)]["name"], "teach": day}); day += 10
+    for i, v in enumerate(vehicles):
+        rels.append({"rid": f"x{len(rels)}", "from": v["name"], "verb": "is located at", "to": places[(i * 3) % len(places)]["name"], "teach": day}); day += 10
+    for i, v in enumerate(vehicles):
+        rels.append({"rid": f"x{len(rels)}", "from": vendors[(i * 7) % len(vendors)]["name"], "verb": "supplies", "to": v["name"], "teach": day}); day += 10
+    return {"topics": topics, "aliases": aliases, "retirements": retirements, "relations": rels}
+
+
+EXPANSION = build_expansion()
+EXPANSION_HASH = hashlib.sha256(json.dumps(EXPANSION, sort_keys=True).encode()).hexdigest()[:16]
+EXP_FACTS: list[dict] = []
+for t in EXPANSION["topics"]:
+    for i, f in enumerate(t["facts"]):
+        EXP_FACTS.append({"fid": f"{t['id']}.{i}", "topic": t["name"], "kind": t["kind"],
+                          "attention": t["attention"], "layer": "new", **f})
+FACT_BY_ID.update({f["fid"]: f for f in EXP_FACTS})
+RELATIONS.extend(EXPANSION["relations"])   # teach days >= EXPANSION_FROM+60; earlier days unaffected
+EXP_PEOPLE = {t["name"] for t in EXPANSION["topics"] if t["kind"] == "person"}
+
+
+def reporter_for(fid: str) -> str:
+    """A chapter-two flip reaches the user through a third party — deterministic per fact."""
+    names = sorted(EXP_PEOPLE)
+    return names[int(hashlib.sha256(fid.encode()).hexdigest(), 16) % len(names)] if names else "a colleague"
 
 
 def drain_teach(state: dict, day: int) -> list[str]:
@@ -404,7 +526,11 @@ def drain_teach(state: dict, day: int) -> list[str]:
             else:
                 nxt = announced.get(it["fid"], 0) + 1
                 v = f["values"][nxt % len(f["values"])]
-                parts.append("update your memory — " + fact_statement(f, v) + " now (it changed)")
+                if f.get("layer") == "new":
+                    # chapter two: the change arrives THROUGH someone (provenance)
+                    parts.append(f"{reporter_for(it['fid'])} told me that " + fact_statement(f, v) + " now — update your memory (it changed)")
+                else:
+                    parts.append("update your memory — " + fact_statement(f, v) + " now (it changed)")
                 announced[it["fid"]] = nxt
         stmts_out.append("Remember these things: " + "; ".join(parts) + ".")
         taken.extend(batch)
@@ -448,14 +574,31 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
     taught = [f for f in ALL_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
     if not taught:
         return {"day": day, "facts": [], "score": 0, "of": 0}
+    # chapter two facts get a reserved share (up to 6 of the 20) so the old and
+    # new recall curves are both sampled every battery
+    new_taught = [f for f in EXP_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
+    new_sample = rng.sample(new_taught, min(6, len(new_taught)))
+    n_base = QUIZ_FACTS - len(new_sample)
     prefs = [f for f in taught if f["pref"]]
     flipped = [f for f in taught if any(d <= day for d in f["flips"]) and not f["pref"]]
     plain = [f for f in taught if f not in prefs and f not in flipped]
-    sample = (rng.sample(prefs, min(5, len(prefs))) +
-              rng.sample(flipped, min(6, len(flipped))) +
-              rng.sample(plain, min(QUIZ_FACTS - min(5, len(prefs)) - min(6, len(flipped)), len(plain))))
+    n_pref, n_flip = min(5, len(prefs), n_base), min(6, len(flipped), n_base)
+    sample = (rng.sample(prefs, n_pref) + rng.sample(flipped, n_flip) +
+              rng.sample(plain, min(max(0, n_base - n_pref - n_flip), len(plain))) + new_sample)
     rng.shuffle(sample)
     records, hits = [], 0
+    # chapter-two specials: one alias question and one retirement question when available
+    specials: list[tuple[str, str, str, str]] = []  # (kind, question, truth, fid)
+    active_aliases = [a for a in EXPANSION["aliases"] if a["day"] <= day - 1 and delivered.get(next(
+        (f["fid"] for f in EXP_FACTS if f["topic"] == a["person"] and f["slot"] == "meets on"), ""), 10 ** 9) <= day - 1]
+    if active_aliases:
+        a = rng.choice(active_aliases)
+        fid = next(f["fid"] for f in EXP_FACTS if f["topic"] == a["person"] and f["slot"] == "meets on")
+        specials.append(("alias", f"What is the {a['alias']}'s meets on?", announced_truth(state, fid).lower(), fid))
+    retired = [r for r in EXPANSION["retirements"] if r["day"] <= day - 1]
+    if retired:
+        r = rng.choice(retired)
+        specials.append(("retired", f"Is the {r['name']} still active?", "closed", f"retired:{r['name']}"))
     # multi-hop probes: only once the edges they chain have actually been taught
     hops: list[tuple[str, str]] = []
     taught_rels = [r for r in RELATIONS if r["teach"] <= day - 1]
@@ -485,11 +628,26 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
             honest_miss = int(not hit and bool(NEG.search(seg)))
             hits += hit
             records.append({"fid": f["fid"], "topic": f["topic"], "pref": f["pref"],
+                            "layer": f.get("layer", "base"),
                             "age": day - delivered.get(f["fid"], day),
                             "flips": state.get("announced", {}).get(f["fid"], 0),
                             "hit": hit, "honest_miss": honest_miss, "truth": tv,
                             "seg": seg.strip()[:300]})
         QUIZ_LOG.write(json.dumps({"day": day, "batch_answer": answer[:4000]}) + "\n")
+
+    for skind, qtext, truth, fid in specials:
+        r = agent("From your memory, answer in one line. Check entity/graph memory and stored preferences; "
+                  "say 'not found' if it is truly not in memory — never guess. " + qtext, max_steps=8)
+        ans = (r.get("answer") or "").lower()
+        if skind == "retired":
+            hit = int(bool(RETIRED_RE.search(ans)) and not NEG.search(ans[:120]))
+        else:
+            hit = int(all(w in ans for w in truth.split()) and not NEG.search(ans[:120]))
+        hits += hit
+        records.append({"fid": fid, "topic": qtext[:60], "pref": False, "layer": skind, "age": 0, "flips": 0,
+                        "hit": hit, "honest_miss": int(not hit and bool(NEG.search(ans))), "truth": truth,
+                        "seg": ans[:300], "special": skind})
+        QUIZ_LOG.write(json.dumps({"day": day, "special": skind, "q": qtext, "truth": truth, "answer": ans[:2000]}) + "\n")
 
     for qtext, truth in hops:
         r = agent("Answer from memory in one line. This needs you to connect two "
@@ -504,8 +662,8 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
                         "truth": truth, "seg": ans[:300], "multihop": True})
         QUIZ_LOG.write(json.dumps({"day": day, "hop_q": qtext, "truth": truth, "answer": ans[:2000]}) + "\n")
     QUIZ_LOG.flush()
-    return {"day": day, "facts": records, "score": hits, "of": len(sample) + len(hops),
-            "multihop_asked": len(hops)}
+    return {"day": day, "facts": records, "score": hits, "of": len(sample) + len(hops) + len(specials),
+            "multihop_asked": len(hops), "new_asked": len(new_sample), "specials_asked": len(specials)}
 
 
 # ------------------------------------------------------------- night + time ---
@@ -706,6 +864,16 @@ def main() -> None:
         lat: list[int] = []
         day_start_id = int(psql("SELECT coalesce(max(id),0) FROM model_calls") or 0)
 
+        if day >= EXPANSION_FROM:
+            # chapter two drift guard: the layer is pinned the day it first appears
+            if state.get("expansion_hash") is None:
+                state["expansion_hash"] = EXPANSION_HASH
+                log(f"  [chapter two] begins day {day}: {len(EXP_FACTS)} facts / {len(EXPANSION['topics'])} topics, "
+                    f"{len(EXPANSION['aliases'])} aliases, {len(EXPANSION['retirements'])} retirements, "
+                    f"{len(EXPANSION['relations'])} cross-links | hash {EXPANSION_HASH}")
+            elif state["expansion_hash"] != EXPANSION_HASH:
+                log(f"FATAL: state expansion_hash {state['expansion_hash']} != {EXPANSION_HASH} — chapter-two drift")
+                sys.exit(2)
         state.setdefault("teach_queue", []).extend(teach_due(day))
         teach_acts = [] if day in QUIET else drain_teach(state, day)
         for kind, text in plan_day(day, rng, teach_acts):
@@ -765,6 +933,9 @@ def main() -> None:
         snapshot(day, {
             "quiz_score": quiz["score"] if quiz else None,
             "quiz_of": quiz["of"] if quiz else None,
+            "quiz_new_asked": quiz.get("new_asked") if quiz else None,
+            "quiz_new_hits": sum(1 for f in quiz["facts"] if f.get("layer") == "new" and f["hit"]) if quiz else None,
+            "expansion_delivered": sum(1 for f in EXP_FACTS if f["fid"] in state.get("delivered", {})),
             "tick_lab": str(tick.get("lab", "-"))[:60],
             "cols_shifted": shifted, "deep_on_auto": deep_on_auto,
             "avg_latency_ms": int(sum(lat) / max(1, len(lat))),
