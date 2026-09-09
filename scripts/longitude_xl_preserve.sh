@@ -16,6 +16,10 @@ DEST="$(cd "$(dirname "$0")/.." && pwd)/docs/verification/longitude_xl"
 
 DAY=$(python3 -c "import json;print(json.load(open('$SRC/state.json'))['next_day']-1)" 2>/dev/null || echo unknown)
 LABEL="${1:-day$DAY}"
+# An explicit label writes a SIBLING snapshot under its own subdirectory; the
+# unlabeled root stays the day-500 base that the rewind/replay instruments and
+# the second act are anchored to (never overwrite it by accident).
+if [ $# -ge 1 ]; then DEST="$DEST/$LABEL"; fi
 mkdir -p "$DEST"
 
 echo "[preserve] snapshotting Longitude-XL at day $DAY (label: $LABEL)"
