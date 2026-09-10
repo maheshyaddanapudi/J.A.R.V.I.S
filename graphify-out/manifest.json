@@ -2068,5 +2068,23 @@
     "seen": 1788307700.6221206,
     "ast_hash": "e098f2a73acfa87c298e3df479f8fc79",
     "semantic_hash": "e098f2a73acfa87c298e3df479f8fc79"
+  },
+  "docs/verification/longitude_xl/day600/state.json": {
+    "mtime": 1788997050.0916617,
+    "seen": 1789003645.020382,
+    "ast_hash": "6cbf782e4338eb2bc2ffa585dfb9cdbf",
+    "semantic_hash": "6cbf782e4338eb2bc2ffa585dfb9cdbf"
+  },
+  "scripts/longitude_xl_report.py": {
+    "mtime": 1789003628.209664,
+    "seen": 1789003645.0207424,
+    "ast_hash": "15cbc875cb603c65c154d0b38b45c53a",
+    "semantic_hash": "15cbc875cb603c65c154d0b38b45c53a"
+  },
+  "docs/verification/longitude_xl/day600/README.md": {
+    "mtime": 1788997050.3732731,
+    "seen": 1789003645.02819,
+    "ast_hash": "0c7a9029f55f37373c294af9467008d2",
+    "semantic_hash": "0c7a9029f55f37373c294af9467008d2"
   }
 }
