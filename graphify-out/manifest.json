@@ -2086,5 +2086,41 @@
     "seen": 1789003645.02819,
     "ast_hash": "0c7a9029f55f37373c294af9467008d2",
     "semantic_hash": "0c7a9029f55f37373c294af9467008d2"
+  },
+  "docs/verification/longitude_xl/day700/state.json": {
+    "mtime": 1789006590.632419,
+    "seen": 1789083372.231793,
+    "ast_hash": "e204ef98dbe07af02677e9cc134ebf99",
+    "semantic_hash": "e204ef98dbe07af02677e9cc134ebf99"
+  },
+  "docs/verification/longitude_xl/day800/state.json": {
+    "mtime": 1789069693.2713661,
+    "seen": 1789083372.2317953,
+    "ast_hash": "143861d85b37ac5762d678ffaac24fb6",
+    "semantic_hash": "143861d85b37ac5762d678ffaac24fb6"
+  },
+  "docs/verification/LONGITUDE_XL_GAP_LEDGER.md": {
+    "mtime": 1789083239.1213024,
+    "seen": 1789083372.2409487,
+    "ast_hash": "d47a77b6a1c138609be8add2ff0362c2",
+    "semantic_hash": "d47a77b6a1c138609be8add2ff0362c2"
+  },
+  "docs/verification/longitude_xl/day700/README.md": {
+    "mtime": 1789006590.729103,
+    "seen": 1789083372.241254,
+    "ast_hash": "cdc7a9376d5c0b88c375eb9a5b55dda9",
+    "semantic_hash": "cdc7a9376d5c0b88c375eb9a5b55dda9"
+  },
+  "docs/verification/longitude_xl/day800/README.md": {
+    "mtime": 1789069693.3819232,
+    "seen": 1789083372.2412555,
+    "ast_hash": "304e3509a97c8e3d191c6b89a082c077",
+    "semantic_hash": "304e3509a97c8e3d191c6b89a082c077"
+  },
+  "scripts/longitude_xl_ledger.html": {
+    "mtime": 1789003878.4150095,
+    "seen": 1789083372.2413743,
+    "ast_hash": "accd92b6bb6e58409c7ed55100c104c2",
+    "semantic_hash": "accd92b6bb6e58409c7ed55100c104c2"
   }
 }
