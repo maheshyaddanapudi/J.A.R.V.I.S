@@ -71,6 +71,13 @@ export function registerMemoryRoutes(
       const name = decodeURIComponent((req.params as { name?: string }).name ?? "");
       return { forgotten: await entities.forgetEntity(name) };
     });
+    // G-17 reconciliation: split aliases that were separately-taught things
+    // folded in by a pre-fix name-variant merge. Dry-run unless {apply: true};
+    // every applied split is audited (`entity_alias_split`) and announced.
+    app.post("/memory/reconcile-twins", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.splitTwinAliases({ apply: body.apply === true });
+    });
   }
   app.get("/memory/preferences", async (req) => {
     const q = (req.query as { q?: string }).q;

@@ -479,3 +479,71 @@ describe.skipIf(!pool)("G-05 — a first-person 'my X is Y' is a preference, not
     expect((await legacy.run({ query: "bike colour" })).data).toMatchObject({ count: 0 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Longitude-XL G-02 / G-04 read-side wording (2026-09-11): a miss names the
+// similarly-named entities that exist as DIFFERENT things; graph recall tags
+// similarity seeds as different entities whenever the query named one exactly.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("G-02/G-04 — exact-name recall never widens silently", () => {
+  let mem: EntityMemory;
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    mem = new EntityMemory(pool!, audit);
+    await mem.rememberFact({ entityName: "coral census two", entityKind: "project", statement: "coral census two's status colour is ochre", provenance: "t" });
+    await mem.rememberFact({ entityName: "coral census north", entityKind: "project", statement: "coral census north's status colour is slate", provenance: "t" });
+    await mem.rememberFact({ entityName: "boat shed", entityKind: "place", statement: "boat shed's home city is bergen", provenance: "t" });
+  });
+
+  it("memory.recall on a miss names the twins as different entities and says not to answer from them", async () => {
+    const recall = entityMemoryTools(mem).find((t) => t.name === "memory.recall")!;
+    const r = await recall.run({ name: "coral census" });
+    expect(r.data).toBeNull();
+    expect(r.detail).toMatch(/Nothing known about 'coral census'/);
+    expect(r.detail).toMatch(/DIFFERENT entities exist — project 'coral census two', project 'coral census north'/);
+    expect(r.detail).toMatch(/do not answer/);
+    expect(r.detail).not.toMatch(/boat shed/);
+    const related = entityMemoryTools(mem).find((t) => t.name === "memory.related")!;
+    expect((await related.run({ name: "coral census" })).detail).toMatch(/DIFFERENT entities/);
+  });
+
+  it("nearNames ranks qualifier twins first and ignores unrelated names", async () => {
+    const near = await mem.nearNames("coral census");
+    expect(near.map((n) => [n.name, n.twin])).toEqual([["coral census two", true], ["coral census north", true]]);
+    expect(await mem.nearNames("weather mast")).toEqual([]);
+  });
+
+  it("recallGraph output tags a similarity entity as a DIFFERENT entity when the query named one exactly", async () => {
+    await mem.rememberFact({ entityName: "coral census", entityKind: "project", statement: "coral census's status colour is teal", provenance: "t" });
+    const graph = entityMemoryTools(mem).find((t) => t.name === "memory.recallGraph")!;
+    const r = await graph.run({ query: "what is the coral census's status colour?" });
+    expect(r.detail).toMatch(/named in your query \(exact\): coral census/);
+    expect(r.detail).toMatch(/project — coral census \(named in your query\)/);
+  });
+});
+
+describe.skipIf(!pool)("article variants are the same entity ('kiln' ⇄ 'the kiln'), never neighbours", () => {
+  it("recall finds the article variant either way; nearNames does not list it as different", async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    const mem = new EntityMemory(pool!, audit);
+    await mem.rememberFact({ entityName: "the kiln", entityKind: "thing", statement: "the kiln's home city is lisbon", provenance: "t" });
+    await mem.rememberFact({ entityName: "kiln north", entityKind: "thing", statement: "kiln north's home city is osaka", provenance: "t" });
+    expect((await mem.recall("kiln"))!.entity.name).toBe("the kiln");
+    expect((await mem.recall("KILN"))!.facts.map((f) => f.statement)).toEqual(["the kiln's home city is lisbon"]);
+    expect((await mem.nearNames("kiln")).map((n) => n.name)).toEqual(["kiln north"]);
+  });
+});
+
+describe.skipIf(!pool)("G-04 — a connected look-alike is tagged as a DIFFERENT entity from the one named in the query", () => {
+  it("'tidal gauge two' reached through a maintainer is tagged different from the asked 'tide gauge'", async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    const mem = new EntityMemory(pool!, audit);
+    await mem.rememberFact({ entityName: "tide gauge", entityKind: "thing", statement: "tide gauge's status colour is teal", provenance: "t" });
+    await mem.relate({ fromName: "maya okafor", toName: "tidal gauge two", relation: "maintains", provenance: "t", kind: "person" });
+    await mem.relate({ fromName: "tidal gauge two", toName: "boat house", relation: "located_in", provenance: "t", kind: "place" });
+    const graph = entityMemoryTools(mem).find((t) => t.name === "memory.recallGraph")!;
+    const r = await graph.run({ query: "tide gauge maya okafor maintains" });
+    expect(r.detail).toMatch(/tide gauge \(named in your query\)/);
+    expect(r.detail).toMatch(/tidal gauge two \((similar|connected) — a DIFFERENT entity from 'tide gauge'\)/);
+  });
+});

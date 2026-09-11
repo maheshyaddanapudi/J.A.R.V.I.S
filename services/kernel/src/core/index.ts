@@ -301,6 +301,10 @@ export async function buildCore(opts: {
   for (const t of agendaTools(agenda)) tools.register(t);
   const announcer = new Announcer(opts.pool, audit, settings, activity);
   for (const t of announceTools(announcer)) tools.register(t);
+  // G-17 (2026-09-11): a name-variant merge or a reconciliation split is a
+  // memory change the user must see — announced, never silent.
+  entityMemory.onMemoryChange = (c) =>
+    announcer.raise({ text: c.text, about: c.about, kind: "say", urgency: "info", source: "jarvis", dedupeKey: `memory-${c.kind}:${c.about.toLowerCase()}` });
   const projects = new Projects(opts.pool, audit, opts.vault);
   for (const t of projectTools(projects)) tools.register(t);
   // Perception core (D-0070): a SIMULATION file feed in-container (screen source

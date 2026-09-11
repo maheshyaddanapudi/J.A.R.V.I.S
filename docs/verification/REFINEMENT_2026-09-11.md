@@ -73,3 +73,121 @@ writes to `jarvis_xl` (audit verified).
 existing three misfiled facts stay where they are in the world (the read
 fallback now finds them); chapter three re-asks them as part of the G-01
 re-teach check.
+
+## R3 — the twin family (G-02, G-04, G-16) and its root cause G-17 → FIXED+VERIFIED, with an honest residue
+
+**Research.** The strict re-score traced every "answered from the sibling"
+miss to the entity table: 29 of the 179 active entities carried an alias that
+was a separately-taught *twin* — `Coral Census Two {coral census}`,
+`Microscope Two {microscope}`, `kiln north {kiln, the kiln}`, `seed vault
+{seed bank}`, `sensor importer north {sensor importer two}`. The audit trail
+(`entity_remembered.resolvedFrom`) shows each merge happened when the twin was
+first taught: the D-0075 judge compared the new mention with the existing
+sibling and said SAME — its template's own model case of SAME was "a short
+name vs its full name ('Pepper' ⇄ 'Pepper Potts')", exactly the shape of
+`coral census` ⇄ `coral census two`. From then on every exact lookup of the
+short name resolved to the sibling by design, so the sibling's values were
+stated with full confidence (wrong values, never honest misses), and two-hop
+chains and retirement lookups walked the sibling. Nothing announced it.
+
+Two further defects surfaced on the way:
+- **G-15's real cause.** `PromptRegistry.set()` deactivated *every* prompt of
+  the same kind — right for the single persona, wrong for the five named judge
+  templates. Each boot found four of them inactive, re-seeded them as fresh
+  version-1 rows (79 rows in the day-1000 world), and only the last-seeded
+  template was ever served from the registry; the rest fell back to the code
+  constants. Registry edits to four of five templates never reached the model.
+- **Facts are written without their subject.** The agent stores "Status colour
+  is teal" on the entity, not "the coral census's status colour is teal". Once
+  a twin has been folded in, nothing in the store says which sibling a fact
+  belonged to.
+
+**Fix (kernel).**
+- `qualifierTwin()` — same base words, different qualifier (`two`, `north`,
+  `2`, `new`, …) — is a rule, not a judgment: the resolver never offers a twin
+  to the judge as a candidate, declines on the record if one is affirmed
+  (`entity_resolution_declined`), never treats a twin alias left behind by an
+  old merge as a hit (write side) or as a lookup match (`findEntity`, identity
+  seeding), and the miss message names the twins that do exist as DIFFERENT
+  entities. An article variant (`kiln` ⇄ `the kiln`) is the same thing and
+  resolves either way.
+- Every judge merge is now its own audited event (`entity_alias_merged`) and
+  an announcement — "I've treated X as another name for Y (reason); if they are
+  different things, tell me and I'll split them" — through the announcer.
+- `splitTwinAliases()` (`POST /memory/reconcile-twins`, dry-run by default)
+  gives a folded twin its own entity again: facts whose statement names it (and
+  not the canonical) move with it, relations move when the audit trail names
+  it, article variants split as one entity, the twin's original kind and casing
+  are recovered from its superseded row, every split audited
+  (`entity_alias_split`) and announced, nothing deleted. Twins with nothing
+  attributable are reported as `unsplit`, never guessed.
+- The judge template now says qualifier siblings and different head nouns are
+  different things unless the facts prove otherwise; `seedJudgeTemplates`
+  re-seeds a row it wrote itself when the built-in text changes (never a user
+  or lab edit); `PromptRegistry.set()`/`activate()` keep one active row per
+  NAME for templates and system prompts (persona keeps one per kind).
+- Graph-recall output tags entities: "(named in your query)", "(similar — a
+  DIFFERENT entity from 'X')", "(connected — a DIFFERENT entity from 'X')",
+  prints "no connections recorded for X" when a named entity has none, and
+  closes with "answer only about X; say not found rather than substituting a
+  look-alike". The agent's system prompt carries the same rule.
+
+**Tests.** 12 new (`entities.test.ts`, `judge.test.ts`, `prompts.test.ts`,
+`retrieval_fidelity.test.ts`): the twin rule; a SAME-happy judge never sees
+the twin and both entities survive with no alias; Pepper → Pepper Potts still
+merges and is audited + announced; a leftover twin alias no longer resolves;
+split dry-run/apply with facts, relations, kind recovery, article-variant
+grouping, `unsplit` reporting, audit + announcement, idempotence; article
+variants resolve both ways; miss wording; look-alike tagging; template re-seed
+rules; templates coexist. Full suite **507/507, 0 skipped**.
+
+**Reconciliation of the day-1000 world (applied, audited, announced; safety
+dump `/tmp/longitude_xl/jarvis_xl.day1000-pre-reconcile.sql.gz`).** 10 splits
+— `3d printer`, `cloud recycler`, `drone survey` (2 facts), `roof array` (3),
+`roof array two`, `cold cellar` (1 relation), `kiln`, `quinn lindholm`
+(a person who had been folded into "quinn lindholm's meets"), `seed bank`
+(1 fact + 1 relation), `the cloud recycler` — 10 `entity_alias_split` events,
+10 announcements, 189 active entities after. **9 twins could not be split**
+(`aquarium rig`, `catering service`, `coral census`, `lakeside cabin`, `lena
+moreau`, `microscope`, `glacier telemetry`, `sensor importer two`, `the
+morning swim`): their facts carry no subject and their relations were recorded
+under the merged name, so the store holds no evidence of which sibling owned
+what. They are reported as `unsplit` and become chapter three's re-teach set
+— the honest path, since a user who saw the (now existing) announcement would
+have re-stated them. A first apply had created `the kiln` with itself as an
+alias (the superseded row's article form was chosen); the bare form is now
+preferred and a self-alias is pruned on the next run (`entity_alias_pruned`).
+
+**Manual check, Sonnet 5 (port 4170), fresh twin family `field pump` /
+`field pump two` / `field pump north`.** Three distinct entities, no aliases
+(the earlier `tide gauge two` had been merged into a pre-existing `tidal gauge
+two` as a spelling variant — a judgment call, and now announced). Single-hop:
+field pump teal, field pump two ochre, field pump south "not found — a field
+pump north is known separately, a different device". Retirement: field pump
+"no longer active"; field pump two "not found — no status recorded" (correct:
+distinct). Two-hop: `field pump north — rosa castillo` → "not found, rosa
+maintains field pump two, not north"; `field pump two` → boat house;
+**`field pump` (bare name) → the agent still leads with "rosa maintains field
+pump two … (the plain field pump is a different, decommissioned entity with no
+location link to her)"** — it now distinguishes the entities but states the
+sibling's chain first. That is model behaviour on top of an honest tool
+output; it is recorded as the residue of G-04 and measured by the strict
+scorer in the third act rather than papered over.
+
+**Manual check, reconciled day-1000 world (read-only, 0 writes).** `coral
+census` status colour → "not found — Coral Census Two and coral census north
+exist but are different entities" (was 5/5 the twin's value); `roof array`
+home city → Tallinn (split fact); `seed bank` service day → Wednesday (split);
+`kiln` home city → Lisbon (article variant); `roof array — priya silva` two-hop
+→ "not found (the maintained array is Rooftop Garden Two, a different entity)";
+"is the kiln still active?" → "not found" (the retirement fact was not
+attributable — re-teach).
+
+**Status.** G-17 FIXED+VERIFIED (resolver rule, audit + announcement, split
+tool; 9 unsplit twins → re-teach in act three). G-02 FIXED+VERIFIED (a twin
+alias never answers for the short name; misses name the siblings as
+different). G-16 FIXED (article-variant lookup + split; the kiln's own
+retirement fact awaits re-teach). G-15 FIXED (one active per template name;
+re-seed of built-ins). G-04 FIXED on the kernel side with a recorded
+model-behaviour residue — bare-name two-hop questions can still lead with the
+sibling's chain — to be measured in act three under the strict scorer.

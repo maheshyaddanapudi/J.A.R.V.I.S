@@ -131,7 +131,12 @@ export const JUDGE_TEMPLATES = {
     "('Mark 42' ⇄ 'the Mark 42 suit'). Candidates may carry a DIFFERENT kind than the new mention: " +
     "the same real-world thing is sometimes labelled inconsistently ('arc reactor' as a 'thing' or a " +
     "'project') — that is still the SAME. But a shared NAME across genuinely different things " +
-    "('Mercury' the planet vs the element vs the Roman god) is NOT the same. Reply with ONLY JSON: " +
+    "('Mercury' the planet vs the element vs the Roman god) is NOT the same. Names that differ by a " +
+    "QUALIFIER — 'coral census' vs 'coral census two', 'kiln' vs 'kiln north', 'sensor importer two' vs " +
+    "'sensor importer north' — are DIFFERENT things (siblings in a family), never variants of one; and a " +
+    "different head noun ('seed bank' vs 'seed vault', 'roof array' vs 'rooftop garden') is a different " +
+    "thing unless the FACTS prove identity. When the candidate already has its own facts under its own " +
+    "name, prefer NOT the same. Reply with ONLY JSON: " +
     '{"sameAs": <candidate index (integer) or null>, "reason": "<short>"}.',
   "judge-entity-consolidation":
     "You consolidate a person's memory during sleep. These entities all share the NAME below but " +
@@ -177,21 +182,30 @@ export type JudgeTemplateName = keyof typeof JUDGE_TEMPLATES;
 /** Resolves the active registry override for a judge template, or null → default. */
 export type JudgeTemplateResolver = (name: JudgeTemplateName) => Promise<string | null>;
 
+/** Provenance stamped on rows this seeder writes — the only rows it may ever update. */
+export const BUILTIN_SEED = "builtin-seed";
+
 /**
  * Idempotent boot-seed: register each judge template in the prompts registry
  * when absent, so the templates are visible + versionable (and the Night Lab
- * can supersede them via the normal `prompts.set` path). Existing rows —
- * including user or lab edits — are never touched. Best-effort: a registry
- * failure only means the code-constant fallback keeps serving.
+ * can supersede them via the normal `prompts.set` path). A row this seeder
+ * wrote itself (provenance `builtin-seed`) is RE-SEEDED as a new version when
+ * the built-in text changes (G-17, 2026-09-11: the entity-resolution wording
+ * had to reach live worlds, not only fresh ones); a user- or lab-edited row is
+ * never touched. Best-effort: a registry failure only means the code-constant
+ * fallback keeps serving.
  */
 export async function seedJudgeTemplates(registry: {
-  get(name: string, kind: "template"): Promise<{ content: string } | null>;
+  get(name: string, kind: "template"): Promise<{ content: string; provenance?: string } | null>;
   set(input: { name: string; kind: "template"; content: string; provenance?: string }): Promise<unknown>;
 }): Promise<void> {
   for (const [name, content] of Object.entries(JUDGE_TEMPLATES)) {
     try {
       const existing = await registry.get(name, "template");
-      if (!existing) await registry.set({ name, kind: "template", content, provenance: "builtin-seed" });
+      if (!existing) await registry.set({ name, kind: "template", content, provenance: BUILTIN_SEED });
+      else if (existing.provenance === BUILTIN_SEED && existing.content !== content) {
+        await registry.set({ name, kind: "template", content, provenance: BUILTIN_SEED });
+      }
     } catch {
       /* best-effort — fallback constants still serve */
     }

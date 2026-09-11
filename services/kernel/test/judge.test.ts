@@ -196,3 +196,26 @@ describe("GatewayMemoryJudge (D-0075 fast-model memory judgments)", () => {
     expect(privacyForSensitivities([undefined])).toBe("STANDARD");
   });
 });
+
+describe("seedJudgeTemplates re-seeds its own rows when the built-in text changes (G-17, 2026-09-11)", () => {
+  it("absent → seeded; builtin-seed row with stale content → re-seeded; user-edited row → untouched", async () => {
+    const { seedJudgeTemplates, JUDGE_TEMPLATES, BUILTIN_SEED } = await import("../src/memory/judge.js");
+    const names = Object.keys(JUDGE_TEMPLATES);
+    const stored: Record<string, { content: string; provenance: string }> = {
+      [names[0]!]: { content: "old built-in wording", provenance: BUILTIN_SEED },
+      [names[1]!]: { content: "the user's own wording", provenance: "user" },
+      [names[2]!]: { content: JUDGE_TEMPLATES[names[2] as keyof typeof JUDGE_TEMPLATES], provenance: BUILTIN_SEED },
+    };
+    const sets: string[] = [];
+    await seedJudgeTemplates({
+      get: async (name) => stored[name] ?? null,
+      set: async (input) => { sets.push(input.name); stored[input.name] = { content: input.content, provenance: input.provenance ?? "user" }; },
+    });
+    expect(sets).toContain(names[0]); // stale built-in → re-seeded
+    expect(sets).not.toContain(names[1]); // user-edited → never touched
+    expect(sets).not.toContain(names[2]); // current built-in → left alone
+    for (const n of names.slice(3)) expect(sets).toContain(n); // absent → seeded
+    expect(stored[names[0]!]!.content).toBe(JUDGE_TEMPLATES[names[0] as keyof typeof JUDGE_TEMPLATES]);
+    expect(stored[names[1]!]!.content).toBe("the user's own wording");
+  });
+});

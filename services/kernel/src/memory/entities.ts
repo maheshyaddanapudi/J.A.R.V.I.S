@@ -125,6 +125,43 @@ function preferFuller(existing: string, incoming: string): string {
 function fullestName(names: string[]): string {
   return names.reduce((best, n) => preferFuller(best, n));
 }
+/** Tokens that make a name a DIFFERENT member of the same family rather than a
+ *  variant spelling: 'coral census' vs 'coral census two', 'kiln' vs 'kiln north'. */
+const QUALIFIER_TOKENS = new Set([
+  "two", "three", "four", "five", "2", "3", "4", "5", "ii", "iii", "iv", "v",
+  "north", "south", "east", "west", "new", "old", "second", "third", "alpha", "beta", "mk", "mark", "jr", "sr",
+]);
+function nameShape(name: string): { base: string; quals: string } {
+  const toks = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  const body = toks[0] === "the" ? toks.slice(1) : toks;
+  return {
+    base: body.filter((t) => !QUALIFIER_TOKENS.has(t)).join(" "),
+    quals: body.filter((t) => QUALIFIER_TOKENS.has(t)).join(" "),
+  };
+}
+/**
+ * Longitude-XL G-17 (2026-09-11): two names are QUALIFIER TWINS when they share
+ * the same base words and differ only in qualifier tokens — 'coral census' ⇄
+ * 'coral census two', 'the kiln' ⇄ 'kiln north', 'sensor importer two' ⇄
+ * 'sensor importer north'. Twins are different things by default and are never
+ * merged as name variants of one entity: over 1000 simulated days the resolver
+ * had folded 29 separately-taught twins into their longer siblings, and every
+ * later exact lookup of the shorter name answered with the sibling's values.
+ * 'Pepper' ⇄ 'Pepper Potts' and 'kiln' ⇄ 'the kiln' are NOT twins (same base,
+ * no qualifier difference / a genuinely fuller name).
+ */
+export function qualifierTwin(a: string, b: string): boolean {
+  const A = nameShape(a);
+  const B = nameShape(b);
+  return A.base.length > 0 && A.base === B.base && A.quals !== B.quals;
+}
+/** A name is a mere VARIANT of another (article/case/spacing) — same base, same
+ *  qualifiers — as opposed to a different thing that was folded in. */
+function sameShape(a: string, b: string): boolean {
+  const A = nameShape(a);
+  const B = nameShape(b);
+  return A.base === B.base && A.quals === B.quals;
+}
 /** Cheap gate before spending a model call on consolidation: do any two facts
  *  share a content word at all? If not, there is nothing plausibly duplicated. */
 function anyPairShareWord(decoded: { words: Set<string> }[]): boolean {
@@ -234,6 +271,12 @@ export class EntityMemory {
      *  best-effort — every method falls back to deterministic logic on null */
     private readonly judge?: MemoryJudge,
   ) {}
+
+  /** G-17 transparency hook: a name-variant MERGE (the judge folded a mention
+   *  into an existing entity) or a reconciliation SPLIT is a memory change the
+   *  user must be able to see and undo. The kernel wires this to the announcer;
+   *  best-effort, never blocks the write. */
+  onMemoryChange?: (change: { kind: "merge" | "split"; text: string; about: string }) => Promise<unknown>;
 
   /** D-0080 knob (`memory.recall.identityFirst`, default true): when false,
    *  recallGraph ranks similarity first and uses identity only as a fallback —
@@ -359,6 +402,22 @@ export class EntityMemory {
           ...(plan.resolvedFrom ? { resolvedFrom: plan.resolvedFrom } : {}),
         },
       });
+      if (plan.merged) {
+        // G-17: a judge merge is its own audited, announced memory change — not
+        // a field on another event that nothing reads.
+        await this.audit.append({
+          actor: "kernel",
+          event: "entity_alias_merged",
+          payload: { mention: plan.merged.mention, into: plan.merged.into, canonical: plan.canonicalName, kind: plan.canonicalKind, aliases: plan.aliases, reason: plan.merged.reason },
+        });
+        if (this.onMemoryChange) {
+          void this.onMemoryChange({
+            kind: "merge",
+            about: plan.canonicalName,
+            text: `I've treated "${plan.merged.mention}" as another name for "${plan.merged.into}" (${plan.merged.reason}); it now lives under "${plan.canonicalName}". If they are different things, tell me and I'll split them again.`,
+          }).catch(() => undefined);
+        }
+      }
       const entity = this.hydrateEntity(rows[0]);
       // Best-effort vector indexing (hybrid graph recall, D-0045) — embedded from
       // the plaintext (never ciphertext); a missing embedder is a no-op.
@@ -389,15 +448,21 @@ export class EntityMemory {
     aliases: string[];
     supersedeIds: string[];
     resolvedFrom?: string;
+    /** set when a judge verdict folded two names together (G-17: audited + announced) */
+    merged?: { mention: string; into: string; reason: string };
   }> {
-    // 1. exact name OR existing alias, same kind
-    const { rows: exact } = await this.pool.query<{ id: string; name: string; attributes: string; aliases: string[] }>(
+    // 1. exact name OR existing alias, same kind. G-17: an alias that is a
+    //    qualifier TWIN of the row's name ('coral census' on 'Coral Census Two',
+    //    left behind by a pre-fix merge) does not count as a hit — the mention
+    //    gets its own entity again instead of accruing to its sibling.
+    const { rows: hits } = await this.pool.query<{ id: string; name: string; attributes: string; aliases: string[] }>(
       `SELECT id, name, attributes, aliases FROM memory_entities
        WHERE kind = $2 AND status NOT IN ('deleted','superseded')
          AND ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
        ORDER BY updated_at DESC`,
       [input.name, input.kind],
     );
+    const exact = hits.filter((r) => r.name.toLowerCase() === input.name.toLowerCase() || !qualifierTwin(input.name, r.name));
     if (exact.length) {
       // Prefer the FULLER name as canonical (D-0075): matching by an ALIAS (e.g.
       // the mention 'Pepper' hitting canonical 'Pepper Potts') must NOT rename the
@@ -439,7 +504,17 @@ export class EntityMemory {
           cands.map<EntityCandidate>((c) => ({ name: c.name, kind: c.kind, attributes: c.attributes, facts: c.facts })),
           privacy,
         );
-        const C = verdict?.sameAs != null ? cands[verdict.sameAs] : undefined;
+        let C = verdict?.sameAs != null ? cands[verdict.sameAs] : undefined;
+        if (C && qualifierTwin(C.name, input.name)) {
+          // G-17 belt-and-braces: candidates are already twin-filtered; should a
+          // twin still be affirmed, decline on the record and keep both.
+          await this.audit.append({
+            actor: "kernel",
+            event: "entity_resolution_declined",
+            payload: { mention: input.name, candidate: C.name, reason: "qualifier twin — different thing by rule", judge: verdict?.reason ?? "" },
+          });
+          C = undefined;
+        }
         if (C) {
           // Prefer the FULLER name as canonical (D-0075): if the incoming mention
           // is the more complete form ('Pepper Potts' resolving to existing
@@ -455,6 +530,8 @@ export class EntityMemory {
             aliases: [...aliases],
             supersedeIds: [C.id],
             resolvedFrom: input.name,
+            // a case/spacing variant of the same name is a re-mention, not a merge
+            ...(sameShape(C.name, input.name) ? {} : { merged: { mention: input.name, into: C.name, reason: verdict?.reason ?? "same entity" } }),
           };
         }
       }
@@ -485,6 +562,9 @@ export class EntityMemory {
     );
     const similar = rows
       .filter((r) => nameSimilar(name, r.name) || (r.aliases ?? []).some((a) => nameSimilar(name, a)))
+      // G-17: a qualifier twin is a different thing by rule — the judge never
+      // gets to call 'coral census two' the same as 'coral census'
+      .filter((r) => !qualifierTwin(name, r.name))
       .slice(0, 8);
     const out: { id: string; name: string; kind: string; attributes: string; facts: string[]; aliases: string[]; sensitivity: string }[] = [];
     for (const r of similar) {
@@ -516,10 +596,27 @@ export class EntityMemory {
        WHERE ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
          AND status NOT IN ('deleted','superseded')
          ${kind ? "AND kind = $2" : ""}
-       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 1`,
+       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 8`,
       kind ? [name, kind] : [name],
     );
-    return rows[0] ? this.hydrateEntity(rows[0]) : null;
+    // G-17: an exact name wins; an alias hit counts only when the alias is a
+    // genuine variant of the entity's name, never a qualifier twin left behind
+    // by a pre-fix merge ('coral census' must not resolve to 'Coral Census Two').
+    const row =
+      rows.find((r) => String(r.name).toLowerCase() === name.toLowerCase()) ??
+      rows.find((r) => !qualifierTwin(name, String(r.name)));
+    if (row) return this.hydrateEntity(row);
+    // an article variant IS the same thing ('kiln' ⇄ 'the kiln') — same base, same qualifiers
+    const { rows: variants } = await this.pool.query(
+      `SELECT id, kind, name, attributes, status, provenance, confidence, sensitivity, created_at, updated_at
+       FROM memory_entities
+       WHERE regexp_replace(lower(name), '^the\\s+', '') = regexp_replace(lower($1), '^the\\s+', '')
+         AND status NOT IN ('deleted','superseded')
+         ${kind ? "AND kind = $2" : ""}
+       ORDER BY updated_at DESC LIMIT 1`,
+      kind ? [name, kind] : [name],
+    );
+    return variants[0] ? this.hydrateEntity(variants[0]) : null;
   }
 
   /** Resolve an entity by name, creating a bare one if it does not exist. */
@@ -793,6 +890,209 @@ export class EntityMemory {
       relationsOut: out.rows.map((r) => ({ ...this.hydrateRelation(r), toName: r.to_name, toKind: r.to_kind })),
       relationsIn: inc.rows.map((r) => ({ ...this.hydrateRelation(r), fromName: r.from_name, fromKind: r.from_kind })),
     };
+  }
+
+  /**
+   * G-17 reconciliation (2026-09-11): undo pre-fix merges that folded a
+   * separately-taught thing into a sibling as an "alias" — 'Coral Census Two'
+   * carrying the alias 'coral census', 'seed vault' carrying 'seed bank'. For
+   * every active entity whose alias is NOT a mere variant of its name (article,
+   * case, spacing), the alias becomes its own entity again: facts whose
+   * statement names the alias (word-bounded) and not the canonical move with
+   * it; relations move when the audit trail (`relation_remembered` payload
+   * names) or explicit hints say the edge was recorded against the alias.
+   * Aliases that are variants of each other ('kiln', 'the kiln') split as ONE
+   * entity. Dry-run by default — `apply` writes, with an `entity_alias_split`
+   * audit event per split and the transparency announcement. Nothing is
+   * deleted: the canonical keeps everything not attributable to the alias, and
+   * the old superseded rows stay as history.
+   */
+  async splitTwinAliases(
+    opts: { apply?: boolean; relationHints?: { from: string; to: string; relation: string }[] } = {},
+  ): Promise<{
+    applied: boolean;
+    splits: { canonical: string; kind: string; alias: string; aliases: string[]; facts: string[]; relations: number; entityId?: string }[];
+    /** twins whose facts carry no subject ("Status colour is teal") and whose
+     *  relations were recorded under the merged name — nothing attributes them,
+     *  so the store cannot split them honestly; they need re-teaching */
+    unsplit: { canonical: string; kind: string; alias: string; factsOnCanonical: number; reason: string }[];
+  }> {
+    const nameRe = (n: string) =>
+      new RegExp(`(^|[^a-z0-9])${n.toLowerCase().trim().replace(/[^a-z0-9]+/g, "[^a-z0-9]+")}([^a-z0-9]|$)`);
+    let hints = opts.relationHints;
+    if (!hints) {
+      try {
+        const { rows } = await this.pool.query<{ payload: { from?: string; to?: string; relation?: string } }>(
+          `SELECT payload FROM audit_log WHERE event = 'relation_remembered'`,
+        );
+        hints = rows.map((r) => ({ from: String(r.payload?.from ?? "").toLowerCase(), to: String(r.payload?.to ?? "").toLowerCase(), relation: String(r.payload?.relation ?? "") }));
+      } catch {
+        hints = [];
+      }
+    } else {
+      hints = hints.map((h) => ({ from: h.from.toLowerCase(), to: h.to.toLowerCase(), relation: h.relation }));
+    }
+    const { rows: ents } = await this.pool.query<{ id: string; name: string; kind: string; aliases: string[] | null }>(
+      `SELECT id, name, kind, aliases FROM memory_entities
+       WHERE status NOT IN ('deleted','superseded') AND aliases IS NOT NULL AND cardinality(aliases) > 0
+       ORDER BY name`,
+    );
+    const splits: { canonical: string; kind: string; alias: string; aliases: string[]; facts: string[]; relations: number; entityId?: string }[] = [];
+    const unsplit: { canonical: string; kind: string; alias: string; factsOnCanonical: number; reason: string }[] = [];
+    for (const e of ents) {
+      // hygiene: an alias equal to the entity's own name is meaningless — prune it (audited)
+      const self = (e.aliases ?? []).filter((a) => a === e.name.toLowerCase());
+      if (self.length && opts.apply) {
+        await this.pool.query(`UPDATE memory_entities SET aliases = array_remove(aliases, $2), updated_at = now() WHERE id = $1`, [e.id, e.name.toLowerCase()]);
+        await this.audit.append({ actor: "kernel", event: "entity_alias_pruned", payload: { name: e.name, alias: e.name.toLowerCase(), reason: "alias equals the entity's own name" } });
+        e.aliases = (e.aliases ?? []).filter((a) => a !== e.name.toLowerCase());
+      }
+      // group the entity's foreign aliases by shape: 'kiln' + 'the kiln' are one thing
+      const groups = new Map<string, string[]>();
+      for (const a of e.aliases ?? []) {
+        if (sameShape(a, e.name)) continue; // a genuine variant of the canonical — stays an alias
+        const s = nameShape(a);
+        const key = `${s.base}|${s.quals}`;
+        groups.set(key, [...(groups.get(key) ?? []), a]);
+      }
+      if (!groups.size) continue;
+      const { rows: factRows } = await this.pool.query<{ id: string; statement: string }>(
+        `SELECT id, statement FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded') ORDER BY created_at`,
+        [e.id],
+      );
+      const facts = factRows.map((f) => ({ id: f.id, statement: this.dec(f.statement) }));
+      const canonRe = nameRe(e.name);
+      const { rows: rels } = await this.pool.query<{ id: string; from_entity: string; to_entity: string; relation: string; other: string }>(
+        `SELECT r.id, r.from_entity, r.to_entity, r.relation,
+                CASE WHEN r.from_entity = $1 THEN t.name ELSE f.name END AS other
+         FROM memory_relations r
+         JOIN memory_entities f ON f.id = r.from_entity
+         JOIN memory_entities t ON t.id = r.to_entity
+         WHERE r.from_entity = $1 OR r.to_entity = $1`,
+        [e.id],
+      );
+      for (const aliases of groups.values()) {
+        const alias = [...aliases].sort((x, y) => x.length - y.length)[0]!; // the bare form names the new entity
+        const res = aliases.map(nameRe);
+        // a longer sibling alias/name that CONTAINS this alias must not claim its statements
+        const longer = [e.name, ...(e.aliases ?? []).filter((o) => !aliases.includes(o))]
+          .filter((o) => o.toLowerCase() !== alias && nameRe(alias).test(o.toLowerCase()))
+          .map(nameRe);
+        const mine = facts.filter((f) => {
+          const s = f.statement.toLowerCase();
+          return res.some((re) => re.test(s)) && !canonRe.test(s) && !longer.some((re) => re.test(s));
+        });
+        const myRels = rels.filter((r) => {
+          const other = r.other.toLowerCase();
+          const fromMe = r.from_entity === e.id;
+          return hints!.some((h) =>
+            h.relation === r.relation &&
+            (fromMe ? aliases.includes(h.from) && h.to === other : aliases.includes(h.to) && h.from === other),
+          );
+        });
+        if (!mine.length && !myRels.length) {
+          // nothing attributable — the alias stays; the report says so honestly
+          unsplit.push({
+            canonical: e.name, kind: e.kind, alias, factsOnCanonical: facts.length,
+            reason: "no fact names this twin (statements carry no subject) and no relation was recorded under its name — re-teach it",
+          });
+          continue;
+        }
+        const split: (typeof splits)[number] = { canonical: e.name, kind: e.kind, alias, aliases: aliases.filter((a) => a !== alias), facts: mine.map((f) => f.statement), relations: myRels.length };
+        if (opts.apply) {
+          const client = await this.pool.connect();
+          try {
+            await client.query("BEGIN");
+            // the thing's own earlier row (superseded by the merge) tells us its kind + original casing;
+            // the bare form is preferred over an article variant ('kiln' over 'the kiln')
+            const { rows: prior } = await client.query<{ name: string; kind: string }>(
+              `SELECT name, kind FROM memory_entities WHERE lower(name) = ANY($1::text[]) AND status = 'superseded'
+               ORDER BY (lower(name) = $2) DESC, updated_at DESC LIMIT 1`,
+              [aliases, alias],
+            );
+            const newName = prior[0]?.name ?? alias;
+            const newAliases = aliases.filter((a) => a !== newName.toLowerCase());
+            const { rows: created } = await client.query<{ id: string }>(
+              `INSERT INTO memory_entities (kind, name, attributes, aliases, status, provenance, confidence, sensitivity)
+               VALUES ($1,$2,$3,$4,'user_statement',$5,1.0,'personal') RETURNING id`,
+              [
+                prior[0]?.kind ?? e.kind,
+                newName,
+                this.enc(""),
+                newAliases,
+                `reconciliation: split from '${e.name}' — a name-variant merge had folded this separately-taught thing in`,
+              ],
+            );
+            split.aliases = newAliases;
+            const newId = created[0]!.id;
+            if (mine.length) {
+              await client.query(`UPDATE memory_facts SET entity_id = $1 WHERE id = ANY($2::uuid[])`, [newId, mine.map((f) => f.id)]);
+            }
+            for (const r of myRels) {
+              const col = r.from_entity === e.id ? "from_entity" : "to_entity";
+              await client.query(
+                `UPDATE memory_relations r SET ${col} = $1 WHERE r.id = $2
+                   AND NOT EXISTS (SELECT 1 FROM memory_relations x WHERE x.from_entity = CASE WHEN $3 = 'from_entity' THEN $1 ELSE r.from_entity END
+                                                                     AND x.to_entity = CASE WHEN $3 = 'to_entity' THEN $1 ELSE r.to_entity END
+                                                                     AND x.relation = r.relation)`,
+                [newId, r.id, col],
+              );
+            }
+            await client.query(`UPDATE memory_entities SET aliases = array(SELECT unnest(aliases) EXCEPT SELECT unnest($2::text[])), updated_at = now() WHERE id = $1`, [e.id, aliases]);
+            await client.query("COMMIT");
+            split.entityId = newId;
+            await this.audit.append({
+              actor: "kernel",
+              event: "entity_alias_split",
+              payload: { canonical: e.name, kind: e.kind, alias, aliases: split.aliases, facts: mine.length, relations: myRels.length, entityId: newId },
+            });
+            if (this.semantic) void this.semantic.index("entity", newId, [prior[0]?.name ?? alias, prior[0]?.kind ?? e.kind].join(". "));
+            if (this.onMemoryChange) {
+              void this.onMemoryChange({
+                kind: "split",
+                about: prior[0]?.name ?? alias,
+                text: `I had been treating "${alias}" as another name for "${e.name}"; they are different things, so "${alias}" is its own entry again with its ${mine.length} fact(s)${myRels.length ? ` and ${myRels.length} relation(s)` : ""}. Nothing was deleted.`,
+              }).catch(() => undefined);
+            }
+          } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+          } finally {
+            client.release();
+          }
+        }
+        splits.push(split);
+      }
+    }
+    return { applied: Boolean(opts.apply), splits, unsplit };
+  }
+
+  /**
+   * G-02/G-04 read-side lever (2026-09-11): when an exact lookup misses, name
+   * the similarly-named entities that DO exist — as different things — so the
+   * agent can say "not found for X (I do know X two)" instead of answering from
+   * the sibling. Qualifier twins first, then names that contain or are
+   * contained by the asked name on a word boundary.
+   */
+  async nearNames(name: string, limit = 5): Promise<{ name: string; kind: string; twin: boolean }[]> {
+    const q = name.toLowerCase().trim();
+    if (!q) return [];
+    const { rows } = await this.pool.query<{ name: string; kind: string; aliases: string[] | null }>(
+      `SELECT name, kind, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 500`,
+    );
+    const contains = (a: string, b: string) => new RegExp(`(^|[^a-z0-9])${b.replace(/[^a-z0-9]+/g, "[^a-z0-9]+")}([^a-z0-9]|$)`).test(a);
+    return rows
+      .filter((r) => r.name.toLowerCase() !== q && !sameShape(q, r.name)) // an article/case variant is the same thing, not a neighbour
+      .map((r) => {
+        const n = r.name.toLowerCase();
+        const twin = qualifierTwin(q, n) || (r.aliases ?? []).some((a) => qualifierTwin(q, a));
+        const near = twin || contains(n, q) || contains(q, n);
+        return { name: r.name, kind: r.kind, twin, near };
+      })
+      .filter((r) => r.near)
+      .sort((a, b) => Number(b.twin) - Number(a.twin) || a.name.length - b.name.length)
+      .slice(0, limit)
+      .map(({ name: n, kind, twin }) => ({ name: n, kind, twin }));
   }
 
   async listEntities(kind?: string): Promise<Entity[]> {
@@ -1204,7 +1504,8 @@ export class EntityMemory {
     const identity = all
       .map((r) => ({
         r,
-        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).map((a) => identityMatch(q, a))),
+        // G-17: an alias that is a qualifier twin of the entity's name never seeds it
+        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).filter((a) => !qualifierTwin(a, r.name)).map((a) => identityMatch(q, a))),
       }))
       .filter((x) => x.len > 0)
       .sort((a, b) => b.len - a.len);

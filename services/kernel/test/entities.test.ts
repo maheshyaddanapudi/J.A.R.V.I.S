@@ -1,4 +1,4 @@
-import { describe, expect, it, afterAll, beforeEach, vi } from "vitest";
+import { describe, expect, it, afterAll, beforeAll, beforeEach, vi } from "vitest";
 import pg from "pg";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -488,5 +488,157 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     );
     expect(active.rows[0]!.n).toBe(1); // merged to one
     expect((await mem.recall("Reactor"))!.facts.length).toBe(2); // both facts on the survivor
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Longitude-XL gap G-17 (2026-09-11): the resolver had folded 29 separately-
+// taught QUALIFIER TWINS ('coral census' → 'Coral Census Two', 'kiln' → 'kiln
+// north') into their siblings as aliases; every later exact lookup answered
+// with the sibling's values. Twins are different things by rule; merges are
+// audited + announced; pre-fix merges can be split back with history.
+// ---------------------------------------------------------------------------
+import { qualifierTwin } from "../src/memory/entities.js";
+
+describe.skipIf(!pool)("G-17 — qualifier twins are different things", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  const calls = () => (audit as unknown as { append: { mock: { calls: [{ event: string; payload: Record<string, unknown> }][] } } }).append.mock.calls.map((c) => c[0]);
+  beforeEach(async () => {
+    await p.query("TRUNCATE memory_entities, memory_facts, memory_relations CASCADE");
+    (audit as unknown as { append: { mockClear(): void } }).append.mockClear();
+  });
+
+  it("qualifierTwin: same base + different qualifier = twins; variants and fuller names are not", () => {
+    expect(qualifierTwin("coral census", "coral census two")).toBe(true);
+    expect(qualifierTwin("the kiln", "kiln north")).toBe(true);
+    expect(qualifierTwin("sensor importer two", "sensor importer north")).toBe(true);
+    expect(qualifierTwin("3d printer", "3D Printer North")).toBe(true);
+    expect(qualifierTwin("kiln", "the kiln")).toBe(false); // article variant — same thing
+    expect(qualifierTwin("Pepper", "Pepper Potts")).toBe(false); // fuller name
+    expect(qualifierTwin("Mark 42", "Mark 42 suit")).toBe(false);
+    expect(qualifierTwin("seed bank", "seed vault")).toBe(false); // different head noun — the template's job
+    expect(qualifierTwin("coral census two", "Coral Census Two")).toBe(false);
+  });
+
+  it("a judge that would say SAME never sees the twin as a candidate; both entities stay, no alias", async () => {
+    const seen: string[][] = [];
+    const judge: MemoryJudge = {
+      resolveEntity: async (_s, candidates) => {
+        seen.push(candidates.map((c) => c.name));
+        return candidates.length ? { sameAs: 0, reason: "short vs full name" } : { sameAs: null, reason: "none" };
+      },
+      mergeFacts: async () => [],
+      mergeEntities: async () => [],
+      extractTopics: async () => [],
+      assessAgendaFreshness: async () => null,
+    } as unknown as MemoryJudge;
+    const mem = new EntityMemory(p, audit, vault, undefined, judge);
+    await mem.rememberFact({ entityName: "coral census", entityKind: "thing", statement: "the coral census's status colour is teal", provenance: "t" });
+    await mem.rememberFact({ entityName: "coral census two", entityKind: "thing", statement: "the coral census two's status colour is ochre", provenance: "t" });
+    const active = await p.query<{ name: string; aliases: string[] }>(
+      "SELECT name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') ORDER BY name",
+    );
+    expect(active.rows.map((r) => r.name)).toEqual(["coral census", "coral census two"]);
+    expect(active.rows.every((r) => (r.aliases ?? []).length === 0)).toBe(true);
+    expect(seen.flat()).not.toContain("coral census"); // the twin was filtered before the judge
+    expect((await mem.recall("coral census"))!.facts.map((f) => f.statement)).toEqual(["the coral census's status colour is teal"]);
+    expect((await mem.recall("coral census two"))!.facts.map((f) => f.statement)).toEqual(["the coral census two's status colour is ochre"]);
+  });
+
+  it("a genuine variant merge (Pepper → Pepper Potts) still happens — and is now audited and announced", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async (s, candidates) => {
+        const i = candidates.findIndex((c) => c.name.toLowerCase().includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(c.name.toLowerCase()));
+        return i >= 0 ? { sameAs: i, reason: "short vs full name" } : { sameAs: null, reason: "new" };
+      },
+      mergeFacts: async () => [],
+      mergeEntities: async () => [],
+      extractTopics: async () => [],
+      assessAgendaFreshness: async () => null,
+    } as unknown as MemoryJudge;
+    const mem = new EntityMemory(p, audit, vault, undefined, judge);
+    const announced: { kind: string; text: string }[] = [];
+    mem.onMemoryChange = async (c) => { announced.push(c); };
+    await mem.rememberEntity({ kind: "person", name: "Pepper", provenance: "t" });
+    await mem.rememberEntity({ kind: "person", name: "Pepper Potts", provenance: "t" });
+    await new Promise((r) => setTimeout(r, 10));
+    const merged = calls().find((c) => c.event === "entity_alias_merged");
+    expect(merged?.payload).toMatchObject({ mention: "Pepper Potts", into: "Pepper", canonical: "Pepper Potts" });
+    expect(announced.map((a) => a.kind)).toEqual(["merge"]);
+    expect(announced[0]!.text).toMatch(/another name for "Pepper"/);
+  });
+
+  it("a twin alias left behind by a pre-fix merge no longer resolves the short name to its sibling", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberFact({ entityName: "Coral Census Two", entityKind: "thing", statement: "the coral census two's status colour is ochre", provenance: "t" });
+    await p.query(`UPDATE memory_entities SET aliases = ARRAY['coral census'] WHERE lower(name) = 'coral census two'`);
+    expect(await mem.recall("coral census")).toBeNull(); // honest — not the twin's values
+    expect((await mem.recall("Coral Census Two"))!.facts).toHaveLength(1);
+    // and a fresh write to the short name gets its own entity, not the sibling
+    await mem.rememberFact({ entityName: "coral census", entityKind: "thing", statement: "the coral census's status colour is teal", provenance: "t" });
+    const active = await p.query<{ name: string }>("SELECT name FROM memory_entities WHERE status NOT IN ('deleted','superseded') ORDER BY name");
+    expect(active.rows.map((r) => r.name)).toEqual(["Coral Census Two", "coral census"]);
+    // identity seeding ranks the exact entity first; the sibling's twin alias never counts as its name
+    const g = await mem.recallGraph("what is the coral census's status colour?");
+    expect(g.seeds[0]).toEqual({ name: "coral census", via: "identity" });
+    expect((await mem.recall("coral census"))!.facts.map((f) => f.statement)).toEqual(["the coral census's status colour is teal"]);
+  });
+
+  it("splitTwinAliases: dry-run reports, apply gives the folded twin its own entity with its facts + relations, audited + announced", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    const announced: { kind: string; text: string }[] = [];
+    mem.onMemoryChange = async (c) => { announced.push(c); };
+    // the day-1000 shape: one canonical carrying a twin's facts, the twin's own row superseded
+    await mem.rememberFact({ entityName: "Coral Census Two", entityKind: "thing", statement: "the coral census two's status colour is ochre", provenance: "t" });
+    await mem.rememberFact({ entityName: "Coral Census Two", entityKind: "thing", statement: "the coral census's status colour is teal", provenance: "t" });
+    await mem.rememberFact({ entityName: "Coral Census Two", entityKind: "thing", statement: "the coral census's home city is bergen", provenance: "t" });
+    await mem.relate({ fromName: "Coral Census Two", toName: "boat shed", relation: "is located at", provenance: "t", kind: "place" });
+    await p.query(`UPDATE memory_entities SET aliases = ARRAY['coral census'] WHERE lower(name) = 'coral census two'`);
+    await p.query(
+      `INSERT INTO memory_entities (kind, name, attributes, aliases, status, provenance, confidence, sensitivity)
+       VALUES ('project', 'coral census', '', '{}', 'superseded', 't', 1.0, 'personal')`,
+    );
+    // 'kiln north' carrying the article-variant pair 'kiln' + 'the kiln' → ONE split
+    await mem.rememberFact({ entityName: "kiln north", entityKind: "thing", statement: "kiln north's status colour is slate", provenance: "t" });
+    await mem.rememberFact({ entityName: "kiln north", entityKind: "thing", statement: "the kiln is wrapped up as of today", provenance: "t" });
+    await p.query(`UPDATE memory_entities SET aliases = ARRAY['kiln','the kiln'] WHERE lower(name) = 'kiln north'`);
+    // a twin whose facts carry no subject ("Status colour is ochre") and whose
+    // relations were recorded under the merged name cannot be attributed —
+    // reported as unsplit, never guessed
+    await mem.rememberFact({ entityName: "Microscope Two", entityKind: "thing", statement: "Status colour is ochre", provenance: "t" });
+    await p.query(`UPDATE memory_entities SET aliases = ARRAY['microscope'] WHERE lower(name) = 'microscope two'`);
+    const hints = [{ from: "coral census", to: "boat shed", relation: "is located at" }];
+
+    const dry = await mem.splitTwinAliases({ relationHints: hints });
+    expect(dry.applied).toBe(false);
+    expect(dry.unsplit.map((u) => [u.canonical, u.alias, u.factsOnCanonical])).toEqual([["Microscope Two", "microscope", 1]]);
+    expect(dry.splits.map((s) => [s.canonical, s.alias, s.facts.length, s.relations])).toEqual([
+      ["Coral Census Two", "coral census", 2, 1],
+      ["kiln north", "kiln", 1, 0],
+    ]);
+    expect((await mem.recall("microscope"))).toBeNull(); // the unsplit twin alias no longer resolves to its sibling either
+    expect(await mem.recall("coral census")).toBeNull(); // dry-run wrote nothing
+
+    const done = await mem.splitTwinAliases({ apply: true, relationHints: hints });
+    expect(done.applied).toBe(true);
+    const cc = await mem.recall("coral census");
+    expect(cc!.entity.kind).toBe("project"); // recovered from its own superseded row
+    expect(cc!.facts.map((f) => f.statement).sort()).toEqual(["the coral census's home city is bergen", "the coral census's status colour is teal"]);
+    expect(cc!.relationsOut.map((r) => [r.relation, r.toName])).toEqual([["is located at", "boat shed"]]);
+    const two = await mem.recall("Coral Census Two");
+    expect(two!.facts.map((f) => f.statement)).toEqual(["the coral census two's status colour is ochre"]);
+    expect(two!.relationsOut).toHaveLength(0);
+    const kiln = await mem.recall("kiln");
+    expect(kiln!.facts.map((f) => f.statement)).toEqual(["the kiln is wrapped up as of today"]);
+    expect((await mem.recall("the kiln"))!.entity.name).toBe("kiln"); // the article variant rides along as an alias
+    const aliases = await p.query<{ name: string; aliases: string[] }>("SELECT name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') ORDER BY name");
+    expect(Object.fromEntries(aliases.rows.map((r) => [r.name, r.aliases ?? []]))).toMatchObject({ "Coral Census Two": [], "kiln north": [], kiln: ["the kiln"] });
+    expect(calls().filter((c) => c.event === "entity_alias_split")).toHaveLength(2);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(announced.map((a) => a.kind)).toEqual(["split", "split"]);
+    // idempotent: nothing left to split
+    expect((await mem.splitTwinAliases({ relationHints: hints })).splits).toEqual([]);
   });
 });

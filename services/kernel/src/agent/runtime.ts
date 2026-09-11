@@ -17,7 +17,10 @@ const AGENT_SYSTEM =
   "steps. Use the provided tools when an action or lookup is needed; call one tool " +
   "at a time and use the result before the next. When the objective is met, reply " +
   "with a concise final answer and no further tool calls. Never claim a tool ran " +
-  "unless its result says so.\n\n" +
+  "unless its result says so. When a question names a specific thing, answer about exactly " +
+  "that thing: similarly named entities ('X two', 'X north', 'the X' vs 'X two') are DIFFERENT " +
+  "things — if the named one lacks the asked fact or connection, say it is not found rather " +
+  "than answering from a look-alike.\n\n" +
   UNTRUSTED_CONTENT_NOTE;
 
 /**

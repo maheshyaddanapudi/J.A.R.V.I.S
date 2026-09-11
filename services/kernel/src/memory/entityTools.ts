@@ -1,5 +1,5 @@
 import type { Tool, ToolResult } from "../core/tools.js";
-import type { EntityMemory, GraphNeighborhood, GraphRecall, Recall } from "./entities.js";
+import { qualifierTwin, type EntityMemory, type GraphNeighborhood, type GraphRecall, type Recall } from "./entities.js";
 import { normalizeKeyTokens, type MemoryService } from "./memory.js";
 
 /**
@@ -321,7 +321,7 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     async run(args: unknown): Promise<ToolResult> {
       const { name } = args as { name: string };
       const r = await mem.recall(name);
-      if (!r) return { ok: true, summary: `no memory of '${name}'`, data: null, detail: `Nothing known about '${name}'.` };
+      if (!r) return { ok: true, summary: `no memory of '${name}'`, data: null, detail: await missWithNearNames(mem, name) };
       return {
         ok: true,
         summary: `${r.entity.kind} '${r.entity.name}': ${r.facts.length} fact(s), ${r.relationsOut.length + r.relationsIn.length} relation(s)`,
@@ -349,7 +349,7 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     async run(args: unknown): Promise<ToolResult> {
       const a = args as { name: string; depth?: number };
       const g = await mem.traverse(a.name, a.depth ?? 2);
-      if (!g) return { ok: true, summary: `no memory of '${a.name}'`, data: null, detail: `Nothing known about '${a.name}'.` };
+      if (!g) return { ok: true, summary: `no memory of '${a.name}'`, data: null, detail: await missWithNearNames(mem, a.name) };
       return {
         ok: true,
         summary: `${g.nodes.length} entity(ies), ${g.edges.length} relation(s) within ${a.depth ?? 2} hop(s) of '${a.name}'`,
@@ -526,12 +526,69 @@ function renderNeighborhood(g: GraphNeighborhood): string {
   return lines.join("\n");
 }
 
+/**
+ * G-02/G-04 (2026-09-11): a miss must not invite the agent to answer from a
+ * sibling. Name the similarly-named entities that DO exist, explicitly as
+ * different things — Longitude-XL saw 'coral census' answered from 'coral
+ * census two' 5/5 and two-hop chains resolved through 'kiln north' for 'kiln'.
+ */
+async function missWithNearNames(mem: EntityMemory, name: string): Promise<string> {
+  let near: { name: string; kind: string; twin: boolean }[] = [];
+  try {
+    near = await mem.nearNames(name);
+  } catch {
+    near = [];
+  }
+  if (!near.length) return `Nothing known about '${name}'.`;
+  return (
+    `Nothing known about '${name}'. Similarly named but DIFFERENT entities exist — ${near.map((n) => `${n.kind} '${n.name}'`).join(", ")} — ` +
+    `do not answer a question about '${name}' from them; say '${name}' is not found (you may mention that '${near[0]!.name}' is known separately).`
+  );
+}
+
+/** Does `other` look like a sibling/near-name of `named` — a qualifier twin, a
+ *  word-bounded containment, or a close spelling ('tidal gauge two' for 'tide
+ *  gauge')? Such entities are tagged DIFFERENT so the agent never answers a
+ *  question about `named` from them. */
+function lookalike(named: string, other: string): boolean {
+  const a = named.toLowerCase().trim();
+  const b = other.toLowerCase().trim();
+  if (a === b) return false;
+  if (qualifierTwin(a, b)) return true;
+  const wb = (s: string) => new RegExp(`(^|[^a-z0-9])${s.replace(/[^a-z0-9]+/g, "[^a-z0-9]+")}([^a-z0-9]|$)`);
+  if (wb(a).test(b) || wb(b).test(a)) return true;
+  const ta = a.split(/\s+/);
+  const tb = b.split(/\s+/);
+  // same word count ±1 and every word of the shorter is a prefix-match (≥4 chars) of a word in the longer
+  const [s, l] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  if (l.length - s.length > 1) return false;
+  const stem = (w: string) => w.slice(0, 3); // "tide"/"tidal", "kiln"/"kilns"
+  return s.filter((w) => w.length >= 4).every((w) => l.some((x) => stem(x) === stem(w))) && s.some((w) => w.length >= 4);
+}
+
 function renderGraphRecall(r: GraphRecall): string {
+  const via = new Map((r.seeds ?? []).map((s) => [s.name.toLowerCase(), s.via]));
+  const named = (r.seeds ?? []).filter((s) => s.via === "identity").map((s) => s.name);
   const seeds = r.seeds?.length ? ` — entry points: ${r.seeds.map((s) => `${s.name} (${s.via})`).join(", ")}` : "";
   const lines = [`relevant knowledge (${r.mode}${seeds}):`];
+  if (named.length) lines.push(`  named in your query (exact): ${named.join(", ")} — anything tagged DIFFERENT below is another entity; do not answer about ${named.join(' / ')} from it.`);
   for (const e of r.entities) {
-    lines.push(`  ${e.kind} — ${e.name}`);
+    const v = via.get(e.name.toLowerCase());
+    const twinOf = v === "identity" ? undefined : named.find((n) => lookalike(n, e.name));
+    const tag =
+      v === "identity" ? " (named in your query)"
+      : twinOf ? ` (${v === "similarity" ? "similar" : "connected"} — a DIFFERENT entity from '${twinOf}')`
+      : v === "similarity" ? (named.length ? " (similar — a DIFFERENT entity)" : " (similar)")
+      : " (connected)";
+    lines.push(`  ${e.kind} — ${e.name}${tag}`);
     for (const f of e.facts) lines.push(`    · ${f}`);
+    if (v === "identity") {
+      const mine = r.relations.filter((rel) => rel.fromName.toLowerCase() === e.name.toLowerCase() || rel.toName.toLowerCase() === e.name.toLowerCase());
+      if (!mine.length) lines.push(`    ↔ no connections recorded for ${e.name}`);
+    }
+  }
+  if (named.length) {
+    lines.push(`answer only about ${named.join(" / ")}; every other entity above is a different thing — if ${named[0]} lacks the asked fact or connection, say it is not found rather than substituting a look-alike.`);
   }
   if (r.relations.length) {
     lines.push("connections:");
