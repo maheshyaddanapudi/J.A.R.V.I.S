@@ -430,7 +430,7 @@ entity, a `memory.recallPreferences` per question, a graph query on top):
 
 **Tests.** 5 new (adapter cache markers + usage fields; runtime tool scope;
 ranking/cap; `memory.lookup` on twins + preferences; gateway insert). Full
-suite **526/526, 0 skipped** (migration 0028 applied by the migrate test).
+suite **525/525, 0 skipped** (migration 0028 applied by the migrate test).
 
 **Measured, Sonnet 5 (port 4170), the same five-question battery three ways —
 all three answered 5/5 correctly:**
@@ -451,3 +451,74 @@ load, per-step latency flat), E-06 (deep-reasoning share is the harness's
 forced-deep control arm, the learned reflex is precise), E-07 (per-call input
 does not grow with memory — the context caps work): recorded, nothing to fix.
 E-03 is ACCEPTED with the check-in recommendation in R7.
+
+## R9 — instrument + ops (G-12, G-13 adopted live, G-14; chapter three designed) → DONE
+
+**Research.** Three instrument facts stood between the ledger and a clean third
+act: (1) chapter two's nickname generator drew first names with replacement, so
+three of four handles collided with other people (`pavel` 0/14 strict); (2) the
+harness scored leniently and truncated what it kept (`seg` 300 chars,
+`batch_answer` 4,000, specials 2,000) — the strict re-score had to recover full
+answers by prefix matching; (3) the second act ran on an hourly server-side
+Routine + a 20-minute session cron + a log Monitor that were switched off at
+its end and documented nowhere but in the Routine's own prompt. Separately, the
+XL kernel on :4160 was found still running the R7 build in memory while
+`/health` read the R8 dist (migration 0028 "pending"): restarted on the R8
+build, 28/28 applied, the world untouched (230 entities, 535 facts, 28,735 audit
+rows) — a checklist item now, not an assumption.
+
+**Fix (instrument, `scripts/longitude_xl.py` — the base and chapter-two hashes
+are byte-unchanged, verified `9206ceb12fd98ad6` / `10a2cef1fd90db2c`; a
+pre-act-three day asks IDENTICAL questions to the committed harness, verified
+with the same rng, state and a fake agent).**
+- **G-13 → live.** The strict rubric moved verbatim into
+  `scripts/longitude_xl_strict.py` (`StrictScorer` bound to a world's names,
+  relations and value pools). The re-score instrument imports it: re-running it
+  reproduces `rescore_strict.jsonl` byte-for-byte and the same headline table.
+  From the third act the harness scores every record under both rubrics
+  (`hit`/`score` lenient for continuity; `strict`/`class`), keeps the full
+  answer (`full`), the two-hop question (`q`), a `reteach` flag, and writes the
+  raw rows untruncated.
+- **G-12.** Chapter three draws first names without replacement from a list
+  disjoint from both earlier chapters, and every nickname is asserted to occur
+  exactly once among ALL people of the world at build time (a collision is a
+  crash). Third-act nickname questions use only handles unique in the world
+  (`UNIQUE_HANDLES` = ravi + jiro, lucan, rashid, halvard); the chapter-two
+  collisions are never asked again.
+- **Two-hop truth.** `current_relations()` resolves exclusive slots to the
+  latest teach (one maintainer per device, one place per thing — the kernel's
+  R5 rule mirrored) so a question never identifies a device by a maintainer it
+  no longer has; the two-hop prompt asks for ONE committed place and states the
+  exact-entity rule; the battery prompt names `memory.lookup` (R8) and the
+  rule. All three are disclosed instrument changes for the third act.
+- **Chapter three** (`build_chapter_three()`, hash `7806a9a6f228d3c9`, pinned
+  in the checkpoint on its first day): the re-teach of 83 facts on 37 topics
+  (every topic with ≥2 strict misses in act two + both sides of the 9 unsplit
+  twin pairs) through the ordinary teach queue as a recap of the current truth
+  (`kind: reteach`, delivery day untouched, `retaught` ledger); the current
+  edges of the 10 skipped device families re-stated; the kiln's retirement
+  re-stated (five controls untouched); the late D-0052 pin (day 1010, bar 24,
+  one more harness re-pin → 30); four late deep topics + two junk controls with
+  identical phrasing + two junk probes on auto; 12 new people, 12 things, 6
+  preferences, 18 cross-links incl. six maintainer handovers; 3 chapter-two
+  retirements; restarts 1100/1300, quiet fortnights 1200/1400. Dry run of the
+  whole day engine 1001–1500 without HTTP: 58/58 chapter-three facts delivered,
+  83/83 re-taught by day 1013, ≤10 acts a day, one maintainer per device in the
+  hop truth, 84 two-hop chains available.
+- **G-14.** `docs/verification/longitude_xl/RUNBOOK_ACT3.md`: launch checklist
+  (build → suite → safety dump → embedder → kernel health with 0 pending →
+  dry run → detached launch → re-arm the Routine with the act-three prompt +
+  the keepalive cron + the log Monitor → preserve at 100-day marks), the daily
+  guards, the pre-registered targets T1–T12, and the never-list. The Routine
+  `trig_01N8PRfNALCa6PhWBcXgt4bm` stays disabled until launch (R11).
+
+**Tests.** No kernel change in R9 (suite unchanged at 525/525 from R8 — the R8
+record's "526" was a transcription slip; the run printed 525 passed, 0
+skipped). Instrument checks: rescore byte-identity, generator assertions,
+old/new question-set identity for a pre-act-three day, act-three quiz path
+with a fake agent (hedge / wrong-device / honest / hit classes land as
+designed).
+
+**Status.** G-12 FIXED (instrument); G-13 CLOSED + adopted live; G-14
+DOCUMENTED, re-arm at launch; G-09, G-10, G-01/G-07/G-16/G-17 world-side
+closure DESIGNED-INTO-ACT-3 with pre-registered targets.

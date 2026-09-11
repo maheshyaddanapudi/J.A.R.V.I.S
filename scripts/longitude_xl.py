@@ -49,8 +49,9 @@ EMBED = os.environ.get("XL_EMBED_URL", "http://127.0.0.1:9302")
 PRICE = {"claude-sonnet-5": (3.0, 15.0), "claude-haiku-4-5": (1.0, 5.0)}
 
 LAB_EVERY, QUIZ_EVERY = 20, 10
-RESTARTS = {100, 300, 500, 700, 900}
-QUIET = set(range(200, 216)) | set(range(450, 466)) | set(range(800, 831))
+RESTARTS = {100, 300, 500, 700, 900, 1100, 1300}
+QUIET = (set(range(200, 216)) | set(range(450, 466)) | set(range(800, 831))
+         | set(range(1200, 1216)) | set(range(1400, 1416)))
 QUIZ_FACTS = 20
 
 
@@ -266,6 +267,8 @@ RELATIONS = build_relations()
 
 
 def relation_statement(r: dict) -> str:
+    if r.get("handover"):  # chapter three: an exclusive edge replaced on purpose
+        return f"{r['from']} now maintains the {r['to']} — taking over from whoever had it before"
     return f"{r['from']} {r['verb']} the {r['to']}"
 
 
@@ -346,6 +349,27 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
             acts.append(("agent", f"Plan next week's maintenance round: which devices does {who} maintain, "
                                   "and where is each of them located? Use what you know; say 'not found' for anything you don't."))
 
+    # 1d) chapter three: nicknames, retirements of chapter-two things, the
+    # re-teach of muddled relation families, the kiln's retirement re-stated,
+    # and plans that span all three chapters
+    if day >= CHAPTER3_FROM:
+        for a in CHAPTER3["aliases"]:
+            if a["day"] == day:
+                acts.append(("agent-teach", f"By the way, {a['person']} usually just goes by {a['alias']} — same person, remember that."))
+        for r in CHAPTER3["retirements"]:
+            if r["day"] == day:
+                acts.append(("agent-teach", f"We've wrapped up the {r['name']} — consider it closed. Keep its records, but it is no longer active."))
+        for stmt in reteach_relations_due(day):
+            acts.append(("agent-teach", stmt))
+        if day == CHAPTER3_FROM + 12:
+            acts.append(("agent-teach", "Just to be clear: the kiln is still closed — we wrapped it up a while back and it is "
+                                        "no longer active. The kiln two and the kiln north are separate things and unaffected."))
+        if day % 10 == 5 and day >= CHAPTER3_FROM + 90:
+            people = sorted(CH3_PEOPLE)
+            who = people[(day // 10) % len(people)]
+            acts.append(("agent", f"Plan next week's maintenance round: which devices does {who} maintain, "
+                                  "and where is each of them located? Use what you know; say 'not found' for anything you don't."))
+
     # 2) deep-topic corrections on schedule (the REAL promotion signal)
     for t in CATALOG:
         if t["kind"] == "deep" and day in t.get("correct_days", []):
@@ -353,9 +377,22 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
             acts.append(("chat-deep",
                          f"Any thoughts on {t['name']} for tomorrow?" if first
                          else f"How would you approach tuning the {t['name']} side of things?"))
+    if day >= CHAPTER3_FROM:
+        # chapter three: late deep topics (G-09) and the activity-word junk controls,
+        # asked with exactly the same phrasing so only the SUBJECT differs
+        for t in CHAPTER3["deep"]:
+            if day in t["correct_days"]:
+                first = day == t["correct_days"][0]
+                acts.append(("chat-deep",
+                             f"Any thoughts on {t['name']} for tomorrow?" if first
+                             else f"How would you approach tuning the {t['name']} side of things?"))
+        if day in (CHAPTER3_FROM + 100, CHAPTER3_FROM + 101):
+            # junk probe on auto: must stay fast (no learned topic behind an activity word)
+            acts.append(("chat", f"Any thoughts on {JUNK_WORDS3[day - CHAPTER3_FROM - 100]} for tomorrow?"))
 
     # 3) attention chats — mention topics naturally (keeps retrieval honest)
-    pool = CATALOG + ([t for t in EXPANSION["topics"] if t["facts"][0]["teach"] < day] if day >= EXPANSION_FROM else [])
+    pool = (CATALOG + ([t for t in EXPANSION["topics"] if t["facts"][0]["teach"] < day] if day >= EXPANSION_FROM else [])
+            + ([t for t in CHAPTER3["topics"] if t["facts"][0]["teach"] < day] if day >= CHAPTER3_FROM else []))
     due = [t for t in pool if t["facts"] and attention_due(t, day, rng)]
     for t in due[:3]:
         f = t["facts"][0]
@@ -367,8 +404,13 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
         acts.append(("chat-forced-deep", ROUTINE_DEEP[(day + 2) % len(ROUTINE_DEEP)]))
 
     # 5) learned-topic probe every 50 days: an ordinary phrasing on a taught deep topic
+    # (third act: alternates with the chapter-three topics once they have been corrected)
     if day % 50 == 25:
         dt = DEEP_TOPICS[(day // 50) % len(DEEP_TOPICS)]
+        if day >= CHAPTER3_FROM and (day // 50) % 2 == 0:
+            learned = [t["name"] for t in CHAPTER3["deep"] if not t["junk"] and t["correct_days"][-1] + 5 < day]
+            if learned:
+                dt = learned[(day // 50) % len(learned)]
         acts.append(("chat", f"Any thoughts on {dt} drift compensation?"))
 
     # 6) smalltalk filler up to ~10 acts
@@ -383,12 +425,18 @@ def teach_due(day: int) -> list[dict]:
     The seq tag keeps items unique (two queued flips of one fact must not
     alias each other when the drain removes delivered items)."""
     items = []
-    for f in ALL_FACTS + (EXP_FACTS if day >= EXPANSION_FROM else []):
+    for f in (ALL_FACTS + (EXP_FACTS if day >= EXPANSION_FROM else [])
+              + (CH3_FACTS if day >= CHAPTER3_FROM else [])):
         if f["teach"] == day:
             items.append({"fid": f["fid"], "kind": "teach", "seq": f"{f['fid']}:t"})
         for i, flip in enumerate(f["flips"]):
             if flip == day:
                 items.append({"fid": f["fid"], "kind": "flip", "seq": f"{f['fid']}:f{i}"})
+    if day >= CHAPTER3_FROM:
+        # chapter three re-teach: ~8 facts (≈3 topics) a day from CHAPTER3_FROM+2
+        for i, fid in enumerate(RETEACH_FIDS):
+            if CHAPTER3_FROM + 2 + i // 8 == day:
+                items.append({"fid": fid, "kind": "reteach", "seq": f"{fid}:r"})
     return items
 
 
@@ -496,6 +544,213 @@ RELATIONS.extend(EXPANSION["relations"])   # teach days >= EXPANSION_FROM+60; ea
 EXP_PEOPLE = {t["name"] for t in EXPANSION["topics"] if t["kind"] == "person"}
 
 
+# -------------------------------------------------- chapter three layer ---
+# THIRD ACT, CHAPTER THREE (day >= CHAPTER3_FROM). Runs on the preserved
+# day-1000 world and the refined kernel (REFINEMENT_2026-09-11.md R1–R9). It is
+# built to close what the gap ledger left open by design:
+#   G-09  late-life deep-topic learning: four new deep topics corrected twice
+#         each after day 1000, plus two activity-word JUNK controls that must
+#         NOT promote;
+#   G-10  the D-0052 pin/override arc re-armed late: a user pin on day
+#         CHAPTER3_FROM+9 (re-pin #3 → bar 24); the harness may re-pin once
+#         more after the next override (→ bar 30);
+#   G-12  every nickname is a first name that occurs exactly ONCE among all the
+#         people of all three chapters (asserted at build time — a collision
+#         is a crash, not a footnote);
+#   G-01/G-17/G-07/G-16  a RE-TEACH of what the old kernel dropped or muddled:
+#         every topic with ≥2 strict misses in the second act (derived from
+#         docs/verification/longitude_xl/rescore_strict.jsonl), both sides of
+#         the nine twin pairs `POST /memory/reconcile-twins` could not split,
+#         the CURRENT edges of the device families `POST /memory/reconcile-
+#         relations` skipped, and the kiln's retirement — re-stated as the
+#         current truth through the ordinary teach queue and then quizzed like
+#         everything else (records carry `reteach: true`);
+# plus new people/things/preferences, cross-links with maintainer HANDOVERS
+# (an exclusive relation replaced on purpose — the R5 rule under load) and
+# retirements of chapter-two things. Seeded and hashed apart from the base and
+# chapter two, whose hashes are untouched: the day-1000 checkpoint resumes as is.
+CHAPTER3_FROM = int(os.environ.get("XL_CHAPTER3_FROM", "1001"))
+LIFE3 = 1500
+FIRST3 = ["aurelio", "beatrix", "casimir", "dagny", "efrem", "fenna", "gustavo", "halvard", "isolde", "jiro",
+          "kalinda", "lucan", "marisol", "nadir", "orsolya", "petra", "rashid", "sunniva", "tavish", "ulla"]
+LAST3 = ["abernathy", "bianchi", "castellanos", "delacroix", "engel", "fitzgerald", "goncalves", "haugen",
+         "ibarra", "jakobsen", "kaminski", "larsen", "matsuda", "nwosu", "olofsson", "pinto"]
+assert not set(FIRST3) & (set(FIRST) | set(FIRST2)), "chapter-three first names must be new (G-12)"
+NEW_THINGS3 = {
+    "instrument": ["gantry crane", "spectrometer", "tide gauge", "plasma torch", "seismograph", "wind tunnel"],
+    "garden": ["herb spiral", "orchard plot", "bee yard", "pond terrace", "vine trellis", "moss wall"],
+}
+NEW_PREFS3 = [("preferred hiking day", "day"), ("winter drink", "drink"), ("studio colour", "color"),
+              ("preferred reading hour", "hour"), ("preferred ferry city", "city"), ("balcony plant", "plant")]
+DEEP_TOPICS3 = ["cryogenic pumps", "lidar calibration", "tidal turbines", "ion thrusters"]
+JUNK_WORDS3 = ["scheduling", "tidying"]   # activity words, two explicit-deep turns each: must NOT promote
+RETIRE_DAYS3 = [1080, 1160, 1240]
+# Re-teach set — derived 2026-09-11 (R9): topics with ≥2 strict misses in days
+# 501–1000 (rescore_strict.jsonl), both sides of the reconcile-twins `unsplit`
+# pairs, the device families behind the reconcile-relations `skipped` anchors.
+RETEACH_TOPICS = sorted({
+    # ≥2 strict misses in the second act (26)
+    "weekend preferred meeting day", "sensor importer two", "coral census", "coral census north", "gym day",
+    "microscope two", "tea order", "aquarium rig", "dream destination", "microscope", "tidal model north",
+    "archive digitisation", "boat shed", "boat shed north", "drone survey", "filament shop", "glacier telemetry",
+    "irrigation controller", "lab-glass supplier", "lakeside cabin two", "optics vendor two", "study plant",
+    "test range two", "tidal model two", "umar brandt", "weather mast two",
+    # both sides of the nine unsplit twin pairs
+    "aquarium rig two", "catering service", "catering service two", "coral census two", "lakeside cabin",
+    "lakeside cabin north", "lena moreau", "glacier telemetry north", "sensor importer north",
+    "morning swim", "morning swim north",
+})
+RETEACH_ANCHORS = ["3d printer", "3d printer north", "microscope", "microscope two", "aquarium rig",
+                   "aquarium rig two", "roof array", "roof array two", "kiln", "kiln north"]
+
+
+def build_chapter_three() -> dict:
+    rng = random.Random(SEED + 31337)
+    topics: list[dict] = []
+    tid = 2000  # base tids < 200, chapter two 1000–1099
+
+    def mk(slot: str, pool: str, teach: int, pref: bool) -> dict:
+        vals = rng.sample(VALUE_POOLS[pool], k=min(4, len(VALUE_POOLS[pool])))
+        flips: list[int] = []
+        if rng.random() < 0.30 and teach + 40 < LIFE3 - 20:
+            n = rng.choice([1, 1, 2])
+            flips = sorted(rng.sample(range(teach + 30, LIFE3 - 20), k=n))
+        return {"slot": slot, "pool": pool, "values": vals, "teach": teach, "flips": flips, "pref": pref}
+
+    firsts, lasts = rng.sample(FIRST3, 12), rng.sample(LAST3, 12)
+    people = [f"{a} {b}" for a, b in zip(firsts, lasts)]
+    for i, name in enumerate(people):
+        teach = CHAPTER3_FROM + 4 + i * 9 + rng.randint(0, 3)
+        att = rng.choices(["weekly", "monthly", "rare"], weights=[2, 3, 3])[0]
+        slot, pool = ("preferred material", "material") if rng.random() < 0.2 else ("based in", "city")
+        topics.append({"id": tid, "name": name, "kind": "person", "attention": att, "facts": [
+            mk(slot, pool, teach, False), mk("meets on", "day", teach + rng.randint(0, 3), False)]}); tid += 1
+    i = 0
+    for kind, names in NEW_THINGS3.items():
+        for base in names:
+            teach = CHAPTER3_FROM + 8 + i * 11 + rng.randint(0, 5); i += 1
+            slots = rng.sample([("status colour", "color"), ("assigned number", "number"), ("home city", "city"),
+                                ("service day", "day"), ("core material", "material")], k=rng.choice([2, 2, 3]))
+            topics.append({"id": tid, "name": base, "kind": kind,
+                           "attention": rng.choices(["weekly", "monthly", "rare"], weights=[1, 3, 4])[0],
+                           "facts": [mk(s, p, teach + rng.randint(0, 4), False) for s, p in slots]}); tid += 1
+    for i, (pname, pool) in enumerate(NEW_PREFS3):
+        teach = CHAPTER3_FROM + 15 + i * 20 + rng.randint(0, 6)
+        topics.append({"id": tid, "name": pname, "kind": "preference", "attention": rng.choice(["monthly", "rare"]),
+                       "facts": [mk("is", pool, teach, True)]}); tid += 1
+    # G-09: late deep topics (two scheduled corrections each) and junk controls
+    deep = []
+    for i, dt in enumerate(DEEP_TOPICS3):
+        d0 = CHAPTER3_FROM + 5 + i * 12
+        deep.append({"name": dt, "correct_days": [d0, d0 + 2], "junk": False})
+    for i, jw in enumerate(JUNK_WORDS3):
+        d0 = CHAPTER3_FROM + 60 + i * 12
+        deep.append({"name": jw, "correct_days": [d0, d0 + 2], "junk": True})
+    # G-12: a nickname is a first name that occurs exactly once among ALL people
+    world_first = ([t["name"].split()[0] for t in CATALOG if t["kind"] == "person"]
+                   + [n.split()[0] for n in sorted(EXP_PEOPLE)] + firsts)
+    aliases = []
+    for idx in (1, 4, 7, 10):
+        full = people[idx]
+        handle = full.split()[0]
+        assert world_first.count(handle) == 1, f"nickname collision: {handle} (G-12)"
+        aliases.append({"person": full, "alias": handle, "day": topics[idx]["facts"][0]["teach"] + 40})
+    # retirements: three chapter-two things get wrapped up
+    cands = [t for t in EXPANSION["topics"] if t["kind"] in ("vehicle", "collection")]
+    retirements = [{"name": t["name"], "day": d} for t, d in zip(rng.sample(cands, len(RETIRE_DAYS3)), RETIRE_DAYS3)]
+    # cross-links: instruments located at base places and vendors supplying them
+    # (new two-hop chains), then six maintainer HANDOVERS of base devices
+    by = lambda k: [t for t in CATALOG if t["kind"] == k]
+    devices, places, vendors = by("device"), by("place"), by("vendor")
+    instruments = [t for t in topics if t["kind"] == "instrument"]
+    rels, day = [], CHAPTER3_FROM + 40
+    for i, ins in enumerate(instruments):
+        rels.append({"rid": f"y{len(rels)}", "from": ins["name"], "verb": "is located at",
+                     "to": places[(i * 5 + 2) % len(places)]["name"], "teach": day}); day += 8
+    for i, ins in enumerate(instruments):
+        rels.append({"rid": f"y{len(rels)}", "from": vendors[(i * 3 + 1) % len(vendors)]["name"], "verb": "supplies",
+                     "to": ins["name"], "teach": day}); day += 8
+    for i, p in enumerate(people[:6]):
+        rels.append({"rid": f"y{len(rels)}", "from": p, "verb": "maintains",
+                     "to": devices[(i * 7 + 3) % len(devices)]["name"], "teach": day, "handover": True}); day += 8
+    return {"topics": topics, "deep": deep, "aliases": aliases, "retirements": retirements, "relations": rels}
+
+
+CHAPTER3 = build_chapter_three()
+CHAPTER3_HASH = hashlib.sha256(json.dumps(CHAPTER3, sort_keys=True).encode()).hexdigest()[:16]
+CH3_FACTS: list[dict] = []
+for t in CHAPTER3["topics"]:
+    for i, f in enumerate(t["facts"]):
+        CH3_FACTS.append({"fid": f"{t['id']}.{i}", "topic": t["name"], "kind": t["kind"],
+                          "attention": t["attention"], "layer": "three", **f})
+FACT_BY_ID.update({f["fid"]: f for f in CH3_FACTS})
+RELATIONS.extend(CHAPTER3["relations"])   # teach days >= CHAPTER3_FROM+40; earlier days unaffected
+CH3_PEOPLE = {t["name"] for t in CHAPTER3["topics"] if t["kind"] == "person"}
+_TOPIC_NAMES = {t["name"] for t in CATALOG} | {t["name"] for t in EXPANSION["topics"]}
+assert set(RETEACH_TOPICS) <= _TOPIC_NAMES, sorted(set(RETEACH_TOPICS) - _TOPIC_NAMES)
+assert set(RETEACH_ANCHORS) <= {t["name"] for t in CATALOG if t["kind"] == "device"}
+RETEACH_FIDS = [f["fid"] for f in ALL_FACTS + EXP_FACTS if f["topic"] in RETEACH_TOPICS]
+_WORLD_FIRST = [t["name"].split()[0] for t in CATALOG + EXPANSION["topics"] + CHAPTER3["topics"] if t["kind"] == "person"]
+# nickname questions in the third act use only handles that are unique in the world
+UNIQUE_HANDLES = {a["alias"] for a in EXPANSION["aliases"] + CHAPTER3["aliases"] if _WORLD_FIRST.count(a["alias"]) == 1}
+
+
+def current_relations(day: int) -> list[dict]:
+    """Edges taught by day-1 with exclusive slots resolved to the LATEST teach
+    (one maintainer per device, one place per thing) — the kernel's R5 rule
+    mirrored, so a two-hop question never identifies a device by a maintainer
+    it no longer has. Used from the third act on (earlier acts asked every edge)."""
+    latest: dict = {}
+    for r in sorted((r for r in RELATIONS if r["teach"] <= day - 1), key=lambda r: r["teach"]):
+        key = (("maintains", r["to"]) if r["verb"] == "maintains"
+               else ("at", r["from"]) if r["verb"] == "is located at" else ("rid", r["rid"]))
+        latest[key] = r
+    return list(latest.values())
+
+
+def reteach_relations_due(day: int) -> list[str]:
+    """From CHAPTER3_FROM+14, two device families a day: their CURRENT edges
+    (maintainer, location, supplier) re-stated from the harness truth as a
+    replacement — the relation groups the reconciliation skipped."""
+    i = day - (CHAPTER3_FROM + 14)
+    if i < 0 or i * 2 >= len(RETEACH_ANCHORS):
+        return []
+    cur = current_relations(day + 1)   # edges taught up to and including today
+    out = []
+    for anchor in RETEACH_ANCHORS[i * 2:i * 2 + 2]:
+        parts = [f"{r['from']} maintains the {anchor}" for r in cur if r["verb"] == "maintains" and r["to"] == anchor]
+        parts += [f"the {anchor} is located at the {r['to']}" for r in cur if r["verb"] == "is located at" and r["from"] == anchor]
+        parts += [f"{r['from']} supplies the {anchor}" for r in cur if r["verb"] == "supplies" and r["to"] == anchor]
+        if parts:
+            out.append("To be clear about how these connect today — this replaces anything older you have "
+                       f"about the {anchor} (its look-alikes are separate things): " + "; ".join(parts) + ".")
+    return out
+
+
+_SCORER = None
+
+
+def build_scorer(chapter3: bool = True):
+    """The strict rubric (scripts/longitude_xl_strict.py) bound to this world.
+    `chapter3=False` reproduces the re-score instrument's world of acts one and two."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from longitude_xl_strict import StrictScorer
+    names = {t["name"] for t in CATALOG} | {t["name"] for t in EXPANSION["topics"]}
+    rels = [r for r in RELATIONS if not r["rid"].startswith("y")]
+    if chapter3:
+        names |= {t["name"] for t in CHAPTER3["topics"]}
+        rels = RELATIONS
+    names |= {r["from"] for r in rels} | {r["to"] for r in rels}
+    return StrictScorer(names, rels, VALUE_POOLS, NEG, RETIRED_RE)
+
+
+def scorer():
+    global _SCORER
+    if _SCORER is None:
+        _SCORER = build_scorer(chapter3=True)
+    return _SCORER
+
+
 def reporter_for(fid: str) -> str:
     """A chapter-two flip reaches the user through a third party — deterministic per fact."""
     names = sorted(EXP_PEOPLE)
@@ -523,6 +778,12 @@ def drain_teach(state: dict, day: int) -> list[str]:
                 v = f["values"][announced.get(it["fid"], 0) % len(f["values"])]
                 parts.append(fact_statement(f, v))
                 delivered[it["fid"]] = day
+            elif it["kind"] == "reteach":
+                # chapter three: the CURRENT truth re-stated (delivery day untouched —
+                # the fact was taught long ago; `retaught` records the recap day)
+                v = f["values"][announced.get(it["fid"], 0) % len(f["values"])]
+                parts.append(fact_statement(f, v))
+                state.setdefault("retaught", {})[it["fid"]] = day
             else:
                 nxt = announced.get(it["fid"], 0) + 1
                 v = f["values"][nxt % len(f["values"])]
@@ -532,7 +793,11 @@ def drain_teach(state: dict, day: int) -> list[str]:
                 else:
                     parts.append("update your memory — " + fact_statement(f, v) + " now (it changed)")
                 announced[it["fid"]] = nxt
-        stmts_out.append("Remember these things: " + "; ".join(parts) + ".")
+        if any(it["kind"] == "reteach" for it in batch):
+            stmts_out.append("A recap, in case any of this is missing or muddled on your side — treat each as "
+                             "the current truth and correct anything older: " + "; ".join(parts) + ".")
+        else:
+            stmts_out.append("Remember these things: " + "; ".join(parts) + ".")
         taken.extend(batch)
     taken_seqs = {i["seq"] for i in taken}
     state["teach_queue"] = [i for i in queue if i["seq"] not in taken_seqs]
@@ -571,49 +836,90 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
     """Stratified ~20-fact quiz in batches of 5 questions per agent run.
     Scored per fact against the ANNOUNCED truth; full answers preserved."""
     delivered = state.get("delivered", {})
+    act3 = day >= CHAPTER3_FROM
     taught = [f for f in ALL_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
     if not taught:
         return {"day": day, "facts": [], "score": 0, "of": 0}
-    # chapter two facts get a reserved share (up to 6 of the 20) so the old and
-    # new recall curves are both sampled every battery
+    # chapter two facts get a reserved share (up to 6 of the 20; 4 in the third
+    # act, where chapter three takes 4 and the re-taught facts 3) so every
+    # layer's recall curve is sampled every battery
     new_taught = [f for f in EXP_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
-    new_sample = rng.sample(new_taught, min(6, len(new_taught)))
-    n_base = QUIZ_FACTS - len(new_sample)
-    prefs = [f for f in taught if f["pref"]]
-    flipped = [f for f in taught if any(d <= day for d in f["flips"]) and not f["pref"]]
-    plain = [f for f in taught if f not in prefs and f not in flipped]
+    ch3_sample: list[dict] = []
+    re_sample: list[dict] = []
+    if act3:
+        ch3_taught = [f for f in CH3_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
+        ch3_sample = rng.sample(ch3_taught, min(4, len(ch3_taught)))
+        retaught = state.get("retaught", {})
+        re_pool = [f for f in taught + new_taught if retaught.get(f["fid"], 10 ** 9) <= day - 1]
+        re_sample = rng.sample(re_pool, min(3, len(re_pool)))
+    exclude = {f["fid"] for f in re_sample}
+    new_pool = [f for f in new_taught if f["fid"] not in exclude]
+    new_sample = rng.sample(new_pool, min(4 if act3 else 6, len(new_pool)))
+    n_base = QUIZ_FACTS - len(new_sample) - len(ch3_sample) - len(re_sample)
+    prefs = [f for f in taught if f["pref"] and f["fid"] not in exclude]
+    flipped = [f for f in taught if any(d <= day for d in f["flips"]) and not f["pref"] and f["fid"] not in exclude]
+    plain = [f for f in taught if f not in prefs and f not in flipped and f["fid"] not in exclude]
     n_pref, n_flip = min(5, len(prefs), n_base), min(6, len(flipped), n_base)
     sample = (rng.sample(prefs, n_pref) + rng.sample(flipped, n_flip) +
-              rng.sample(plain, min(max(0, n_base - n_pref - n_flip), len(plain))) + new_sample)
+              rng.sample(plain, min(max(0, n_base - n_pref - n_flip), len(plain))) + new_sample
+              + ch3_sample + re_sample)
     rng.shuffle(sample)
-    records, hits = [], 0
-    # chapter-two specials: one alias question and one retirement question when available
+    records, hits, strict_hits = [], 0, 0
+    S = scorer() if act3 else None
+    # specials: one alias question and one retirement question when available
+    # (third act: only handles that are unique in the world — G-12 — and the
+    # chapter-three retirements join the pool)
     specials: list[tuple[str, str, str, str]] = []  # (kind, question, truth, fid)
-    active_aliases = [a for a in EXPANSION["aliases"] if a["day"] <= day - 1 and delivered.get(next(
-        (f["fid"] for f in EXP_FACTS if f["topic"] == a["person"] and f["slot"] == "meets on"), ""), 10 ** 9) <= day - 1]
+    alias_pool = EXPANSION["aliases"] + (CHAPTER3["aliases"] if act3 else [])
+    if act3:
+        alias_pool = [a for a in alias_pool if a["alias"] in UNIQUE_HANDLES]
+    layer_facts = EXP_FACTS + (CH3_FACTS if act3 else [])
+    active_aliases = [a for a in alias_pool if a["day"] <= day - 1 and delivered.get(next(
+        (f["fid"] for f in layer_facts if f["topic"] == a["person"] and f["slot"] == "meets on"), ""), 10 ** 9) <= day - 1]
     if active_aliases:
         a = rng.choice(active_aliases)
-        fid = next(f["fid"] for f in EXP_FACTS if f["topic"] == a["person"] and f["slot"] == "meets on")
+        fid = next(f["fid"] for f in layer_facts if f["topic"] == a["person"] and f["slot"] == "meets on")
         specials.append(("alias", f"What is the {a['alias']}'s meets on?", announced_truth(state, fid).lower(), fid))
-    retired = [r for r in EXPANSION["retirements"] if r["day"] <= day - 1]
+    retired = [r for r in EXPANSION["retirements"] + (CHAPTER3["retirements"] if act3 else []) if r["day"] <= day - 1]
     if retired:
         r = rng.choice(retired)
         specials.append(("retired", f"Is the {r['name']} still active?", "closed", f"retired:{r['name']}"))
     # multi-hop probes: only once the edges they chain have actually been taught
+    # (third act: exclusive slots resolved to the current edge, see current_relations)
     hops: list[tuple[str, str]] = []
-    taught_rels = [r for r in RELATIONS if r["teach"] <= day - 1]
+    taught_rels = current_relations(day) if act3 else [r for r in RELATIONS if r["teach"] <= day - 1]
     for r1 in taught_rels:
         for r2 in taught_rels:
             q = two_hop_question(r1, r2)
             if q: hops.append(q)
     hops = rng.sample(hops, min(3, len(hops))) if hops else []
+    # Prompts. The third act's wording is a DISCLOSED instrument change (R9):
+    # it names memory.lookup (the one-call path built in R8) and states the
+    # exact-entity rule; the two-hop prompt asks for one committed place.
+    if act3:
+        battery_prompt = ("From your memory, answer these briefly, one numbered line each. "
+                          "Check BOTH your entity/graph memory and stored preferences before concluding anything "
+                          "is missing (memory.lookup answers several questions in one call; memory.recallPreferences "
+                          "for preferences). Answer about exactly the named thing — 'X two' / 'X north' are different "
+                          "things from 'X'. If a value is truly not in memory say 'not found' — never guess. ")
+        hop_prompt = ("Answer from memory in one line. This needs you to connect two things you know — use your "
+                      "entity/graph memory (memory.related / memory.recallGraph / memory.lookup). Answer about exactly "
+                      "the named device: a look-alike ('X two', 'X north') is a different thing, and if the named one "
+                      "has no recorded location say 'not found' rather than answering from a look-alike. Give ONE "
+                      "committed place, or 'not found'. ")
+    else:
+        battery_prompt = ("From your memory, answer these briefly, one numbered line each. "
+                          "Check BOTH your entity/graph memory and stored preferences "
+                          "(memory.recallPreferences) before concluding anything is missing. "
+                          "If a value is truly not in memory say 'not found' — never guess. ")
+        hop_prompt = ("Answer from memory in one line. This needs you to connect two "
+                      "things you know — use your entity/graph memory (memory.related / "
+                      "memory.recallGraph). Say 'not found' if you cannot connect them. ")
+    retaught = state.get("retaught", {})
     for i in range(0, len(sample), 5):
         batch = sample[i:i + 5]
         qs = " ".join(f"{j + 1}) {fact_question(f)}" for j, f in enumerate(batch))
-        r = agent("From your memory, answer these briefly, one numbered line each. "
-                  "Check BOTH your entity/graph memory and stored preferences "
-                  "(memory.recallPreferences) before concluding anything is missing. "
-                  "If a value is truly not in memory say 'not found' — never guess. " + qs, max_steps=8)
+        r = agent(battery_prompt + qs, max_steps=8)
         answer = (r.get("answer") or "").lower()
         if not answer.strip():  # transient empty batch (XL-500 day 110) — one retry
             r = agent("Answer these from memory, one numbered line each; check both "
@@ -622,18 +928,25 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
             answer = (r.get("answer") or "").lower()
         segs = segment_answer(answer)
         for j, f in enumerate(batch):
-            seg = segs.get(j + 1, "")
+            seg = segs.get(j + 1, "").strip()
             tv = announced_truth(state, f["fid"]).lower()
             hit = int(all(w in seg for w in tv.split()) and not NEG.search(seg[:120]))
             honest_miss = int(not hit and bool(NEG.search(seg)))
             hits += hit
-            records.append({"fid": f["fid"], "topic": f["topic"], "pref": f["pref"],
-                            "layer": f.get("layer", "base"),
-                            "age": day - delivered.get(f["fid"], day),
-                            "flips": state.get("announced", {}).get(f["fid"], 0),
-                            "hit": hit, "honest_miss": honest_miss, "truth": tv,
-                            "seg": seg.strip()[:300]})
-        QUIZ_LOG.write(json.dumps({"day": day, "batch_answer": answer[:4000]}) + "\n")
+            rec = {"fid": f["fid"], "topic": f["topic"], "pref": f["pref"],
+                   "layer": f.get("layer", "base"),
+                   "age": day - delivered.get(f["fid"], day),
+                   "flips": state.get("announced", {}).get(f["fid"], 0),
+                   "hit": hit, "honest_miss": honest_miss, "truth": tv,
+                   "seg": seg[:300]}
+            if S:
+                s_hit, cls = S.fact(rec, seg, f["pool"], f["topic"].lower())
+                s_hit = int(hit and s_hit)   # monotone: strict ⊆ lenient
+                strict_hits += s_hit
+                rec.update({"full": seg, "strict": s_hit, "class": "hit" if s_hit else cls,
+                            "reteach": f["fid"] in retaught})
+            records.append(rec)
+        QUIZ_LOG.write(json.dumps({"day": day, "batch_answer": answer if act3 else answer[:4000]}) + "\n")
 
     for skind, qtext, truth, fid in specials:
         r = agent("From your memory, answer in one line. Check entity/graph memory and stored preferences; "
@@ -644,26 +957,40 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
         else:
             hit = int(all(w in ans for w in truth.split()) and not NEG.search(ans[:120]))
         hits += hit
-        records.append({"fid": fid, "topic": qtext[:60], "pref": False, "layer": skind, "age": 0, "flips": 0,
-                        "hit": hit, "honest_miss": int(not hit and bool(NEG.search(ans))), "truth": truth,
-                        "seg": ans[:300], "special": skind})
-        QUIZ_LOG.write(json.dumps({"day": day, "special": skind, "q": qtext, "truth": truth, "answer": ans[:2000]}) + "\n")
+        rec = {"fid": fid, "topic": qtext[:60], "pref": False, "layer": skind, "age": 0, "flips": 0,
+               "hit": hit, "honest_miss": int(not hit and bool(NEG.search(ans))), "truth": truth,
+               "seg": ans[:300], "special": skind}
+        if S:
+            s_hit, cls = S.retired(rec, ans) if skind == "retired" else S.fact(rec, ans, "day", None)
+            s_hit = int(hit and s_hit)
+            strict_hits += s_hit
+            rec.update({"full": ans, "strict": s_hit, "class": "hit" if s_hit else cls})
+        records.append(rec)
+        QUIZ_LOG.write(json.dumps({"day": day, "special": skind, "q": qtext, "truth": truth,
+                                   "answer": ans if act3 else ans[:2000]}) + "\n")
 
     for qtext, truth in hops:
-        r = agent("Answer from memory in one line. This needs you to connect two "
-                  "things you know — use your entity/graph memory (memory.related / "
-                  "memory.recallGraph). Say 'not found' if you cannot connect them. " + qtext,
-                  max_steps=8)
+        r = agent(hop_prompt + qtext, max_steps=8)
         ans = (r.get("answer") or "").lower()
         hit = int(all(w in ans for w in truth.lower().split()) and not NEG.search(ans[:160]))
         hits += hit
-        records.append({"fid": "hop", "topic": qtext[:60], "pref": False, "age": 0,
-                        "flips": 0, "hit": hit, "honest_miss": int(not hit and bool(NEG.search(ans))),
-                        "truth": truth, "seg": ans[:300], "multihop": True})
-        QUIZ_LOG.write(json.dumps({"day": day, "hop_q": qtext, "truth": truth, "answer": ans[:2000]}) + "\n")
+        rec = {"fid": "hop", "topic": qtext[:60], "pref": False, "age": 0,
+               "flips": 0, "hit": hit, "honest_miss": int(not hit and bool(NEG.search(ans))),
+               "truth": truth, "seg": ans[:300], "multihop": True}
+        if S:
+            s_hit, cls = S.hop(rec, ans, qtext)
+            s_hit = int(hit and s_hit)
+            strict_hits += s_hit
+            rec.update({"full": ans, "strict": s_hit, "class": "hit" if s_hit else cls, "q": qtext})
+        records.append(rec)
+        QUIZ_LOG.write(json.dumps({"day": day, "hop_q": qtext, "truth": truth,
+                                   "answer": ans if act3 else ans[:2000]}) + "\n")
     QUIZ_LOG.flush()
-    return {"day": day, "facts": records, "score": hits, "of": len(sample) + len(hops) + len(specials),
-            "multihop_asked": len(hops), "new_asked": len(new_sample), "specials_asked": len(specials)}
+    out = {"day": day, "facts": records, "score": hits, "of": len(sample) + len(hops) + len(specials),
+           "multihop_asked": len(hops), "new_asked": len(new_sample), "specials_asked": len(specials)}
+    if act3:
+        out.update({"strict": strict_hits, "ch3_asked": len(ch3_sample), "reteach_asked": len(re_sample)})
+    return out
 
 
 # ------------------------------------------------------------- night + time ---
@@ -844,7 +1171,8 @@ def main() -> None:
     start = state["next_day"]
     log(f"LONGITUDE-XL: days {start}..{DAYS} against {K} | catalog {len(CATALOG)} topics / "
         f"{len(ALL_FACTS)} facts ({sum(1 for f in ALL_FACTS if f['pref'])} prefs, "
-        f"{sum(1 for f in ALL_FACTS if f['flips'])} flipping) | hash {CATALOG_HASH}")
+        f"{sum(1 for f in ALL_FACTS if f['flips'])} flipping) | hash {CATALOG_HASH} | "
+        f"chapter two {EXPANSION_HASH} | chapter three {CHAPTER3_HASH} (from day {CHAPTER3_FROM})")
     ensure_kernel()
     ensure_embedder()
 
@@ -874,6 +1202,17 @@ def main() -> None:
             elif state["expansion_hash"] != EXPANSION_HASH:
                 log(f"FATAL: state expansion_hash {state['expansion_hash']} != {EXPANSION_HASH} — chapter-two drift")
                 sys.exit(2)
+        if day >= CHAPTER3_FROM:
+            # chapter three drift guard: pinned the day it first appears
+            if state.get("chapter3_hash") is None:
+                state["chapter3_hash"] = CHAPTER3_HASH
+                log(f"  [chapter three] begins day {day}: {len(CH3_FACTS)} facts / {len(CHAPTER3['topics'])} topics, "
+                    f"{len(CHAPTER3['deep'])} deep/junk arcs, {len(CHAPTER3['aliases'])} aliases, "
+                    f"{len(CHAPTER3['retirements'])} retirements, {len(CHAPTER3['relations'])} cross-links, "
+                    f"re-teach {len(RETEACH_FIDS)} facts / {len(RETEACH_ANCHORS)} device families | hash {CHAPTER3_HASH}")
+            elif state["chapter3_hash"] != CHAPTER3_HASH:
+                log(f"FATAL: state chapter3_hash {state['chapter3_hash']} != {CHAPTER3_HASH} — chapter-three drift")
+                sys.exit(2)
         state.setdefault("teach_queue", []).extend(teach_due(day))
         teach_acts = [] if day in QUIET else drain_teach(state, day)
         for kind, text in plan_day(day, rng, teach_acts):
@@ -896,9 +1235,23 @@ def main() -> None:
                        json={"signalThreshold": 2, "reason": "Chief: keep escalation conservative — I'll ask for deep myself"},
                        timeout=20)
             log("  [pin] day 5: threshold pinned by user")
+        # Third act (G-10): the arc was dormant since day 35 — acknowledge that old
+        # override, then a deliberate LATE user pin (re-pin #3 → bar 24) and room
+        # for one more harness re-pin after the next override (→ bar 30).
+        if day == CHAPTER3_FROM:
+            at0 = httpx.get(f"{K}/core/reasoning/autotune", timeout=20).json()
+            state["last_override_at"] = at0.get("at")
+            state["repin_cap"] = 4
+            log(f"  [pin] chapter three: D-0052 arc re-armed (kernel repins={at0.get('repins')}, harness cap 4)")
+        if day == CHAPTER3_FROM + 9:
+            httpx.post(f"{K}/core/reasoning/autotune",
+                       json={"signalThreshold": 2, "reason": "Chief: late re-pin — conservative again; convince me with evidence from today on"},
+                       timeout=20)
+            state["repins"] += 1
+            log(f"  [pin] day {day}: user LATE RE-PIN (#{state['repins']}, G-10)")
         at = httpx.get(f"{K}/core/reasoning/autotune", timeout=20).json()
         if (at.get("source") == "jarvis" and at.get("changedUserSetting")
-                and state["repins"] < 2 and at.get("at") != state.get("last_override_at")):
+                and state["repins"] < state.get("repin_cap", 2) and at.get("at") != state.get("last_override_at")):
             state["last_override_at"] = at.get("at")
             state["pending_repin"] = day + 3
         if state.get("pending_repin") == day:
@@ -935,7 +1288,14 @@ def main() -> None:
             "quiz_of": quiz["of"] if quiz else None,
             "quiz_new_asked": quiz.get("new_asked") if quiz else None,
             "quiz_new_hits": sum(1 for f in quiz["facts"] if f.get("layer") == "new" and f["hit"]) if quiz else None,
+            "quiz_strict": quiz.get("strict") if quiz else None,
+            "quiz_ch3_asked": quiz.get("ch3_asked") if quiz else None,
+            "quiz_ch3_strict": sum(1 for f in quiz["facts"] if f.get("layer") == "three" and f.get("strict")) if quiz else None,
+            "quiz_reteach_asked": quiz.get("reteach_asked") if quiz else None,
+            "quiz_reteach_strict": sum(1 for f in quiz["facts"] if f.get("reteach") and f.get("strict")) if quiz else None,
             "expansion_delivered": sum(1 for f in EXP_FACTS if f["fid"] in state.get("delivered", {})),
+            "chapter3_delivered": sum(1 for f in CH3_FACTS if f["fid"] in state.get("delivered", {})),
+            "retaught": len(state.get("retaught", {})),
             "tick_lab": str(tick.get("lab", "-"))[:60],
             "cols_shifted": shifted, "deep_on_auto": deep_on_auto,
             "avg_latency_ms": int(sum(lat) / max(1, len(lat))),
@@ -950,6 +1310,8 @@ def main() -> None:
 
         spend = spend_usd()
         q = f" quiz={quiz['score']}/{quiz['of']}" if quiz else ""
+        if quiz and "strict" in quiz:
+            q += f" strict={quiz['strict']}/{quiz['of']}"
         log(f"DAY {day:04d} done in {int(time.time() - t_day)}s{q} deepOnAuto={deep_on_auto} ${spend}")
         if spend > COST_CAP:
             log(f"HALT: est. spend ${spend} crossed cap ${COST_CAP} — resume raises XL_COST_CAP_USD")

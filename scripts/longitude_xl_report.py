@@ -28,8 +28,9 @@ from pathlib import Path
 
 SRC = Path("/tmp/longitude_xl")
 LAST = SRC / ".report_last_day"
-QUIET = set(range(200, 216)) | set(range(450, 466)) | set(range(800, 831))
-RESTARTS = {100, 300, 500, 700, 900}
+QUIET = (set(range(200, 216)) | set(range(450, 466)) | set(range(800, 831))
+         | set(range(1200, 1216)) | set(range(1400, 1416)))
+RESTARTS = {100, 300, 500, 700, 900, 1100, 1300}
 
 
 def load_harness():
