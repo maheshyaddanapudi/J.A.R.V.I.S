@@ -524,3 +524,82 @@ designed).
 **Status.** G-12 FIXED (instrument); G-13 CLOSED + adopted live; G-14
 DOCUMENTED, re-arm at launch; G-09, G-10, G-01/G-07/G-16/G-17 world-side
 closure DESIGNED-INTO-ACT-3 with pre-registered targets.
+
+## R10 — retest on one build → DONE (two more findings, both fixed)
+
+**Build.** `76f2e6b` (the G-19 fix + G-04 lever on top of R9's `a767467`).
+Full suite on it: **526/526, 0 skipped** (`make test`; the G-19 test is the
+526th). Every kernel that matters was restarted on this build and checked
+`/health` with 28/28 migrations applied — the XL kernel on :4160 had been
+found running the R7 build in memory while its dist was R8 (0028 "pending"),
+so the runbook now says restart-and-check, never assume.
+
+**Replay on a scratch restore of the day-1000 snapshot** (`jarvis_replay`,
+restored from the pre-reconcile dump; kernel :4180; `scripts/longitude_replay.py`
+with a from-day filter and chapter-two fids, zero model calls). The second
+act's 35 unique misses (first missed on/after day 501), re-asked through the
+kernel's read routes:
+
+| | before (kernel fixes only, world un-reconciled) | after (twins split, homes + relations reconciled on the scratch) |
+|---|---|---|
+| surfaced by graph (`recallGraph`) | 23 (66 %) | 23 (66 %) |
+| in the graph but graph missed it (true graph miss) | **0** | **0** |
+| lives in preferences only | 7 | 7 |
+| absent from every store | 5 | 5 |
+| seed[0] == the asked entity | 16 (46 %) | **18 (51 %)** |
+| surfaced by any probe | 30 (86 %) | 30 (86 %) |
+
+Reading: the read layer has no remaining graph defect on this set; the
+world-side reconciliations buy precision (`roof array two` and `seed bank` seed
+themselves now, not the twin that had absorbed them); the five absent facts
+(`coral census` service day, `test range` home city, `lakeside cabin two` home
+city, `roof array two` status colour, `irrigation controller two` assigned
+number) are the never-stored legacy (G-01) and joined chapter three's re-teach
+set (now 93 facts on 41 topics). Records
+`docs/verification/longitude_xl/day1000/replay_{before,after}_r10.json`.
+
+**Sonnet-5 mini-life over every fixed shape** (`scripts/minilife_r10.py`
+against the scratch fidelity kernel on :4170 — never `jarvis_xl`; 12 steps,
+25 code-computed verdicts: route reads, the strict rubric, plain rules; fresh
+name set per run):
+
+| Run | Build | Result | What it found |
+|---|---|---|---|
+| 1 (`brine`) | a767467 | 20/25 | four instrument defects in the script (entity-route field, batch receipt wording, newline-stripped answer fed to the line-anchored segmenter, cache columns not on `/gateway/calls`), and one real: asked a two-hop question about a twin with no location, the agent answered honestly but LED with the look-alike's chain (G-04 residue) |
+| 2 (`sluice`) | a767467 + G-04 lever | 24/25 | the lever holds (opens with "not found"); **G-19 found**: the retirement ("consider it closed") went through `memory.correct` and superseded the twin's only fact, its status colour, on the shared word "status" — the battery then answered "status colour: not found" |
+| 3 (`bilge`) | 76f2e6b | **25/25** | G-19 fixed (the retired twin keeps its colour; battery 5/5 strict), G-04 lever holds, D-0052 held at bar 36 (37 contradictions since the pin cleared it, announced), cache reads visible on the route (159,096 cached vs 7,108 uncached over 12 planning calls) |
+
+Records `docs/verification/refinement/R10_minilife_sonnet5_run{1,2,3}.md`.
+
+**Fixes made in R10.**
+- **G-04 lever (kernel).** `memory.lookup` prints "↔ no connections recorded
+  for X" explicitly under a named entity with no edges; the lookup and graph
+  closings and `AGENT_SYSTEM` say OPEN with 'not found' — a look-alike note may
+  follow, never lead. Test: the E-02 lookup test asserts the line and the
+  closing.
+- **G-19 (kernel, new row).** `slotCompatible`: a guessed `memory.correct`
+  target must be about the SAME attribute slot as the new statement
+  (`parseSlot` on both; slots identical); a different-slot statement becomes a
+  new fact; an explicit factId on another slot is refused unless `replaces`
+  confirms it; same-slot corrections unchanged. The day-1000 world shows the
+  same shape once: of the six act-two retirements, `fusion sim north`'s went
+  through a correction and superseded one of its two facts (the other five used
+  `rememberFact`) — that entity joined the re-teach set. Test from the captured
+  statements.
+- **E-01 visibility.** `/gateway/calls` now exposes `cache_read_tokens` /
+  `cache_write_tokens` (the columns were written since R8 but not served).
+- **Instrument.** `longitude_replay.py` from-day filter + `FACT_BY_ID`;
+  `minilife_r10.py` fixed as listed, parametrised by name set so it can be
+  repeated on the same scratch kernel; run 1's transcript kept with a note
+  (its printed "25/25" was a counting bug).
+
+**Ledger after R10.** Every row has a terminal status: G-02, G-03, G-05, G-07,
+G-17 FIXED+VERIFIED; G-04, G-08, G-11, G-12, G-15, G-16, G-18, G-19, E-01,
+E-02, E-04 FIXED (mini-life-verified where a live shape exists); G-01
+PREVENTED; G-06 closed into G-05; G-13 CLOSED and adopted live; E-03 ACCEPTED
+with a check-in recommendation; E-05/E-06/E-07 CLOSED as findings; G-14
+DOCUMENTED (re-armed at launch); G-09, G-10 DESIGNED-INTO-ACT-3 with
+pre-registered targets. World-side closure of G-01/G-07/G-16/G-17/G-19 is the
+third act's re-teach (T2, T4, T6).
+
+**Next.** R11 — launch the third act per `longitude_xl/RUNBOOK_ACT3.md`.
