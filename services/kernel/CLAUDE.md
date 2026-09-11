@@ -528,6 +528,18 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   written + re-read (`factById`), per-item result, `ok:false` on any failure,
   rollback exact. `entityMemoryTools(mem, prefs)` — pass the preference store
   or the tool is fact-only (legacy). **482 kernel tests.**
+  **Field-verified 2026-09-11** (Longitude-XL second act — 500 more simulated
+  days on this build, `docs/verification/LONGITUDE_XL_ACT2_2026-09-11.md`):
+  attribute recall 93.0 % vs 87.9 % (+5.1 pp; old-world facts alone +3.4 pp,
+  facts written by this build 97.5 %), two-hop 89.8 %, 0 invented values in
+  1,188 answers; `memory.correct` 133/133, the write guard refused 6
+  update-in-disguise writes each followed by a correct `memory.correct`.
+  What remains is NOT the old defect (vector neighbours answering exact
+  questions is gone from the miss list): legacy never-stored / two-homes
+  facts from the old kernel, twin substitution inside `traverse`, relations
+  without supersession, and first-person "my X is Y" statements the agent
+  writes as entity facts (invisible to `recallPreferences`) — worklist
+  `docs/verification/LONGITUDE_XL_GAP_LEDGER.md`. **488 kernel tests.**
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
