@@ -600,3 +600,51 @@ describe.skipIf(!pool)("G-01/G-18 — write receipts and subject-ful statements"
     expect(r.summary).toMatch(/read back 'study_plant' = 'basil'/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Longitude-XL E-02 / E-04 (2026-09-11): preference recall is ranked and
+// capped instead of substring-matching the whole store; memory.lookup answers
+// several questions in one call.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("E-04 — ranked, capped preference recall", () => {
+  it("ranks exact keys first, whole-token overlap next, and caps the list with an honest 'more' note", async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    const prefs = new MemoryService(pool!, audit);
+    const { recallPreferencesTool, rankPreferences, PREFERENCE_RECALL_CAP } = await import("../src/core/tools/recallPreferences.js");
+    await prefs.remember({ key: "gym_day", value: "friday", provenance: "chat" });
+    await prefs.remember({ key: "weekend_gym_day", value: "sunday", provenance: "chat" });
+    for (let i = 0; i < 30; i++) await prefs.remember({ key: `thing_${i}_service_day`, value: "monday", provenance: "chat" });
+    const all = await prefs.list();
+    const { ranked, total } = rankPreferences(all, "gym day");
+    expect(ranked[0]!.key).toBe("gym_day"); // exact key first
+    expect(ranked[1]!.key).toBe("weekend_gym_day"); // both query tokens in the key
+    expect(total).toBeGreaterThan(PREFERENCE_RECALL_CAP); // every '*_day' key matches loosely on 'day'
+    const r = await recallPreferencesTool(prefs).run({ query: "gym day" });
+    expect(r.data).toMatchObject({ count: PREFERENCE_RECALL_CAP, total });
+    expect(r.detail).toMatch(/more match loosely/);
+    expect(r.detail!.split("\n")[0]).toBe("gym_day = friday");
+    // an unrelated query matches nothing rather than everything
+    expect((await recallPreferencesTool(prefs).run({ query: "bike colour" })).data).toMatchObject({ count: 0, total: 0 });
+  });
+});
+
+describe.skipIf(!pool)("E-02 — memory.lookup answers several questions in one call", () => {
+  it("names the asked entities with facts/relations, flags look-alikes, and adds matching preferences", async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    const mem = new EntityMemory(pool!, audit);
+    const prefs = new MemoryService(pool!, audit);
+    await mem.rememberFact({ entityName: "coral census", entityKind: "project", statement: "coral census's status colour is teal", provenance: "t" });
+    await mem.rememberFact({ entityName: "coral census two", entityKind: "project", statement: "coral census two's status colour is ochre", provenance: "t" });
+    await mem.relate({ fromName: "coral census two", toName: "boat shed", relation: "located_in", provenance: "t", kind: "place" });
+    await prefs.remember({ key: "study_plant", value: "basil", provenance: "chat" });
+    const lookup = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.lookup")!;
+    const r = await lookup.run({ queries: ["What is the coral census's status colour?", "Where is the coral census two located?", "What is my study plant?"] });
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ queries: 3 });
+    const d = r.detail!;
+    expect(d).toMatch(/1\) What is the coral census's status colour\?\n   project — coral census \(named in the question\)\n     · coral census's status colour is teal/);
+    expect(d).toMatch(/DIFFERENT entities: coral census two/);
+    expect(d).toMatch(/2\) Where is the coral census two located\?[\s\S]*→ located_in → boat shed/);
+    expect(d).toMatch(/3\) What is my study plant\?[\s\S]*preferences: study_plant = basil/);
+  });
+});

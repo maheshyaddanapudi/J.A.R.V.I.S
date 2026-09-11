@@ -158,7 +158,7 @@ export class GatewayRouter {
       const started = Date.now();
       let text = "";
       const toolCalls: ToolCall[] = [];
-      let usage = { inputTokens: 0, outputTokens: 0 };
+      let usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number } = { inputTokens: 0, outputTokens: 0 };
       let finishReason: ChatResult["finishReason"] = "stop";
       let streamedAnything = false;
 
@@ -327,15 +327,16 @@ export class GatewayRouter {
     model: string | null,
     latencyMs: number,
     outcome:
-      | { ok: true; usage: { inputTokens: number; outputTokens: number }; fallbacks: string[] }
+      | { ok: true; usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number }; fallbacks: string[] }
       | { ok: false; error: string; fallbacks: string[] },
   ): Promise<void> {
     try {
       await this.pool.query(
         `INSERT INTO model_calls
            (role, provider, model, privacy_class, source, ok, error,
-            input_tokens, output_tokens, latency_ms, fallback_from, offline_mode)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            input_tokens, output_tokens, latency_ms, fallback_from, offline_mode,
+            cache_read_tokens, cache_write_tokens)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [
           req.role,
           provider,
@@ -349,6 +350,8 @@ export class GatewayRouter {
           Math.round(latencyMs),
           outcome.fallbacks,
           this.offline,
+          outcome.ok ? (outcome.usage.cacheReadTokens ?? 0) : 0,
+          outcome.ok ? (outcome.usage.cacheWriteTokens ?? 0) : 0,
         ],
       );
     } catch {

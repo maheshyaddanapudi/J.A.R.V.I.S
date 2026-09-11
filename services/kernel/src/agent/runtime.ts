@@ -45,11 +45,16 @@ export class LocalAgentRuntime implements AgentRuntime {
     const source = opts.source ?? "agent";
     const now = () => new Date().toISOString();
 
-    const toolDefs: ToolDefinition[] = this.deps.tools.list().map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema,
-    }));
+    const scope = (opts.toolScope ?? []).map((s) => s.trim()).filter(Boolean);
+    const inScope = (name: string) => !scope.length || scope.some((s) => name === s || name.startsWith(s));
+    const toolDefs: ToolDefinition[] = this.deps.tools
+      .list()
+      .filter((t) => inScope(t.name))
+      .map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      }));
 
     const messages: NeutralMessage[] = [
       { role: "system", content: AGENT_SYSTEM },

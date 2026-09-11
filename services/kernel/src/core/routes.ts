@@ -618,6 +618,7 @@ export function registerCoreRoutes(
     autoApprove: z
       .enum(["allow-once", "allow-for-task", "allow-for-session", "always-allow-in-scope", "deny"])
       .optional(),
+    toolScope: z.array(z.string().min(1)).max(40).optional(),
   });
   app.post("/agent/run", async (req, reply) => {
     const parsed = AgentSchema.safeParse(req.body);
@@ -628,6 +629,7 @@ export function registerCoreRoutes(
       source: "api",
       ...(b.maxSteps !== undefined ? { maxSteps: b.maxSteps } : {}),
       ...(b.autoApprove !== undefined ? { autoApprove: b.autoApprove } : {}),
+      ...(b.toolScope !== undefined ? { toolScope: b.toolScope } : {}),
     });
   });
 

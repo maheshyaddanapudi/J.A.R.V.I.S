@@ -80,7 +80,8 @@ export type ChatEvent =
   | {
       type: "done";
       finishReason: "stop" | "tool_use" | "length" | "error";
-      usage: { inputTokens: number; outputTokens: number };
+      /** cache fields (E-01): prompt-cache reads/writes reported by the provider, when it caches */
+      usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number };
     }
   | { type: "error"; message: string };
 
@@ -88,7 +89,7 @@ export interface ChatResult {
   text: string;
   toolCalls: ToolCall[];
   finishReason: "stop" | "tool_use" | "length" | "error";
-  usage: { inputTokens: number; outputTokens: number };
+  usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number };
   provider: string;
   model: string;
   latencyMs: number;

@@ -396,3 +396,58 @@ show weeks later. Test added.
 **G-15** — fixed in R3 (one active template row per NAME); closed there.
 
 **Tests.** 2 new; full suite 521/521, 0 skipped.
+
+## R8 — efficiency (E-01, E-02, E-04; E-05/E-06/E-07 closed as findings) → FIXED+MEASURED
+
+**Research.** Over the 1000 days the planning role sent ~12.6k input tokens
+per agent step — the whole tool catalogue plus the system prompt, uncached —
+and a five-question battery took 4–5 tool steps (a `memory.recall` per named
+entity, a `memory.recallPreferences` per question, a graph query on top):
+78 % of the $172.54 bill. `recallPreferences` substring-matched the store
+("gym day" → every key containing "day", one call returned 94 rows).
+
+**Fix (kernel).**
+- **E-01 prompt caching.** The Anthropic adapter now sends the system prompt
+  as a content block with `cache_control: ephemeral` and marks the LAST tool
+  definition the same way, so the stable prefix (tools → system) is cached and
+  every later step reads it at a fraction of the price; the provider's
+  `cache_read_input_tokens` / `cache_creation_input_tokens` are carried through
+  the gateway (`usage.cacheReadTokens` / `cacheWriteTokens`) into `model_calls`
+  (migration 0028) so the saving is visible, never assumed.
+- **E-01 tool-catalogue trim.** `AgentRunOptions.toolScope` (and
+  `POST /agent/run { toolScope }`) restricts the schemas offered to the model to
+  names/prefixes ("memory.") — never a new capability, every step still runs
+  through the gated loop; the full catalogue stays the default.
+- **E-02 one-call memory answers.** `memory.lookup(queries[])`: for each
+  question, the entities it names (exact names; look-alikes and qualifier twins
+  listed as DIFFERENT), their facts and relations, the ranked matching
+  preferences and first-person facts — one call replaces recall +
+  recallPreferences + recallGraph per question.
+- **E-04 ranked, capped preference recall.** Whole-token overlap between the
+  query and the key (values half weight), exact keys first, cap 12 with an
+  honest "N more match loosely — narrow the query"; an unrelated query matches
+  nothing instead of everything.
+
+**Tests.** 5 new (adapter cache markers + usage fields; runtime tool scope;
+ranking/cap; `memory.lookup` on twins + preferences; gateway insert). Full
+suite **526/526, 0 skipped** (migration 0028 applied by the migrate test).
+
+**Measured, Sonnet 5 (port 4170), the same five-question battery three ways —
+all three answered 5/5 correctly:**
+
+| Configuration | Planning calls | Uncached input | Cache read | Cache write |
+|---|---|---|---|---|
+| Full catalogue, caching on | 2 (one `memory.lookup`) | 1,944 | 13,232 | 13,232 (first call of the prefix) |
+| `toolScope: ["memory."]` | 2 | 1,944 | 4,371 | 4,371 |
+| `toolScope: ["memory.lookup"]` | 2 | 3,850 | 0 (prefix below the cache minimum) | 0 |
+
+Before R8 the same battery cost 4–5 planning calls at ~12.6k uncached input
+each (≈ 55k input tokens); now it is 2 calls with ~2k uncached input and the
+~13k prefix read from cache (billed at a tenth). Within a quiet five-minute
+window every further battery reads the same cache without rewriting it.
+
+**Closed as findings.** E-05 (wall-clock doubled in act two — experiment
+load, per-step latency flat), E-06 (deep-reasoning share is the harness's
+forced-deep control arm, the learned reflex is precise), E-07 (per-call input
+does not grow with memory — the context caps work): recorded, nothing to fix.
+E-03 is ACCEPTED with the check-in recommendation in R7.

@@ -550,7 +550,78 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     },
   };
 
-  return [rememberEntity, rememberFact, rememberFacts, correct, relate, recall, related, recallGraph, forget];
+  // Longitude-XL E-02 (2026-09-11): a quiz-shaped question ("what is X's Y?")
+  // cost 8–10 agent steps per five questions — recall per entity, preferences
+  // per question, a graph query on top — each step re-sending the catalogue.
+  // One call answers several questions: for each, the entities named in it
+  // (exact names first, twins flagged as different), their facts and
+  // relations, the preferences that match, and first-person entity facts.
+  const lookup: Tool = {
+    name: "memory.lookup",
+    description:
+      "Answer one or several memory questions in ONE call — for each question: the entities it names (exact names; look-alikes flagged as DIFFERENT), " +
+      "their facts and relations, matching preferences, and first-person facts. Use this for 'what is X's Y?', 'where is X located?', " +
+      "'what is my Z?' and for batches ('answer these N'); one call replaces recall + recallPreferences + recallGraph per question. Read-only.",
+    riskClass: "READ_ONLY",
+    action: "answer memory questions",
+    inputSchema: {
+      type: "object",
+      properties: {
+        queries: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 12, description: "the questions, one per item" },
+      },
+      required: ["queries"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { queries: unknown };
+      const queries = Array.isArray(a.queries) ? a.queries.map((q) => String(q ?? "").trim()).filter(Boolean).slice(0, 12) : [];
+      if (!queries.length) return { ok: false, summary: "give at least one question" };
+      const { rankPreferences, entityFactsFor, PREFERENCE_RECALL_CAP } = await import("../core/tools/recallPreferences.js");
+      const allPrefs = prefs ? (await prefs.list()).filter((p) => !/^(reasoning_|gateway_|a2ui_|lab_)/.test(p.key)) : [];
+      const sections: string[] = [];
+      let entitiesFound = 0;
+      for (const [i, q] of queries.entries()) {
+        const lines: string[] = [`${i + 1}) ${q}`];
+        const g = await mem.recallGraph(q, 4);
+        const named = g.seeds.filter((s) => s.via === "identity").map((s) => s.name);
+        entitiesFound += named.length;
+        if (named.length) {
+          for (const e of g.entities.filter((x) => named.some((n) => n.toLowerCase() === x.name.toLowerCase()))) {
+            const r = await mem.recall(e.name);
+            lines.push(`   ${e.kind} — ${e.name} (named in the question)`);
+            for (const f of r?.facts ?? []) lines.push(`     · ${f.statement}`);
+            for (const rel of r?.relationsOut ?? []) lines.push(`     → ${rel.relation} → ${rel.toName}`);
+            for (const rel of r?.relationsIn ?? []) lines.push(`     ← ${rel.fromName} —${rel.relation}→`);
+            if (!(r?.facts.length || r?.relationsOut.length || r?.relationsIn.length)) lines.push(`     (nothing recorded)`);
+          }
+          let others = g.entities.filter((x) => !named.some((n) => n.toLowerCase() === x.name.toLowerCase())).map((x) => x.name);
+          if (!others.length) others = (await mem.nearNames(named[0]!, 4).catch(() => [])).map((n) => n.name);
+          if (others.length) lines.push(`   also similar but DIFFERENT entities: ${others.join(", ")} — do not answer about ${named[0]} from them`);
+        } else {
+          const near = await mem.nearNames(q.replace(/^(what|which|where|who|is|are)\b.*?\b(the|my)\s+/i, "").replace(/['’]s\b.*$/, "").trim(), 4).catch(() => []);
+          lines.push(near.length ? `   no entity named in the question; similarly named but DIFFERENT entities exist: ${near.map((n) => n.name).join(", ")}` : `   no entity named in the question`);
+        }
+        if (prefs) {
+          const { ranked, total } = rankPreferences(allPrefs, q);
+          const top = ranked.slice(0, Math.min(6, PREFERENCE_RECALL_CAP));
+          if (top.length) {
+            lines.push(`   preferences: ${top.map((p) => `${p.key} = ${p.sensitivity === "private" || p.sensitivity === "secret" ? "[withheld]" : p.value}`).join("; ")}${total > top.length ? ` (+${total - top.length} looser)` : ""}`);
+          }
+          const first = await entityFactsFor(mem, q, 3);
+          if (first.length) lines.push(`   first-person facts: ${first.join("; ")}`);
+        }
+        sections.push(lines.join("\n"));
+      }
+      return {
+        ok: true,
+        summary: `${queries.length} question(s) looked up — ${entitiesFound} named entity match(es)`,
+        data: { queries: queries.length, entitiesFound },
+        detail: sections.join("\n") + "\nAnswer each question only from the entity it names (or the matching preference); say 'not found' when nothing above holds the asked value.",
+      };
+    },
+  };
+
+  return [rememberEntity, rememberFact, rememberFacts, correct, relate, recall, related, recallGraph, lookup, forget];
 }
 
 function renderNeighborhood(g: GraphNeighborhood): string {
