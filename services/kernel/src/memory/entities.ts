@@ -181,6 +181,7 @@ export function parseSlot(statement: string, entityName: string): { slot: string
   let s = statement.toLowerCase().replace(/\(.*?\)/g, " ").replace(/\s+/g, " ").trim().replace(/[.!]$/, "");
   const ent = entityName.toLowerCase().replace(/[^a-z0-9]+/g, "[^a-z0-9]+");
   s = s.replace(new RegExp(`(^|[^a-z0-9])(the\\s+)?${ent}('s)?(?=[^a-z0-9]|$)`, "g"), "$1").replace(/\s+/g, " ").trim();
+  s = s.replace(/^[\s:;,\-—–]+/, ""); // "coral census two: status colour is teal" → "status colour is teal"
   let m = /^(?:its|their|his|her|the)?\s*(.+?)(?:\s+(?:is|are|was)\s+|\s*[:=]\s*)(?:now\s+|currently\s+)?(.+)$/.exec(s);
   let slotText = "", value = "";
   if (m && m[1]!.trim()) {

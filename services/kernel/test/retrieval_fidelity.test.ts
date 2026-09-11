@@ -547,3 +547,56 @@ describe.skipIf(!pool)("G-04 — a connected look-alike is tagged as a DIFFERENT
     expect(r.detail).toMatch(/tidal gauge two \((similar|connected) — a DIFFERENT entity from 'tide gauge'\)/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Longitude-XL G-01 (teach receipt) + G-18 (facts carry their subject),
+// 2026-09-11: every single write is confirmed by reading it back and the reply
+// quotes the stored text; a statement that does not name its entity is stored
+// prefixed with it, so a future split can always tell whose fact it is.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("G-01/G-18 — write receipts and subject-ful statements", () => {
+  let mem: EntityMemory;
+  let prefs: MemoryService;
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    mem = new EntityMemory(pool!, audit);
+    prefs = new MemoryService(pool!, audit);
+  });
+
+  it("withSubject: a statement naming the entity is kept verbatim; one without it is prefixed", async () => {
+    const { withSubject } = await import("../src/memory/entityTools.js");
+    expect(withSubject("coral census two", "coral census two's status colour is teal")).toBe("coral census two's status colour is teal");
+    expect(withSubject("Coral Census Two", "The Coral Census Two is located at the boat shed")).toBe("The Coral Census Two is located at the boat shed");
+    expect(withSubject("coral census two", "Status colour is teal")).toBe("coral census two: Status colour is teal");
+    expect(withSubject("Umar Brandt", "Based in Bergen")).toBe("Umar Brandt: Based in Bergen");
+    expect(withSubject("Anna", "my sister is Anna")).toBe("my sister is Anna");
+  });
+
+  it("rememberFact stores the subject-ful statement, reads it back, and quotes it", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    const r = await remember.run({ entity: "coral census two", kind: "project", statement: "Status colour is teal" });
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ entity: "coral census two", statement: "coral census two: Status colour is teal", readBack: true });
+    expect(r.summary).toMatch(/read back — 'coral census two': "coral census two: Status colour is teal" \(factId /);
+    expect((await mem.recall("coral census two"))!.facts.map((f) => f.statement)).toEqual(["coral census two: Status colour is teal"]);
+    // and the slot parser still reads it (the reconciliation pass depends on that)
+    const { parseSlot } = await import("../src/memory/entities.js");
+    expect(parseSlot("coral census two: Status colour is teal", "coral census two")).toEqual({ slot: "colour status", value: "teal" });
+  });
+
+  it("the batch tool prefixes per item too, and reads each back", async () => {
+    const batch = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFacts")!;
+    const b = await batch.run({ entity: "weather mast two", kind: "thing", statements: ["assigned number is 3", "weather mast two's core material is graphene"] });
+    expect(b.ok).toBe(true);
+    const items = (b.data as { items: { statement: string; stored: boolean }[] }).items;
+    expect(items.map((it) => it.statement)).toEqual(["weather mast two: assigned number is 3", "weather mast two's core material is graphene"]);
+  });
+
+  it("memory.remember reads the preference back and quotes the stored value", async () => {
+    const { rememberPreferenceTool } = await import("../src/core/tools/rememberPreference.js");
+    const r = await rememberPreferenceTool(prefs).run({ key: "study_plant", value: "basil" });
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ key: "study_plant", value: "basil", readBack: true });
+    expect(r.summary).toMatch(/read back 'study_plant' = 'basil'/);
+  });
+});

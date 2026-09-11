@@ -102,6 +102,23 @@ export function preferenceInDisguise(
   return key ? { key, value, subject } : null;
 }
 
+/**
+ * Longitude-XL gap G-18 (2026-09-11): the agent writes facts WITHOUT their
+ * subject — "Status colour is teal" on the entity row — so once two things
+ * share a row nothing in the store can say which one a fact belonged to (nine
+ * folded twins could not be split from evidence). A statement that does not
+ * name its entity is stored prefixed with it: "coral census two: Status colour
+ * is teal". A statement that already names the entity is stored verbatim.
+ */
+export function withSubject(entity: string, statement: string): string {
+  const s = statement.trim();
+  if (!s) return statement; // an empty statement stays empty so the store refuses it
+  const toks = entity.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 3);
+  const low = s.toLowerCase();
+  const named = toks.length > 0 && toks.every((t) => new RegExp(`(^|[^a-z0-9])${t}([^a-z0-9]|$)`).test(low));
+  return named ? s : `${entity.trim()}: ${s}`;
+}
+
 function preferenceNotFact(entity: string, statement: string, p: { key: string; value: string; subject: string }): string {
   return (
     `refused: "${statement}" is a first-person PREFERENCE about the user (their ${p.subject}), not a fact about a thing called '${entity}'. ` +
@@ -160,7 +177,9 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       "If the user gives several things to remember at once, use memory.rememberFacts (one call, all of them). " +
       "If this REPLACES something already known (an update, change or correction), use memory.correct instead. " +
       "A first-person statement about the user ('my gym day is Friday', 'my bike colour is olive') is a PREFERENCE — " +
-      "store it with memory.remember, not as a fact on a thing.",
+      "store it with memory.remember, not as a fact on a thing. Write the statement so it NAMES the entity " +
+      "('coral census two's status colour is teal', not 'status colour is teal'); a statement without the name is stored prefixed with it. " +
+      "The result quotes what was actually stored (read back) — relay that to the user.",
     riskClass: "LOW_REVERSIBLE",
     action: "store fact in local memory",
     inputSchema: {
@@ -183,16 +202,23 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       if (home) {
         return { ok: false, summary: updateInDisguise(a.entity, a.statement, home), data: { route: "preference", key: home.key, value: home.value } };
       }
+      const statement = withSubject(a.entity, a.statement);
       const f = await mem.rememberFact({
         entityName: a.entity,
         ...(a.kind ? { entityKind: a.kind } : {}),
-        statement: a.statement,
+        statement,
         provenance: "conversation (user asked me to remember)",
       });
+      // G-01 teach receipt: the write is confirmed by READING IT BACK, and the
+      // reply carries the stored text verbatim — never "remembered" on trust.
+      const back = await mem.factById(f.id);
+      if (!back || back.statement !== statement) {
+        return { ok: false, summary: `written but did not read back intact — '${a.entity}': "${statement}" (factId ${f.id})`, data: { id: f.id, entity: a.entity, readBack: false } };
+      }
       return {
         ok: true,
-        summary: `remembered a fact about '${a.entity}'`,
-        data: { id: f.id, entity: a.entity },
+        summary: `remembered and read back — '${a.entity}': "${back.statement}" (factId ${f.id})`,
+        data: { id: f.id, entity: a.entity, statement: back.statement, readBack: true },
       };
     },
   };
@@ -243,16 +269,17 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
             items.push({ index: i + 1, statement, stored: false, error: updateInDisguise(a.entity, statement, home) });
             continue;
           }
+          const subjectful = withSubject(a.entity, statement);
           const f = await mem.rememberFact({
             entityName: a.entity,
             ...(a.kind ? { entityKind: a.kind } : {}),
-            statement,
+            statement: subjectful,
             provenance: "conversation (user asked me to remember)",
           });
           // write-then-verify: the fact must read back, active, with the same text
           const back = await mem.factById(f.id);
-          if (back && back.statement === statement) items.push({ index: i + 1, statement, stored: true, factId: f.id });
-          else items.push({ index: i + 1, statement, stored: false, factId: f.id, error: "written but did not read back intact" });
+          if (back && back.statement === subjectful) items.push({ index: i + 1, statement: subjectful, stored: true, factId: f.id });
+          else items.push({ index: i + 1, statement: subjectful, stored: false, factId: f.id, error: "written but did not read back intact" });
         } catch (err) {
           items.push({ index: i + 1, statement, stored: false, error: err instanceof Error ? err.message : String(err) });
         }

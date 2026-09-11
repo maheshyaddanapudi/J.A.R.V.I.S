@@ -315,3 +315,42 @@ relations.
 
 **Status.** G-07 FIXED+VERIFIED; the 10 skipped twin-touched anchors are part
 of chapter three's re-teach set.
+
+## R6 — teach receipts (G-01) and facts that carry their subject (G-18) → PREVENTED / FIXED
+
+**Research.** G-01 is the largest miss class (42 of the second act's 89
+old-world strict misses): facts the first-act kernel simply never stored, which
+no read path can recover. The batch tool (R-MEM-09) already read every item
+back; the single `memory.rememberFact` and `memory.remember` answered
+"remembered" on trust. G-18 came out of R3: the agent writes "Status colour is
+teal" with no subject in the text, so nine folded twins could not be split from
+evidence.
+
+**Fix (kernel).** `memory.rememberFact` and `memory.remember` now confirm the
+write by **reading it back** and quote the stored text in the result
+("remembered and read back — 'coral census two': "coral census two: Status
+colour is teal" (factId …)"); a write that does not read back intact is
+`ok:false`, never a silent success. `withSubject()` stores a statement that
+does not name its entity prefixed with it ("coral census two: Status colour is
+teal"), verbatim otherwise, in both the single and the batch tool; `parseSlot`
+reads the prefixed form; the tool description asks the agent to name the
+entity in the statement and to relay the read-back.
+
+**Tests.** 4 new (`withSubject` cases incl. the first-person exception; the
+single tool's stored text + receipt + `parseSlot` on the prefixed form; the
+batch prefixes per item; `memory.remember` receipt). One existing test caught
+a regression during the slice (an empty statement must stay empty so the store
+refuses it) — fixed before commit.
+
+**Manual check, Sonnet 5 (port 4170).** "Remember this about the gantry
+crane two: status colour is teal, assigned number is 42." → the agent itself
+wrote "gantry crane two's status colour is teal" / "…assigned number is 42"
+(the description nudge), the batch read both back; "my podcast length is 12
+minutes" → `memory.remember`, "Remembered and read back 'podcast length' =
+'12 minutes'"; the quiz answered both. Stored facts read exactly as taught,
+with the subject.
+
+**Status.** G-01 PREVENTED — every write is now confirmed by read-back and
+quoted; the facts the old kernel dropped are re-taught in chapter three and
+their landing checked by the strict scorer. G-18 FIXED — every new fact names
+its entity, so any future split is attributable.
