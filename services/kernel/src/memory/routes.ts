@@ -84,6 +84,12 @@ export function registerMemoryRoutes(
       const body = (req.body ?? {}) as { apply?: boolean };
       return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });
     });
+    // G-07 reconciliation: exclusive relations keep their newest edge; the rest
+    // move to history. Twin-touched anchors are skipped (re-teach). Dry-run default.
+    app.post("/memory/reconcile-relations", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileRelations({ apply: body.apply === true });
+    });
   }
   app.get("/memory/preferences", async (req) => {
     const q = (req.query as { q?: string }).q;

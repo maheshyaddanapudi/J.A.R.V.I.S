@@ -194,6 +194,25 @@ export function parseSlot(statement: string, entityName: string): { slot: string
   const slot = [...normalizeSlot(slotText)].sort().join(" ");
   return slot && value ? { slot, value } : null;
 }
+/**
+ * G-07 (2026-09-11): relations that hold ONE value per subject (a thing is in
+ * one place) or per object (a device has one maintainer of record). A new edge
+ * on an exclusive relation REPLACES the previous one — the displaced edge moves
+ * to `memory_relation_history` and the audit names the change — unless the
+ * caller says `additive` ("she ALSO maintains it"). Non-exclusive verbs
+ * (supplies, depends_on, knows, works_on) accumulate as before.
+ */
+const RELATION_EXCLUSIVITY: Record<string, "subject" | "object"> = {
+  located_in: "subject", based_in: "subject", lives_in: "subject", reports_to: "subject", works_at: "subject",
+  maintains: "object", owns: "object", manages: "object",
+};
+export function normalizeVerb(v: string): string {
+  const t = v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return t.replace(/^is_/, "").replace(/^located_at$/, "located_in").replace(/^(lives|based)_at$/, "$1_in");
+}
+export function relationExclusivity(verb: string): "subject" | "object" | null {
+  return RELATION_EXCLUSIVITY[normalizeVerb(verb)] ?? null;
+}
 /** A name is a mere VARIANT of another (article/case/spacing) — same base, same
  *  qualifiers — as opposed to a different thing that was folded in. */
 function sameShape(a: string, b: string): boolean {
@@ -881,11 +900,25 @@ export class EntityMemory {
     note?: string;
     provenance: string;
     kind?: string;
-  }): Promise<Relation> {
+    /** keep an existing edge on an exclusive relation instead of replacing it */
+    additive?: boolean;
+  }): Promise<Relation & { replaced: { fromName: string; relation: string; toName: string }[] }> {
     if (!input.relation.trim()) throw new Error("refused: relation needs a type");
     if (input.note) assertNotSecret(input.note);
     const from = await this.ensureEntity(input.fromName, input.kind ?? "thing", input.provenance);
     const to = await this.ensureEntity(input.toName, input.kind ?? "thing", input.provenance);
+    // G-07: an exclusive relation replaces the previous edge (with history)
+    const excl = input.additive ? null : relationExclusivity(input.relation);
+    let displaced: { id: string; from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string }[] = [];
+    if (excl) {
+      const { rows } = await this.pool.query<{ id: string; from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string }>(
+        `SELECT r.id, r.from_entity, r.to_entity, r.relation, f.name AS from_name, t.name AS to_name
+         FROM memory_relations r JOIN memory_entities f ON f.id = r.from_entity JOIN memory_entities t ON t.id = r.to_entity
+         WHERE ${excl === "subject" ? "r.from_entity = $1 AND r.to_entity <> $2" : "r.to_entity = $2 AND r.from_entity <> $1"}`,
+        [from.id, to.id],
+      );
+      displaced = rows.filter((r) => normalizeVerb(r.relation) === normalizeVerb(input.relation));
+    }
     const { rows } = await this.pool.query(
       `INSERT INTO memory_relations (from_entity, to_entity, relation, note, provenance)
        VALUES ($1,$2,$3,$4,$5)
@@ -894,12 +927,107 @@ export class EntityMemory {
        RETURNING id, from_entity, to_entity, relation, note, provenance`,
       [from.id, to.id, input.relation, this.enc(input.note ?? ""), input.provenance],
     );
+    const replaced: { fromName: string; relation: string; toName: string }[] = [];
+    for (const d of displaced) {
+      await this.retireRelation(d.id, rows[0].id, `exclusive relation '${normalizeVerb(input.relation)}': replaced by ${from.name} → ${to.name}`);
+      replaced.push({ fromName: d.from_name, relation: d.relation, toName: d.to_name });
+      await this.audit.append({
+        actor: "kernel",
+        event: "relation_superseded",
+        payload: { relation: normalizeVerb(input.relation), retired: { from: d.from_name, to: d.to_name }, replacedBy: { from: from.name, to: to.name } },
+      });
+    }
     await this.audit.append({
       actor: "kernel",
       event: "relation_remembered",
-      payload: { from: from.name, to: to.name, relation: input.relation },
+      payload: { from: from.name, to: to.name, relation: input.relation, ...(replaced.length ? { replaced: replaced.length } : {}) },
     });
-    return this.hydrateRelation(rows[0]);
+    return { ...this.hydrateRelation(rows[0]), replaced };
+  }
+
+  /** Move an edge to `memory_relation_history` (nothing is deleted from the record). */
+  private async retireRelation(id: string, supersededBy: string | null, reason: string): Promise<void> {
+    await this.pool.query(
+      `WITH gone AS (DELETE FROM memory_relations WHERE id = $1 RETURNING id, from_entity, to_entity, relation, note, provenance, created_at)
+       INSERT INTO memory_relation_history (id, from_entity, to_entity, relation, note, provenance, created_at, superseded_by, reason)
+       SELECT id, from_entity, to_entity, relation, note, provenance, created_at, $2, $3 FROM gone`,
+      [id, supersededBy, reason],
+    );
+  }
+
+  /**
+   * G-07 reconciliation for a world written before exclusive relations
+   * existed: where an exclusive relation holds several values for one anchor
+   * (two `located_in` for one thing, two maintainers of record for one device)
+   * the NEWEST edge wins and the others move to history. Anchors that were
+   * touched by a twin merge (foreign aliases now, or an `entity_alias_split`
+   * in the audit) are SKIPPED — their edges were recorded under a merged name
+   * and recency would only guess; they belong to the re-teach set.
+   */
+  async reconcileRelations(opts: { apply?: boolean } = {}): Promise<{
+    applied: boolean;
+    resolved: { relation: string; anchor: string; kept: string; retired: string[] }[];
+    skipped: { relation: string; anchor: string; values: string[]; reason: string }[];
+  }> {
+    const tainted = new Set<string>();
+    const { rows: aliased } = await this.pool.query<{ id: string; name: string; aliases: string[] | null }>(
+      `SELECT id, name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') AND cardinality(aliases) > 0`,
+    );
+    for (const e of aliased) if ((e.aliases ?? []).some((a) => !sameShape(a, e.name))) tainted.add(e.id);
+    try {
+      const { rows } = await this.pool.query<{ canonical: string; alias: string }>(
+        `SELECT payload->>'canonical' AS canonical, payload->>'alias' AS alias FROM audit_log WHERE event = 'entity_alias_split'`,
+      );
+      const names = new Set(rows.flatMap((r) => [r.canonical, r.alias].filter(Boolean).map((n) => n.toLowerCase())));
+      if (names.size) {
+        const { rows: ids } = await this.pool.query<{ id: string }>(
+          `SELECT id FROM memory_entities WHERE status NOT IN ('deleted','superseded') AND lower(name) = ANY($1::text[])`,
+          [[...names]],
+        );
+        for (const r of ids) tainted.add(r.id);
+      }
+    } catch { /* no audit table (tests) — alias check alone */ }
+    const { rows: edges } = await this.pool.query<{ id: string; from_entity: string; to_entity: string; relation: string; created_at: string; from_name: string; to_name: string }>(
+      `SELECT r.id, r.from_entity, r.to_entity, r.relation, r.created_at::text, f.name AS from_name, t.name AS to_name
+       FROM memory_relations r JOIN memory_entities f ON f.id = r.from_entity JOIN memory_entities t ON t.id = r.to_entity
+       WHERE f.status NOT IN ('deleted','superseded') AND t.status NOT IN ('deleted','superseded')`,
+    );
+    const groups = new Map<string, typeof edges>();
+    for (const e of edges) {
+      const excl = relationExclusivity(e.relation);
+      if (!excl) continue;
+      const key = `${normalizeVerb(e.relation)}|${excl === "subject" ? e.from_entity : e.to_entity}`;
+      groups.set(key, [...(groups.get(key) ?? []), e]);
+    }
+    const resolved: { relation: string; anchor: string; kept: string; retired: string[] }[] = [];
+    const skipped: { relation: string; anchor: string; values: string[]; reason: string }[] = [];
+    for (const [key, g] of groups) {
+      const [verb, anchorId] = key.split("|") as [string, string];
+      const excl = RELATION_EXCLUSIVITY[verb]!;
+      const other = (e: (typeof edges)[number]) => (excl === "subject" ? e.to_name : e.from_name);
+      const distinct = new Set(g.map((e) => (excl === "subject" ? e.to_entity : e.from_entity)));
+      if (distinct.size < 2) continue;
+      const anchor = excl === "subject" ? g[0]!.from_name : g[0]!.to_name;
+      const values = [...new Set(g.map(other))];
+      if (tainted.has(anchorId)) {
+        skipped.push({ relation: verb, anchor, values, reason: "anchor was touched by a twin merge — edges were recorded under a merged name; re-teach" });
+        continue;
+      }
+      const sorted = [...g].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+      const winner = sorted[0]!;
+      const losers = sorted.slice(1).filter((e) => (excl === "subject" ? e.to_entity !== winner.to_entity : e.from_entity !== winner.from_entity));
+      resolved.push({ relation: verb, anchor, kept: other(winner), retired: losers.map(other) });
+      if (!opts.apply) continue;
+      for (const l of losers) {
+        await this.retireRelation(l.id, winner.id, `reconciliation: exclusive relation '${verb}', newer edge kept`);
+        await this.audit.append({ actor: "kernel", event: "relation_superseded", payload: { relation: verb, retired: { from: l.from_name, to: l.to_name }, replacedBy: { from: winner.from_name, to: winner.to_name }, via: "reconciliation" } });
+      }
+    }
+    if (opts.apply && resolved.length && this.onMemoryChange) {
+      const sample = resolved.slice(0, 3).map((r) => `${r.anchor} ${r.relation.replace(/_/g, " ")}: kept ${r.kept}, retired ${r.retired.join(", ")}`).join("; ");
+      void this.onMemoryChange({ kind: "split", about: "memory reconciliation", text: `While tidying memory I found ${resolved.length} relation(s) with more than one current value where only one can hold (e.g. ${sample}); I kept the newest each time and moved the rest to history. Tell me if any of these is wrong.` }).catch(() => undefined);
+    }
+    return { applied: Boolean(opts.apply), resolved, skipped };
   }
 
   /** Everything J.A.R.V.I.S. knows about a named entity. */

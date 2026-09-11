@@ -21,7 +21,7 @@ import type { SettingsRegistry } from "../settings/registry.js";
  */
 
 const BRAIN_TABLES = [
-  "memory_entities", "memory_facts", "memory_relations", "memory_episodes",
+  "memory_entities", "memory_facts", "memory_relations", "memory_relation_history", "memory_episodes",
   "conversation_memory", "preferences", "setting_specs", "runtime_settings",
   "prompts", "proactive_rules", "agenda_items", "projects", "project_log",
   "durable_grants", "reasoning_decisions",

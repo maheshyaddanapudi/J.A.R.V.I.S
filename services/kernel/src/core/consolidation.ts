@@ -298,6 +298,14 @@ export class SleepCycle {
           for (const c of r.conflicts.slice(0, 5)) notes.push(`one-home — ${c.entity}'s ${c.slot}: kept ${c.kept.value} (${c.kept.home}), retired ${c.retired.value} (${c.retired.home})`);
         }
       } catch { /* reconciliation is best-effort */ }
+      // G-07: exclusive relations keep one current edge (newest); the rest go to history
+      try {
+        const rr = await this.deps.memory.reconcileRelations({ apply: true });
+        if (rr.resolved.length) {
+          findings.push(`memory: ${rr.resolved.length} exclusive relation(s) held more than one value — kept the newest, moved the rest to history`);
+          for (const r of rr.resolved.slice(0, 5)) notes.push(`one-edge — ${r.anchor} ${r.relation}: kept ${r.kept}, retired ${r.retired.join(", ")}`);
+        }
+      } catch { /* best-effort */ }
     }
 
     const atRow = await pool.query<{ now: string }>("SELECT now()::text AS now");

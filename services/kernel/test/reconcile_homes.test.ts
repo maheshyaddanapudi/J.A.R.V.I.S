@@ -116,3 +116,66 @@ describe.skipIf(!pool)("G-03 — reconcileHomes keeps the newer record and retir
     expect(r.conflicts).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Longitude-XL gap G-07 (2026-09-11): relations had no supersession — a new
+// maintainer or location simply sat beside the old one and the agent refused
+// or answered "not found — maintained by X, not Y". Exclusive relations now
+// replace the previous edge WITH history; additive keeps both; non-exclusive
+// verbs accumulate as before; a world written before the rule can be
+// reconciled (newest wins), except anchors touched by a twin merge.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("G-07 — exclusive relations supersede with history", () => {
+  let mem: EntityMemory;
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_relation_history, memory_episodes, memory_embeddings, preferences CASCADE");
+    (audit as unknown as { append: { mockClear(): void } }).append.mockClear();
+    mem = new EntityMemory(pool!, audit);
+  });
+
+  it("a thing is in ONE place: a new located_in replaces the old edge, which moves to history (audited)", async () => {
+    await mem.relate({ fromName: "field pump", toName: "boat house", relation: "located_in", provenance: "t", kind: "place" });
+    const r = await mem.relate({ fromName: "field pump", toName: "cold store", relation: "is located at", provenance: "t", kind: "place" });
+    expect(r.replaced).toEqual([{ fromName: "field pump", relation: "located_in", toName: "boat house" }]);
+    const out = (await mem.recall("field pump"))!.relationsOut.map((x) => x.toName);
+    expect(out).toEqual(["cold store"]);
+    const hist = await pool!.query<{ relation: string; reason: string }>("SELECT relation, reason FROM memory_relation_history");
+    expect(hist.rows).toHaveLength(1);
+    expect(hist.rows[0]!.reason).toMatch(/exclusive relation 'located_in'/);
+    expect(events().some((e) => e.event === "relation_superseded")).toBe(true);
+  });
+
+  it("a device has ONE maintainer of record; other devices' maintainers are untouched; additive keeps both; supplies accumulates", async () => {
+    await mem.relate({ fromName: "arjun petrov", toName: "air scrubber", relation: "maintains", provenance: "t", kind: "person" });
+    await mem.relate({ fromName: "arjun petrov", toName: "air scrubber two", relation: "maintains", provenance: "t", kind: "person" });
+    await mem.relate({ fromName: "esme carvalho", toName: "air scrubber", relation: "maintains", provenance: "t", kind: "person" });
+    expect((await mem.recall("air scrubber"))!.relationsIn.map((x) => x.fromName)).toEqual(["esme carvalho"]);
+    expect((await mem.recall("air scrubber two"))!.relationsIn.map((x) => x.fromName)).toEqual(["arjun petrov"]);
+    await mem.relate({ fromName: "lena iyer", toName: "air scrubber", relation: "maintains", provenance: "t", kind: "person", additive: true });
+    expect((await mem.recall("air scrubber"))!.relationsIn.map((x) => x.fromName).sort()).toEqual(["esme carvalho", "lena iyer"]);
+    await mem.relate({ fromName: "alloy supplier", toName: "air scrubber", relation: "supplies", provenance: "t", kind: "org" });
+    await mem.relate({ fromName: "optics vendor", toName: "air scrubber", relation: "supplies", provenance: "t", kind: "org" });
+    expect((await mem.recall("air scrubber"))!.relationsIn.filter((x) => x.relation === "supplies")).toHaveLength(2);
+  });
+
+  it("reconcileRelations: the newest edge wins for a pre-rule world; twin-touched anchors are skipped", async () => {
+    // two located_in for one thing, written before the rule (insert directly, 10 days apart)
+    await mem.relate({ fromName: "seed bank", toName: "storage unit", relation: "located_in", provenance: "t", kind: "place", additive: true });
+    await pool!.query("UPDATE memory_relations SET created_at = now() - interval '10 days'");
+    await mem.relate({ fromName: "seed bank", toName: "greenhouse", relation: "located_in", provenance: "t", kind: "place", additive: true });
+    // a twin-touched anchor: carries a foreign alias
+    await mem.relate({ fromName: "kiln north", toName: "rooftop garden north", relation: "located_in", provenance: "t", kind: "place", additive: true });
+    await mem.relate({ fromName: "kiln north", toName: "observatory dome", relation: "located_in", provenance: "t", kind: "place", additive: true });
+    await pool!.query("UPDATE memory_entities SET aliases = ARRAY['kiln'] WHERE lower(name) = 'kiln north'");
+    const dry = await mem.reconcileRelations();
+    expect(dry.applied).toBe(false);
+    expect(dry.resolved).toEqual([{ relation: "located_in", anchor: "seed bank", kept: "greenhouse", retired: ["storage unit"] }]);
+    expect(dry.skipped.map((s) => s.anchor)).toEqual(["kiln north"]);
+    expect((await mem.recall("seed bank"))!.relationsOut).toHaveLength(2); // dry-run wrote nothing
+    await mem.reconcileRelations({ apply: true });
+    expect((await mem.recall("seed bank"))!.relationsOut.map((x) => x.toName)).toEqual(["greenhouse"]);
+    expect((await mem.recall("kiln north"))!.relationsOut).toHaveLength(2); // skipped, untouched
+    expect((await pool!.query("SELECT count(*) FROM memory_relation_history")).rows[0]!.count).toBe("1");
+    expect((await mem.reconcileRelations({ apply: true })).resolved).toEqual([]); // idempotent
+  });
+});

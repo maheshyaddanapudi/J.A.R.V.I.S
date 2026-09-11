@@ -276,7 +276,10 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
 
   const relate: Tool = {
     name: "memory.relate",
-    description: "Record a relationship between two entities (from → relation → to). Reversible.",
+    description:
+      "Record a relationship between two entities (from → relation → to). Reversible. " +
+      "Exclusive relations — located_in (a thing is in ONE place), maintains (a device has ONE maintainer of record), owns, reports_to — " +
+      "REPLACE the previous edge with history; pass additive:true when both should hold ('she ALSO maintains it').",
     riskClass: "LOW_REVERSIBLE",
     action: "store relation in local memory",
     inputSchema: {
@@ -284,24 +287,27 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       properties: {
         from: { type: "string" },
         to: { type: "string" },
-        relation: { type: "string", description: "e.g. works_on, knows, located_in, owns, part_of" },
+        relation: { type: "string", description: "e.g. works_on, knows, located_in, owns, part_of, maintains, supplies, depends_on" },
         note: { type: "string" },
+        additive: { type: "boolean", description: "keep an existing edge on an exclusive relation instead of replacing it" },
       },
       required: ["from", "to", "relation"],
       additionalProperties: false,
     },
     async run(args: unknown): Promise<ToolResult> {
-      const a = args as { from: string; to: string; relation: string; note?: string };
+      const a = args as { from: string; to: string; relation: string; note?: string; additive?: boolean };
       const r = await mem.relate({
         fromName: a.from,
         toName: a.to,
         relation: a.relation,
         ...(a.note ? { note: a.note } : {}),
+        ...(a.additive ? { additive: true } : {}),
         provenance: "conversation (user asked me to remember)",
       });
+      const replaced = r.replaced.length ? ` (replaced ${r.replaced.map((x) => `${x.fromName} —${x.relation}→ ${x.toName}`).join(", ")}; kept in history)` : "";
       return {
         ok: true,
-        summary: `${a.from} —${a.relation}→ ${a.to}`,
+        summary: `${a.from} —${a.relation}→ ${a.to}${replaced}`,
         data: { id: r.id },
       };
     },

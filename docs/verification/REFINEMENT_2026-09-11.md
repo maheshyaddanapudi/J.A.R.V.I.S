@@ -252,3 +252,66 @@ previously hedged questions: microscope two **ochre**, lab-glass supplier two
 **Status.** G-03 FIXED+VERIFIED. The nightly pass keeps the world at one home
 per attribute from now on; the third act measures whether hedges disappear
 from the strict-scored batteries.
+
+## R5 — relations without supersession (G-07) → FIXED+VERIFIED
+
+**Research.** `memory_relations` had no history and no notion of exclusivity:
+a new "quinn ferreira maintains weather mast north" sat beside the old "diego
+mbeki maintains …", and the merged twins carried two `located_in` edges each.
+In the day-1000 world 9 devices had more than one maintainer of record and 5
+things more than one location; the agent refused ("two conflicting located_in
+links") or answered "not found — maintained by diego mbeki, not quinn
+ferreira" — 3 two-hop misses in the act, more under the strict rubric.
+
+**Fix (kernel).** Migration `0027_relation_history` adds
+`memory_relation_history` (the retired edge, when it was recorded, when and by
+what it was superseded, why); readers of `memory_relations` keep seeing only
+current edges, nothing is deleted from the record. `relate()` now knows
+**exclusive** relations — `located_in`/`based_in`/`lives_in`/`reports_to`/
+`works_at` hold one value per subject, `maintains`/`owns`/`manages` one per
+object (verbs normalised: "is located at" → `located_in`) — and a new edge on
+one REPLACES the previous edge with history and an audit event
+(`relation_superseded`); `additive: true` keeps both ("she ALSO maintains
+it"); non-exclusive verbs (`supplies`, `depends_on`, `knows`, `works_on`)
+accumulate as before. The tool result says what was replaced. `reconcileRelations`
+(`POST /memory/reconcile-relations`, dry-run default; also in the sleep cycle)
+brings a pre-rule world to one current edge per anchor — newest wins — and
+**skips anchors touched by a twin merge** (foreign aliases now, or an
+`entity_alias_split` in the audit): their edges were recorded under a merged
+name, recency would only guess, they belong to the re-teach set. The backup
+covers the history table.
+
+**Tests.** 3 new in `test/reconcile_homes.test.ts`: a new `located_in`
+replaces the old edge (history row, reason, audit, `replaced` in the result);
+one maintainer of record per device with other devices untouched, `additive`
+keeps both, `supplies` accumulates; reconciliation keeps the newest for a
+pre-rule world and skips a twin-touched anchor, dry-run writes nothing,
+idempotent. Full suite **515/515, 0 skipped**.
+
+**Manual check, Sonnet 5 (port 4170).** "arjun petrov maintains the field pump
+north" → recorded (the agent read the tool's own note that maintains is
+exclusive). "Update: esme carvalho now maintains the field pump north instead.
+And the field pump two has moved — it's now located at the cold store." → the
+agent used `memory.relate` for the maintainer (tool reply: replaced arjun
+petrov, kept in history) and `memory.correct` for the location fact; quiz:
+"Field pump north is maintained by Esme Carvalho. Field pump two is located at
+the cold store."
+
+**Applied to the day-1000 world (audited).** Dry-run: 4 resolvable groups, all
+maintainers replaced by chapter-two cross-links (roof array north → Pavel
+Bergstrom, air scrubber → esme carvalho, microscope north → pavel hoffmann,
+air scrubber two → pavel pereira), 10 groups skipped as twin-touched
+(Microscope Two, Aquarium Rig Two, Rooftop Garden Two, kiln north, 3D printer
+north — every one of them a G-17 canonical). Applied: 4 `relation_superseded`,
+4 history rows. Read-only re-ask: "Who maintains the air scrubber?" → Esme
+Carvalho; "Which place is the air scrubber two — the one pavel pereira
+maintains — located at?" → Rooftop Garden Two. 0 writes.
+
+**Observation for R7 (G-11).** The agent sometimes stores a location as a
+FACT ("field pump two is located at the boat house") rather than a
+`located_in` relation, which two-hop traversal cannot follow; the `memory.relate`
+description will say that location/maintainer/supplier statements are
+relations.
+
+**Status.** G-07 FIXED+VERIFIED; the 10 skipped twin-touched anchors are part
+of chapter three's re-teach set.
