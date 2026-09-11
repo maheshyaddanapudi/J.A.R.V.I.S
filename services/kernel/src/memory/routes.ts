@@ -78,6 +78,12 @@ export function registerMemoryRoutes(
       const body = (req.body ?? {}) as { apply?: boolean };
       return entities.splitTwinAliases({ apply: body.apply === true });
     });
+    // G-03 reconciliation: one home per attribute — the newer record wins, the
+    // older is retired with history. Dry-run unless {apply: true}; audited.
+    app.post("/memory/reconcile-homes", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });
+    });
   }
   app.get("/memory/preferences", async (req) => {
     const q = (req.query as { q?: string }).q;

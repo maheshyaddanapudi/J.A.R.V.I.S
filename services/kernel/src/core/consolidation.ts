@@ -57,6 +57,7 @@ export interface ConsolidationReport {
     staleProposals: number;
     /** near-duplicate preference KEYS folded (Longitude finding #5) */
     preferenceDupes?: number;
+    homesReconciled?: number;
   };
 }
 
@@ -96,6 +97,13 @@ export class SleepCycle {
       memory?: EntityMemory;
       /** near-duplicate preference-KEY tidy (Longitude finding #5) — best-effort */
       prefs?: { tidyDuplicates(): Promise<{ merged: string[]; proposals: string[] }> };
+      /** G-03 (2026-09-11): the preference side of "one home per attribute" — the
+       *  quiet-hours pass retires the OLDER of two disagreeing records with history */
+      prefStore?: {
+        matchKeys(subject: string, hint?: string): Promise<{ key: string; value: string }[]>;
+        get(key: string): Promise<{ key: string; value: string; updated_at: string; sensitivity?: string } | null>;
+        delete(key: string): Promise<boolean>;
+      };
       /** thresholds read live from the editable catalog (D-0058) */
       settings?: SettingsRegistry;
     },
@@ -277,6 +285,19 @@ export class SleepCycle {
         }
         for (const p of t.proposals) proposals.push(p);
       } catch { /* preference tidy is best-effort */ }
+    }
+    // G-03: one home per attribute. Two disagreeing records for the same
+    // entity + slot (fact/fact, fact/preference, fact/attribute clause) → the
+    // newer wins, the older is retired WITH history and the change announced.
+    if (this.deps.memory) {
+      try {
+        const r = await this.deps.memory.reconcileHomes({ apply: true, ...(this.deps.prefStore ? { prefs: this.deps.prefStore } : {}) });
+        if (memorySection) memorySection.homesReconciled = r.conflicts.length;
+        if (r.conflicts.length) {
+          findings.push(`memory: ${r.conflicts.length} attribute(s) had two homes with different values — kept the newer, retired the older with history`);
+          for (const c of r.conflicts.slice(0, 5)) notes.push(`one-home — ${c.entity}'s ${c.slot}: kept ${c.kept.value} (${c.kept.home}), retired ${c.retired.value} (${c.retired.home})`);
+        }
+      } catch { /* reconciliation is best-effort */ }
     }
 
     const atRow = await pool.query<{ now: string }>("SELECT now()::text AS now");

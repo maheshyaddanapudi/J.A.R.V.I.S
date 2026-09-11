@@ -367,6 +367,7 @@ export async function buildCore(opts: {
     // day's memories too — dupes merged (with history), stale only PROPOSED.
     memory: entityMemory,
     prefs: memory,
+    prefStore: memory, // G-03: one home per attribute across facts and preferences
     settings,
   });
 

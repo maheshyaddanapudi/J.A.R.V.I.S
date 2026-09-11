@@ -155,6 +155,45 @@ export function qualifierTwin(a: string, b: string): boolean {
   const B = nameShape(b);
   return A.base.length > 0 && A.base === B.base && A.quals !== B.quals;
 }
+/** Slot words of a statement / key: lowercase tokens minus filler. */
+const SLOT_FILLER = new Set(["its", "the", "a", "an", "is", "are", "was", "now", "currently", "of", "for", "their", "his", "her", "my", "our", "to", "as"]);
+function normalizeSlot(s: string): Set<string> {
+  return new Set(s.toLowerCase().replace(/'s\b/g, " ").split(/[^a-z0-9]+/).filter((t) => t && !SLOT_FILLER.has(t)));
+}
+const UNIT_WORDS = new Set(["day", "hour", "number", "city", "colour", "color", "material", "name", "value"]);
+function sameSlot(a: string, b: string): boolean {
+  if (a === b) return true;
+  const A = new Set(a.split(" ")), B = new Set(b.split(" "));
+  const diff = [...A].filter((t) => !B.has(t)).concat([...B].filter((t) => !A.has(t)));
+  const small = A.size <= B.size ? A : B;
+  return diff.length === 1 && UNIT_WORDS.has(diff[0]!) && [...small].every((t) => A.has(t) && B.has(t));
+}
+function normValue(v: string): string {
+  return v.toLowerCase().replace(/\(.*?\)/g, "").replace(/\s+(now|currently|as of .*)$/i, "").replace(/[.!]$/, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
+}
+/**
+ * G-03: the attribute SLOT and VALUE a statement carries, with the entity's own
+ * name stripped — "Status colour is ochre (changed from slate)." → {status colour,
+ * ochre}; "Umar Brandt is based in Bergen" → {based in, bergen}; "umar brandt's
+ * meeting is on wednesday" → {meeting, wednesday}. Null when no slot is found.
+ */
+export function parseSlot(statement: string, entityName: string): { slot: string; value: string } | null {
+  let s = statement.toLowerCase().replace(/\(.*?\)/g, " ").replace(/\s+/g, " ").trim().replace(/[.!]$/, "");
+  const ent = entityName.toLowerCase().replace(/[^a-z0-9]+/g, "[^a-z0-9]+");
+  s = s.replace(new RegExp(`(^|[^a-z0-9])(the\\s+)?${ent}('s)?(?=[^a-z0-9]|$)`, "g"), "$1").replace(/\s+/g, " ").trim();
+  let m = /^(?:its|their|his|her|the)?\s*(.+?)(?:\s+(?:is|are|was)\s+|\s*[:=]\s*)(?:now\s+|currently\s+)?(.+)$/.exec(s);
+  let slotText = "", value = "";
+  if (m && m[1]!.trim()) {
+    slotText = m[1]!; value = m[2]!;
+  } else {
+    m = /^(?:is\s+|are\s+)?(based in|located (?:at|in)|meets on|meeting is on|lives in|works at)\s+(.+)$/.exec(s);
+    if (!m) return null;
+    slotText = m[1]!.replace(/\s+is\s+on$/, ""); value = m[2]!;
+  }
+  value = normValue(value.replace(/^(?:in|on|at|to|of|as|now)\s+/, ""));
+  const slot = [...normalizeSlot(slotText)].sort().join(" ");
+  return slot && value ? { slot, value } : null;
+}
 /** A name is a mere VARIANT of another (article/case/spacing) — same base, same
  *  qualifiers — as opposed to a different thing that was folded in. */
 function sameShape(a: string, b: string): boolean {
@@ -1093,6 +1132,108 @@ export class EntityMemory {
       .sort((a, b) => Number(b.twin) - Number(a.twin) || a.name.length - b.name.length)
       .slice(0, limit)
       .map(({ name: n, kind, twin }) => ({ name: n, kind, twin }));
+  }
+
+  /**
+   * G-03 reconciliation (2026-09-11): ONE HOME per attribute. Longitude-XL
+   * found three ways a value ends up with two homes that then disagree —
+   * two active facts on the same slot ('status colour is ochre' + 'status
+   * colour is slate'), a fact vs a preference (`weather_mast_two_assigned_number
+   * = 7` beside "assigned number is 3"), and a fact vs the entity's free-text
+   * attributes ("status colour: cobalt" written at first mention, never
+   * corrected) — and the agent then answered "conflicting records" or the
+   * stale one (45 hedges + 52 misattributed answers under the strict rubric).
+   * Rule: the NEWER record wins, the older is retired with history (a fact is
+   * superseded, a preference is soft-deleted, an attribute clause is removed —
+   * the audit carries before/after); agreeing duplicates are left alone;
+   * private/secret facts are never touched. Dry-run by default.
+   */
+  async reconcileHomes(opts: {
+    apply?: boolean;
+    prefs?: {
+      matchKeys(subject: string, hint?: string): Promise<{ key: string; value: string }[]>;
+      get(key: string): Promise<{ key: string; value: string; updated_at: string; sensitivity?: string } | null>;
+      delete(key: string): Promise<boolean>;
+    };
+  } = {}): Promise<{
+    applied: boolean;
+    conflicts: { entity: string; slot: string; kept: { home: "fact" | "preference"; value: string; at: string }; retired: { home: "fact" | "preference" | "attributes"; value: string; at?: string; key?: string } }[];
+  }> {
+    const conflicts: { entity: string; slot: string; kept: { home: "fact" | "preference"; value: string; at: string }; retired: { home: "fact" | "preference" | "attributes"; value: string; at?: string; key?: string } }[] = [];
+    const { rows: ents } = await this.pool.query<{ id: string; name: string; kind: string; attributes: string }>(
+      `SELECT id, name, kind, attributes FROM memory_entities WHERE status NOT IN ('deleted','superseded') ORDER BY updated_at DESC LIMIT 300`,
+    );
+    for (const e of ents) {
+      const { rows: factRows } = await this.pool.query<{ id: string; statement: string; created_at: string; sensitivity: string }>(
+        `SELECT id, statement, created_at::text, sensitivity FROM memory_facts
+         WHERE entity_id = $1 AND status NOT IN ('deleted','superseded') ORDER BY created_at ASC LIMIT 40`,
+        [e.id],
+      );
+      type Home = { home: "fact" | "preference" | "attributes"; id?: string; key?: string; slot: string; value: string; at: string; raw: string };
+      const homes: Home[] = [];
+      for (const f of factRows) {
+        if (f.sensitivity === "private" || f.sensitivity === "secret") continue;
+        const text = this.dec(f.statement);
+        const p = parseSlot(text, e.name);
+        if (p) homes.push({ home: "fact", id: f.id, slot: p.slot, value: p.value, at: f.created_at, raw: text });
+      }
+      const attrs = this.dec(e.attributes ?? "");
+      const attrClauses = attrs ? attrs.split(/\s*[;|]\s*|\s*,\s*(?=[a-z][a-z ]+[:=]|\s*[a-z ]+ is )/i).map((c) => c.trim()).filter(Boolean) : [];
+      for (const c of attrClauses) {
+        const p = parseSlot(c, e.name);
+        if (p) homes.push({ home: "attributes", slot: p.slot, value: p.value, at: "", raw: c });
+      }
+      if (opts.prefs) {
+        try {
+          for (const m of await opts.prefs.matchKeys(e.name)) {
+            const pref = await opts.prefs.get(m.key);
+            if (!pref || pref.sensitivity === "private" || pref.sensitivity === "secret") continue;
+            const subject = normalizeSlot(e.name);
+            const slotToks = [...normalizeSlot(m.key)].filter((t) => !subject.has(t));
+            if (!slotToks.length) continue;
+            homes.push({ home: "preference", key: m.key, slot: slotToks.sort().join(" "), value: normValue(pref.value), at: pref.updated_at, raw: `${m.key} = ${pref.value}` });
+          }
+        } catch { /* preference side is best-effort */ }
+      }
+      // group by slot (exact token set, or a one-unit-word difference: 'meeting' ~ 'meeting day')
+      const groups: Home[][] = [];
+      for (const h of homes) {
+        const g = groups.find((grp) => sameSlot(grp[0]!.slot, h.slot));
+        if (g) g.push(h); else groups.push([h]);
+      }
+      for (const g of groups) {
+        const dated = g.filter((h) => h.home !== "attributes").sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)); // newest first
+        if (!dated.length) continue;
+        const winner = dated[0]!;
+        for (const h of g) {
+          if (h === winner || h.value === winner.value) continue; // agreeing records are not a conflict
+          const conflict = { entity: e.name, slot: g[0]!.slot, kept: { home: winner.home as "fact" | "preference", value: winner.value, at: winner.at }, retired: { home: h.home, value: h.value, ...(h.at ? { at: h.at } : {}), ...(h.key ? { key: h.key } : {}) } };
+          conflicts.push(conflict);
+          if (!opts.apply) continue;
+          if (h.home === "fact" && h.id) {
+            await this.pool.query(`UPDATE memory_facts SET status = 'superseded', superseded_by = $2 WHERE id = $1`, [h.id, winner.home === "fact" ? winner.id ?? null : null]);
+            await this.audit.append({ actor: "kernel", event: "fact_superseded_by_reconciliation", payload: { entity: e.name, slot: conflict.slot, retiredFactId: h.id, retiredValue: h.value, keptHome: winner.home, keptValue: winner.value } });
+          } else if (h.home === "preference" && h.key && opts.prefs) {
+            await opts.prefs.delete(h.key);
+            await this.audit.append({ actor: "kernel", event: "preference_superseded_by_reconciliation", payload: { entity: e.name, slot: conflict.slot, key: h.key, retiredValue: h.value, keptHome: winner.home, keptValue: winner.value } });
+          } else if (h.home === "attributes") {
+            const before = attrs;
+            const after = attrClauses.filter((c) => c !== h.raw).join("; ");
+            await this.pool.query(`UPDATE memory_entities SET attributes = $2, updated_at = now() WHERE id = $1`, [e.id, this.enc(after)]);
+            await this.audit.append({ actor: "kernel", event: "entity_attributes_reconciled", payload: { entity: e.name, slot: conflict.slot, removedClause: h.raw, before, after, keptHome: winner.home, keptValue: winner.value } });
+          }
+        }
+      }
+    }
+    if (opts.apply && conflicts.length && this.onMemoryChange) {
+      const sample = conflicts.slice(0, 3).map((c) => `${c.entity}'s ${c.slot}: kept ${c.kept.value} (${c.kept.home}, newer), retired ${c.retired.value} (${c.retired.home})`).join("; ");
+      void this.onMemoryChange({
+        kind: "split",
+        about: "memory reconciliation",
+        text: `While tidying memory I found ${conflicts.length} attribute(s) recorded in two places with different values and kept the newer one each time, e.g. ${sample}. The older records are in history — tell me if any of these is wrong.`,
+      }).catch(() => undefined);
+    }
+    return { applied: Boolean(opts.apply), conflicts };
   }
 
   async listEntities(kind?: string): Promise<Entity[]> {

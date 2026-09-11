@@ -462,10 +462,10 @@
     "semantic_hash": "586ee1f26d36ffa136fefcfe507cf210"
   },
   "services/kernel/src/core/consolidation.ts": {
-    "mtime": 1788056799.0019135,
-    "seen": 1788058731.146366,
-    "ast_hash": "844a2ab6cab2d5278da676ae7e9be3dd",
-    "semantic_hash": "844a2ab6cab2d5278da676ae7e9be3dd"
+    "mtime": 1789166213.5437002,
+    "seen": 1789166235.3651853,
+    "ast_hash": "4940c01725e37acb0e8e6778a1a3f270",
+    "semantic_hash": "4940c01725e37acb0e8e6778a1a3f270"
   },
   "services/kernel/src/core/estop.ts": {
     "mtime": 1787690225.0237525,
@@ -480,10 +480,10 @@
     "semantic_hash": "20cd5dc10ab3a347c27de07ee18d70a8"
   },
   "services/kernel/src/core/index.ts": {
-    "mtime": 1789164904.9924192,
-    "seen": 1789165132.5327048,
-    "ast_hash": "9accea3c65911c29ed0cd8d1a1d285e3",
-    "semantic_hash": "9accea3c65911c29ed0cd8d1a1d285e3"
+    "mtime": 1789166174.5323827,
+    "seen": 1789166177.4448485,
+    "ast_hash": "b3a09c482bf343800e80ab397488b669",
+    "semantic_hash": "b3a09c482bf343800e80ab397488b669"
   },
   "services/kernel/src/core/loop.ts": {
     "mtime": 1788301101.0167375,
@@ -870,10 +870,10 @@
     "semantic_hash": "d54be859ca4f967a49c806626f1eeda3"
   },
   "services/kernel/src/memory/entities.ts": {
-    "mtime": 1789165507.200402,
-    "seen": 1789165508.2101965,
-    "ast_hash": "d74c9abae4a70d9b1c0bfeaa8464f2ae",
-    "semantic_hash": "d74c9abae4a70d9b1c0bfeaa8464f2ae"
+    "mtime": 1789166232.380381,
+    "seen": 1789166235.3692946,
+    "ast_hash": "5be3ef6d35a3bf849821cc47e0698f68",
+    "semantic_hash": "5be3ef6d35a3bf849821cc47e0698f68"
   },
   "services/kernel/src/memory/entityTools.ts": {
     "mtime": 1789165709.236396,
@@ -906,10 +906,10 @@
     "semantic_hash": "3f68a030c601b715dd898ad47480ace4"
   },
   "services/kernel/src/memory/routes.ts": {
-    "mtime": 1789164909.1804192,
-    "seen": 1789165132.536447,
-    "ast_hash": "9cf482814fb6696ee0259981ed634d8a",
-    "semantic_hash": "9cf482814fb6696ee0259981ed634d8a"
+    "mtime": 1789166153.6403832,
+    "seen": 1789166156.4296272,
+    "ast_hash": "814ac279b8fb73451eb931d8b0df2ab2",
+    "semantic_hash": "814ac279b8fb73451eb931d8b0df2ab2"
   },
   "services/kernel/src/memory/semantic.ts": {
     "mtime": 1787690225.0374923,
@@ -2100,10 +2100,10 @@
     "semantic_hash": "143861d85b37ac5762d678ffaac24fb6"
   },
   "docs/verification/LONGITUDE_XL_GAP_LEDGER.md": {
-    "mtime": 1789164591.1804283,
-    "seen": 1789165132.541846,
-    "ast_hash": "9d0331821686d66a5fce0176f412c217",
-    "semantic_hash": "9d0331821686d66a5fce0176f412c217"
+    "mtime": 1789165972.5083885,
+    "seen": 1789166106.004484,
+    "ast_hash": "4eaa2dda34b5c8d5f6be129de865f679",
+    "semantic_hash": "4eaa2dda34b5c8d5f6be129de865f679"
   },
   "docs/verification/longitude_xl/day700/README.md": {
     "mtime": 1789006590.729103,
@@ -2172,9 +2172,15 @@
     "semantic_hash": "5495ec7e932a1798b522b74dd79bc264"
   },
   "docs/verification/REFINEMENT_2026-09-11.md": {
-    "mtime": 1789164585.9964285,
-    "seen": 1789165286.7320714,
-    "ast_hash": "d6efc6bf256c0bf0b65f08432e18f06e",
-    "semantic_hash": "d6efc6bf256c0bf0b65f08432e18f06e"
+    "mtime": 1789165941.6243894,
+    "seen": 1789166106.0046601,
+    "ast_hash": "102c3699e7d030236881a5881f97ea22",
+    "semantic_hash": "102c3699e7d030236881a5881f97ea22"
+  },
+  "services/kernel/test/reconcile_homes.test.ts": {
+    "mtime": 1789166207.8443818,
+    "seen": 1789166210.5981836,
+    "ast_hash": "dea5a26f97b29b02f9a6e5a9115897e6",
+    "semantic_hash": "dea5a26f97b29b02f9a6e5a9115897e6"
   }
 }

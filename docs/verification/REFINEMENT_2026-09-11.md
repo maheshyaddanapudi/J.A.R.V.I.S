@@ -191,3 +191,64 @@ retirement fact awaits re-teach). G-15 FIXED (one active per template name;
 re-seed of built-ins). G-04 FIXED on the kernel side with a recorded
 model-behaviour residue — bare-name two-hop questions can still lead with the
 sibling's chain — to be measured in act three under the strict scorer.
+
+## R4 — two homes for one attribute (G-03) → FIXED+VERIFIED
+
+**Research.** The day-1000 world showed three shapes of "two homes": two
+active facts on one slot (`Microscope Two`: "Status colour is ochre" beside an
+older "slate"); a fact beside a preference (`weather_mast_two_assigned_number
+= 7` beside "assigned number is 3"; `lab-glass supplier two assigned number =
+68` beside "…is 3"; `tidal_model_two_service_day = Thursday` beside "Service
+day is Wednesday"); and a fact beside the entity's free-text **attributes**
+written at first mention and never corrected (`Microscope Two` attributes
+"status colour: cobalt", `Umar Brandt` "Based in Osaka" beside "based in
+Bergen"). The agent then hedged ("conflicting values found — cannot confirm")
+or answered the stale one: 45 hedges + 52 misattributed answers under the
+strict rubric across the two acts, ~40 of the second act's 89 old-world
+misses. `memory.correct` supersedes facts and preferences but never touched
+attributes, and nothing ever compared the three stores.
+
+**Fix (kernel).** `EntityMemory.reconcileHomes({ apply, prefs })`: for every
+active entity, the slot/value of each fact (`parseSlot` — "Status colour is
+ochre (changed from slate)." → `status colour = ochre`, "Umar Brandt is based
+in Bergen" → `based in = bergen`, "home city: cusco"), of each attribute
+clause, and of each preference whose key covers the entity (`matchKeys`, slot
+= key tokens minus the subject) are grouped by slot; where two homes disagree,
+the **newer** record wins and the older is retired **with history** — a fact
+is superseded (`fact_superseded_by_reconciliation`), a preference soft-deleted
+(`preference_superseded_by_reconciliation`), an attribute clause removed with
+before/after in the audit (`entity_attributes_reconciled`). Agreeing
+duplicates are not conflicts; private/secret records are never touched;
+dry-run by default; one announcement per run summarises what was kept and
+retired. Wired into the quiet-hours sleep cycle (`SleepCycle` → after the
+duplicate-fact merge and preference tidy; findings/notes in the morning
+report, `memory.homesReconciled`) and exposed as `POST /memory/reconcile-homes`.
+
+**Tests.** `test/reconcile_homes.test.ts` (5): `parseSlot` on the shapes the
+agent actually wrote; fact-vs-fact newer wins + history + idempotence;
+fact-vs-preference in both directions (preference soft-deleted with the row
+kept / fact superseded); attributes-vs-fact clause removal with before/after
+audited; private facts untouched + agreeing homes not conflicts. Full suite
+**512/512, 0 skipped**.
+
+**Manual check, Sonnet 5 (scratch day-500 world, port 4170).** Before:
+"lab-glass supplier two's assigned number — conflicting records, entity memory
+says 42 but preferences…". Applied 26 reconciliations on the scratch world.
+After: "42 / 3 / Tallinn" — clean answers to the same three questions.
+
+**Applied to the day-1000 world (audited, announced; safety dump from R3
+still valid — reconciliation deletes nothing).** Dry-run listed 12 conflicts,
+each inspected: 7 stale preferences retired in favour of newer facts (weather
+mast two 7→3, lab-glass supplier two 68→3, tidal model two Thursday→Wednesday,
+battery retrofit two, morning swim two, irrigation controller, a sentence-valued
+`priya_petrov_meeting_day`), 1 stale fact retired in favour of a newer
+preference (rope: cedar→basalt fiber), 4 stale attribute clauses removed
+(Microscope Two cobalt, 3D Printer Two bergen, greenhouse automation north
+tallinn, Umar Brandt osaka). Idempotent afterwards (0). Read-only re-ask of the
+previously hedged questions: microscope two **ochre**, lab-glass supplier two
+**3**, umar brandt **Bergen**, weather mast two **3**, tidal model two
+**Wednesday** — all stated cleanly, 0 writes.
+
+**Status.** G-03 FIXED+VERIFIED. The nightly pass keeps the world at one home
+per attribute from now on; the third act measures whether hedges disappear
+from the strict-scored batteries.
