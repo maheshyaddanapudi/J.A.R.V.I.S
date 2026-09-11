@@ -28,6 +28,9 @@ import httpx
 LABEL = sys.argv[1] if len(sys.argv) > 1 else "baseline"
 K = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:4170"
 SNAP = Path(sys.argv[3] if len(sys.argv) > 3 else "docs/verification/longitude_xl")
+# R10 (2026-09-11): only misses first seen on/after this day are replayed —
+# 501 restricts the set to the second act's misses on a day-1000 snapshot.
+FROM_DAY = int(sys.argv[4]) if len(sys.argv) > 4 else 1
 
 # the world, for question text + announced truth
 sys.argv = ["x", "1000"]
@@ -35,7 +38,7 @@ spec = importlib.util.spec_from_file_location("xl", Path(__file__).with_name("lo
 xl = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(xl)  # type: ignore[union-attr]
 STATE = json.loads((SNAP / "state.json").read_text())
-FACT = {f["fid"]: f for f in xl.ALL_FACTS}
+FACT = xl.FACT_BY_ID   # base + chapter-two (+ chapter-three) facts by fid
 
 
 def has(text: str, truth: str) -> bool:
@@ -53,8 +56,10 @@ def main() -> None:
     misses: dict[str, dict] = {}
     for line in (SNAP / "quizzes.jsonl").open():
         r = json.loads(line)
+        if r.get("day", 0) < FROM_DAY:
+            continue
         for f in r.get("facts", []):
-            if f["hit"] or f["fid"] == "hop" or f["fid"] in misses:
+            if f["hit"] or f["fid"] == "hop" or f.get("special") or f["fid"] in misses:
                 continue
             misses[f["fid"]] = {"fid": f["fid"], "first_missed_day": r["day"], "topic": f["topic"], "pref": f["pref"]}
     prefs = httpx.get(f"{K}/memory/preferences", timeout=60).json()["preferences"]

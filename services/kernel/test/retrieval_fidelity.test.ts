@@ -196,6 +196,28 @@ describe.skipIf(!pool)("D-0080 S4 — route-agnostic memory.correct (R-MEM-08)",
     expect((await prefs.get("optics_vendor_two_assigned_number"))!.value).toBe("24"); // never writes the OTHER route
   });
 
+  it("G-19: a correction never supersedes a fact about a DIFFERENT slot — a status written as a correction keeps the status colour", async () => {
+    // Sonnet-5 mini-life run 2 (R10): "We've wrapped up the sluice gate north — consider it closed" went
+    // through memory.correct and retired the entity's only fact, "status colour is slate", on the shared
+    // word "status". The same shape sits in the day-1000 world's retirement runs (fact_corrected rows).
+    await mem.rememberFact({ entityName: "sluice gate north", entityKind: "thing", statement: "the sluice gate north's status colour is slate", provenance: "t" });
+    const r = await correct.run({ entity: "sluice gate north", newStatement: "sluice gate north's status is closed/inactive (decommissioned, no longer in operation)" });
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ route: "fact", superseded: 0 });
+    const facts = (await mem.recall("sluice gate north"))!.facts.map((f) => f.statement).sort();
+    expect(facts).toEqual(["sluice gate north's status is closed/inactive (decommissioned, no longer in operation)", "the sluice gate north's status colour is slate"]);
+    // an explicit factId pointing at the other slot is refused unless `replaces` confirms it
+    const colour = (await mem.recall("sluice gate north"))!.facts.find((f) => f.statement.includes("colour"))!;
+    const bad = await correct.run({ entity: "sluice gate north", factId: colour.id, newStatement: "sluice gate north's status is closed" });
+    expect(bad.ok).toBe(false);
+    expect(bad.summary).toMatch(/not about the same thing/);
+    // …while a same-slot correction still supersedes as before
+    const ok = await correct.run({ entity: "sluice gate north", newStatement: "the sluice gate north's status colour is ochre" });
+    expect(ok.data).toMatchObject({ route: "fact", superseded: 1 });
+    expect((await mem.recall("sluice gate north"))!.facts.map((f) => f.statement)).toContain("the sluice gate north's status colour is ochre");
+    expect((await mem.recall("sluice gate north"))!.facts.map((f) => f.statement)).not.toContain("the sluice gate north's status colour is slate");
+  });
+
   it("factId keeps the D-0062 contract (exact target; stale id refused, nothing written anywhere)", async () => {
     const f = await mem.rememberFact({ entityName: "optics vendor two", entityKind: "vendor", statement: "optics vendor two's assigned number is 24", provenance: "t" });
     await prefs.remember({ key: "optics_vendor_two_assigned_number", value: "24", provenance: "chat" });
@@ -646,5 +668,10 @@ describe.skipIf(!pool)("E-02 — memory.lookup answers several questions in one 
     expect(d).toMatch(/DIFFERENT entities: coral census two/);
     expect(d).toMatch(/2\) Where is the coral census two located\?[\s\S]*→ located_in → boat shed/);
     expect(d).toMatch(/3\) What is my study plant\?[\s\S]*preferences: study_plant = basil/);
+    // R10 (G-04 residue): an entity with no edges says so explicitly, and the
+    // closing instruction asks for 'not found' FIRST, before any look-alike note
+    expect(d).toMatch(/1\) What is the coral census's status colour\?[\s\S]*?↔ no connections recorded for coral census\n/);
+    expect(d).not.toMatch(/no connections recorded for coral census two/);
+    expect(d).toMatch(/OPEN with 'not found' for that thing — any note about a look-alike comes after, never first\./);
   });
 });

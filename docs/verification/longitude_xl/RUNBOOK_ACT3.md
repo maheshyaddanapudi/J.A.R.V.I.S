@@ -14,7 +14,7 @@ second act's operations taught us, made mechanical.
 
 | Arc | Days | Closes |
 |---|---|---|
-| Re-teach of 83 facts on 37 topics (≥2 strict misses in act two; both sides of the 9 unsplit twin pairs) through the ordinary teach queue, phrased as a recap of the current truth | 1003–1013 | G-01, G-17, G-18 world-side |
+| Re-teach of 93 facts on 41 topics (≥2 strict misses in act two; both sides of the 9 unsplit twin pairs; the three facts the day-1000 replay found absent from every store; `fusion sim north` after G-19) through the ordinary teach queue, phrased as a recap of the current truth | 1003–1014 | G-01, G-17, G-18 world-side |
 | Re-teach of the CURRENT edges of 10 device families the relation reconciliation skipped (maintainer, location, supplier; two families a day) | 1015–1019 | G-07 world-side |
 | The kiln's retirement re-stated (the other five chapter-two retirements untouched as controls) | 1012 | G-16 world-side |
 | Late user pin of the escalation threshold (re-pin #3 → bar 24); one more harness re-pin allowed after the next override (→ bar 30) | 1010 → | G-10 |

@@ -587,8 +587,13 @@ JUNK_WORDS3 = ["scheduling", "tidying"]   # activity words, two explicit-deep tu
 RETIRE_DAYS3 = [1080, 1160, 1240]
 # Re-teach set — derived 2026-09-11 (R9): topics with ≥2 strict misses in days
 # 501–1000 (rescore_strict.jsonl), both sides of the reconcile-twins `unsplit`
-# pairs, the device families behind the reconcile-relations `skipped` anchors.
+# pairs, the device families behind the reconcile-relations `skipped` anchors;
+# R10 added the facts the day-1000 replay found ABSENT from every store.
 RETEACH_TOPICS = sorted({
+    # absent from every store on the day-1000 replay (R10, replay_after_r10.json)
+    "test range", "roof array two", "irrigation controller two",
+    # G-19 (R10): its act-two retirement went through memory.correct and superseded one of its facts
+    "fusion sim north",
     # ≥2 strict misses in the second act (26)
     "weekend preferred meeting day", "sensor importer two", "coral census", "coral census north", "gym day",
     "microscope two", "tea order", "aquarium rig", "dream destination", "microscope", "tidal model north",

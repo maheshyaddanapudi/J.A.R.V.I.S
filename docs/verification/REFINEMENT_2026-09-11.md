@@ -492,9 +492,11 @@ with the same rng, state and a fake agent).**
   exact-entity rule; the battery prompt names `memory.lookup` (R8) and the
   rule. All three are disclosed instrument changes for the third act.
 - **Chapter three** (`build_chapter_three()`, hash `7806a9a6f228d3c9`, pinned
-  in the checkpoint on its first day): the re-teach of 83 facts on 37 topics
-  (every topic with ≥2 strict misses in act two + both sides of the 9 unsplit
-  twin pairs) through the ordinary teach queue as a recap of the current truth
+  in the checkpoint on its first day): the re-teach of 93 facts on 41 topics
+  (every topic with ≥2 strict misses in act two, both sides of the 9 unsplit
+  twin pairs, and — added in R10 — the three facts the day-1000 replay found
+  absent from every store, plus `fusion sim north`, whose act-two retirement
+  had superseded one of its facts, G-19) through the ordinary teach queue as a recap of the current truth
   (`kind: reteach`, delivery day untouched, `retaught` ledger); the current
   edges of the 10 skipped device families re-stated; the kiln's retirement
   re-stated (five controls untouched); the late D-0052 pin (day 1010, bar 24,
@@ -503,7 +505,7 @@ with the same rng, state and a fake agent).**
   preferences, 18 cross-links incl. six maintainer handovers; 3 chapter-two
   retirements; restarts 1100/1300, quiet fortnights 1200/1400. Dry run of the
   whole day engine 1001–1500 without HTTP: 58/58 chapter-three facts delivered,
-  83/83 re-taught by day 1013, ≤10 acts a day, one maintainer per device in the
+  93/93 re-taught by day 1014, ≤10 acts a day, one maintainer per device in the
   hop truth, 84 two-hop chains available.
 - **G-14.** `docs/verification/longitude_xl/RUNBOOK_ACT3.md`: launch checklist
   (build → suite → safety dump → embedder → kernel health with 0 pending →

@@ -19,8 +19,8 @@ const AGENT_SYSTEM =
   "with a concise final answer and no further tool calls. Never claim a tool ran " +
   "unless its result says so. When a question names a specific thing, answer about exactly " +
   "that thing: similarly named entities ('X two', 'X north', 'the X' vs 'X two') are DIFFERENT " +
-  "things — if the named one lacks the asked fact or connection, say it is not found rather " +
-  "than answering from a look-alike.\n\n" +
+  "things — if the named one lacks the asked fact or connection, OPEN your answer with 'not found' " +
+  "for it; a note about a look-alike may follow, but never lead, and never stands in for the answer.\n\n" +
   UNTRUSTED_CONTENT_NOTE;
 
 /**

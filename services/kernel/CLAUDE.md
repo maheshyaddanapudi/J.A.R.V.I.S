@@ -540,6 +540,76 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   without supersession, and first-person "my X is Y" statements the agent
   writes as entity facts (invisible to `recallPreferences`) — worklist
   `docs/verification/LONGITUDE_XL_GAP_LEDGER.md`. **488 kernel tests.**
+- Refinement pass ✅ (2026-09-11, R2–R10; record `docs/verification/REFINEMENT_2026-09-11.md`,
+  ledger `docs/verification/LONGITUDE_XL_GAP_LEDGER.md`): every observation of the
+  1000-day run closed with a terminal status. Kernel changes, all in the memory /
+  agent / gateway layers, none in Z1:
+  **G-05** `entityTools.ts` `preferenceInDisguise` — a first-person "my X is Y"
+  is refused by `rememberFact(s)` with the exact `memory.remember` write handed
+  back; `recallPreferences(memory, entities)` also reports first-person facts
+  held on the subject's or the user's entity.
+  **G-17/G-02/G-04/G-16** `entities.ts` `qualifierTwin` (same base, different
+  qualifier `two`/`north`/…): never a judge candidate, an affirmed twin is
+  declined on the record (`entity_resolution_declined`), a leftover twin alias
+  is neither a write hit nor a lookup match (`findEntity`, identity seeding),
+  article variants (`kiln` ⇄ `the kiln`) resolve either way; every judge merge
+  audited (`entity_alias_merged`) + announced via `onMemoryChange`;
+  `splitTwinAliases` (`POST /memory/reconcile-twins`, dry-run default) gives a
+  folded twin its entity back from evidence only (facts naming it, relations
+  the audit names), `unsplit` reported never guessed; graph/lookup output tags
+  look-alikes "a DIFFERENT entity", prints "no connections recorded for X" and
+  closes with "answer only about X — OPEN with 'not found'"; `AGENT_SYSTEM`
+  exact-entity rule (open with not-found, a look-alike note may follow, never
+  lead — R10). Judge template: qualifier siblings / different head nouns are
+  different things; `seedJudgeTemplates` re-seeds only its own `builtin-seed`
+  rows; `PromptRegistry.set/activate` keep one active row per NAME for
+  non-persona kinds (**G-15** — before, every boot left four of five templates
+  inactive and served from code constants).
+  **G-03** `reconcileHomes({apply, prefs})` (`POST /memory/reconcile-homes`,
+  sleep cycle): fact-vs-fact, fact-vs-preference and attribute-clause conflicts
+  on one slot (`parseSlot`/`sameSlot`) — the newer record wins, the older is
+  retired with history, audited (`fact_superseded_by_reconciliation`,
+  `preference_superseded_by_reconciliation`, `entity_attributes_reconciled`).
+  **G-07** migration 0027 `memory_relation_history`; `RELATION_EXCLUSIVITY`
+  (`located_in`/`based_in`/… per subject, `maintains`/`owns`/… per object):
+  `relate()` REPLACES the previous exclusive edge with history
+  (`relation_superseded`), `additive:true` keeps both; `retireRelation`,
+  `reconcileRelations` (route + sleep cycle; twin-touched anchors skipped).
+  **G-01/G-18** every single fact/preference write is read back and quoted
+  (`readBack`, `ok:false` if not intact); `withSubject()` prefixes a statement
+  that does not name its entity ("coral census two: Status colour is teal").
+  **G-19** (found by the R10 mini-life, confirmed once in the day-1000 world's
+  retirement runs) `slotCompatible`: a guessed `memory.correct` target must be
+  about the SAME attribute slot as the new statement (`parseSlot` on both) —
+  "status is closed" no longer supersedes "status colour is slate" on the
+  shared word; a different-slot statement becomes a new fact, an explicit
+  factId on another slot is refused unless `replaces` confirms it.
+  **G-11** descriptions: connecting statements are relations, full names as
+  taught; `GET /ops/health` → `memoryHygiene` 7-day counters.
+  **G-08** `lab/night.ts` an experiment starts only if the remaining cap covers
+  a full one (3×baseline or the campaign mean); `completed`; keep rate per
+  completed night.
+  **E-01** Anthropic adapter `cache_control: ephemeral` on the system block +
+  last tool; `usage.cacheReadTokens/cacheWriteTokens` → `model_calls`
+  (migration 0028, exposed on `GET /gateway/calls` since R10);
+  `AgentRunOptions.toolScope` / `POST /agent/run {toolScope}` (schema trim,
+  never a capability). **E-02** `memory.lookup(queries[])` one-call answers.
+  **E-04** `rankPreferences` whole-token overlap, exact keys first, cap 12 with
+  an honest "N more match loosely"; `entityFactsFor` fallback.
+  Measured on Sonnet 5: a 5-question battery 4–5 planning calls × ~12.6k
+  uncached → 2 calls × ~2k uncached + a 13.2k cached prefix; on the fidelity
+  kernel every planning call since the build reads 13,232 cached tokens with
+  ~423 uncached. Applied to the preserved day-1000 world (audited, announced,
+  nothing deleted): 10 twin splits (9 unsplit → re-teach), 12 one-home
+  reconciliations, 4 maintainer groups (10 twin-touched skipped → re-teach).
+  R10 retest on one build: full suite 0 skipped, replay of the second act's 35
+  unique misses on a scratch restore (0 true graph misses before and after the
+  world-side reconciliations; exact-seed precision 16→18; 5 absent-from-every-
+  store facts → chapter three's re-teach set), Sonnet-5 mini-life over every
+  fixed shape (`scripts/minilife_r10.py`, records
+  `docs/verification/refinement/R10_minilife_sonnet5_run{1,2}.md`). The third
+  act (chapter three, `docs/verification/longitude_xl/RUNBOOK_ACT3.md`) is the
+  field retest on this build.
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

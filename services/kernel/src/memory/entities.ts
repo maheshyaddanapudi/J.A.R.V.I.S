@@ -51,6 +51,20 @@ function sharedContent(a: string, b: string, entityName: string): number {
   return n;
 }
 
+/** R10 / G-19 (2026-09-11): a correction may only supersede a fact about the SAME
+ *  attribute slot. Shared words are not enough — "status is closed" shares
+ *  "status" with "status colour is slate", and a retirement written as a
+ *  correction retired the colour instead (Sonnet-5 mini-life run 2). When both
+ *  statements parse to a slot, the slots must be identical; a statement whose
+ *  slot no active fact carries becomes a NEW fact (the sleep cycle's
+ *  `reconcileHomes` still merges genuine same-slot variants later). */
+function slotCompatible(oldStatement: string, newStatement: string, entityName: string): boolean {
+  const a = parseSlot(oldStatement, entityName);
+  const b = parseSlot(newStatement, entityName);
+  if (!a || !b) return true;
+  return a.slot === b.slot;
+}
+
 /** Loose name-similarity PRE-FILTER for entity resolution (D-0075). Deliberately
  *  permissive — it only selects CANDIDATES for the fast-model judge, which makes
  *  the real same/different decision. Catches substring ('Pepper' ⊂ 'Pepper
@@ -812,15 +826,19 @@ export class EntityMemory {
         const confirmed =
           !!input.replaces?.trim() &&
           (old.toLowerCase().includes(input.replaces.trim().toLowerCase()) || sharedContent(old, input.replaces, entityName) >= 1);
-        if (!confirmed && sharedContent(old, input.newStatement, entityName) === 0) {
+        if (!confirmed && (sharedContent(old, input.newStatement, entityName) === 0 || !slotCompatible(old, input.newStatement, entityName))) {
           throw new Error(
-            `fact ${input.factId} on '${entityName}' says "${old}" — that is not about the same thing as "${input.newStatement}". ` +
+            `fact ${input.factId} on '${entityName}' says "${old}" — that is not about the same thing (attribute) as "${input.newStatement}". ` +
             `Omit factId to let me find the right home (fact or preference), or pass 'replaces' quoting the old text if you really mean to supersede it`,
           );
         }
       }
       return [input.factId];
     }
+    // R10 / G-19: a candidate must be about the same attribute SLOT as the new
+    // statement (when both parse) — shared words alone retired a status colour
+    // for a status. Applies to every guessed target below, never to an explicit id.
+    const compatible = (statement: string) => !input.newStatement || slotCompatible(statement, input.newStatement, entityName);
     if (input.replaces && input.replaces.trim()) {
       const needle = input.replaces.trim().toLowerCase();
       // 1) exact substring match (precise).
@@ -835,7 +853,9 @@ export class EntityMemory {
       //    assigned-number fact) — only attribute words say "same thing".
       let best: { id: string; shared: number } | null = null;
       for (const r of active) {
-        const shared = sharedContent(this.dec(r.statement), needle, entityName);
+        const old = this.dec(r.statement);
+        if (!compatible(old)) continue;
+        const shared = sharedContent(old, needle, entityName);
         if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
       }
       return best && best.shared >= 1 ? [best.id] : [];
@@ -848,7 +868,9 @@ export class EntityMemory {
     if (input.newStatement) {
       let best: { id: string; shared: number } | null = null;
       for (const r of active) {
-        const shared = sharedContent(this.dec(r.statement), input.newStatement, entityName);
+        const old = this.dec(r.statement);
+        if (!compatible(old)) continue;
+        const shared = sharedContent(old, input.newStatement, entityName);
         if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
       }
       return best && best.shared >= 1 ? [best.id] : [];

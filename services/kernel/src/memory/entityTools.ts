@@ -592,7 +592,10 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
             for (const f of r?.facts ?? []) lines.push(`     · ${f.statement}`);
             for (const rel of r?.relationsOut ?? []) lines.push(`     → ${rel.relation} → ${rel.toName}`);
             for (const rel of r?.relationsIn ?? []) lines.push(`     ← ${rel.fromName} —${rel.relation}→`);
-            if (!(r?.facts.length || r?.relationsOut.length || r?.relationsIn.length)) lines.push(`     (nothing recorded)`);
+            if (!r?.facts.length) lines.push(`     (no facts recorded for ${e.name})`);
+            // an explicit line, not silence: a location/maintainer question about
+            // this entity is 'not found' — never answered from a look-alike's edges
+            if (!(r?.relationsOut.length || r?.relationsIn.length)) lines.push(`     ↔ no connections recorded for ${e.name}`);
           }
           let others = g.entities.filter((x) => !named.some((n) => n.toLowerCase() === x.name.toLowerCase())).map((x) => x.name);
           if (!others.length) others = (await mem.nearNames(named[0]!, 4).catch(() => [])).map((n) => n.name);
@@ -616,7 +619,7 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
         ok: true,
         summary: `${queries.length} question(s) looked up — ${entitiesFound} named entity match(es)`,
         data: { queries: queries.length, entitiesFound },
-        detail: sections.join("\n") + "\nAnswer each question only from the entity it names (or the matching preference); say 'not found' when nothing above holds the asked value.",
+        detail: sections.join("\n") + "\nAnswer each question only from the entity it names (or the matching preference); when nothing above holds the asked value, OPEN with 'not found' for that thing — any note about a look-alike comes after, never first.",
       };
     },
   };
@@ -696,7 +699,7 @@ function renderGraphRecall(r: GraphRecall): string {
     }
   }
   if (named.length) {
-    lines.push(`answer only about ${named.join(" / ")}; every other entity above is a different thing — if ${named[0]} lacks the asked fact or connection, say it is not found rather than substituting a look-alike.`);
+    lines.push(`answer only about ${named.join(" / ")}; every other entity above is a different thing — if ${named[0]} lacks the asked fact or connection, OPEN with 'not found' rather than substituting a look-alike (a note about the look-alike may follow, never lead).`);
   }
   if (r.relations.length) {
     lines.push("connections:");
