@@ -32,6 +32,20 @@ export interface HealthReport {
   db: { ok: boolean; latencyMs: number };
   audit: { intact: boolean; entries: number };
   memory: { entities: number; facts: number; episodes: number; embeddings: number; conversationTurns: number };
+  /** Longitude-XL G-11 (2026-09-11): the memory-write habits the kernel absorbs,
+   *  counted from the audit log over the last 7 days — a rising refusal or
+   *  reconciliation count is the early signal of an agent habit or a resolver
+   *  fault that a battery would only show weeks later. */
+  memoryHygiene: {
+    windowDays: number;
+    refusedFactWrites: number;      // memory.rememberFact / rememberFacts refused (update- or preference-in-disguise)
+    corrections: number;            // memory.correct calls
+    aliasMerges: number;            // judge merges (entity_alias_merged)
+    twinDeclines: number;           // qualifier twins declined (entity_resolution_declined)
+    aliasSplits: number;            // reconciliation splits (entity_alias_split)
+    homesReconciled: number;        // fact/preference/attribute retired by one-home reconciliation
+    relationsSuperseded: number;    // exclusive relation replaced with history
+  };
   autonomy: { enabled: boolean; lastBeatAt: string | null; lastBeatAgeSec: number | null; stale: boolean };
   ok: boolean;
 }
@@ -64,6 +78,25 @@ export class Ops {
       conversationTurns: await this.count("SELECT count(*) FROM conversation_memory"),
     };
 
+    const memoryHygiene = { windowDays: 7, refusedFactWrites: 0, corrections: 0, aliasMerges: 0, twinDeclines: 0, aliasSplits: 0, homesReconciled: 0, relationsSuperseded: 0 };
+    try {
+      const { rows } = await this.pool.query<{ k: string; n: string }>(
+        `SELECT k, count(*) AS n FROM (
+           SELECT CASE
+             WHEN event = 'tool_call' AND payload->>'tool' IN ('memory.rememberFact','memory.rememberFacts') AND (payload->>'ok') = 'false' THEN 'refusedFactWrites'
+             WHEN event = 'tool_call' AND payload->>'tool' = 'memory.correct' THEN 'corrections'
+             WHEN event = 'entity_alias_merged' THEN 'aliasMerges'
+             WHEN event = 'entity_resolution_declined' THEN 'twinDeclines'
+             WHEN event = 'entity_alias_split' THEN 'aliasSplits'
+             WHEN event IN ('fact_superseded_by_reconciliation','preference_superseded_by_reconciliation','entity_attributes_reconciled') THEN 'homesReconciled'
+             WHEN event = 'relation_superseded' THEN 'relationsSuperseded'
+           END AS k
+           FROM audit_log WHERE at > now() - interval '7 days') x
+         WHERE k IS NOT NULL GROUP BY k`,
+      );
+      for (const r of rows) if (r.k in memoryHygiene) (memoryHygiene as unknown as Record<string, number>)[r.k] = Number(r.n);
+    } catch { /* audit table absent in a partial DB — zeros */ }
+
     const enabled = await this.settings.bool("autonomy.enabled", false);
     const interval = await this.settings.num("autonomy.intervalMinutes", 30);
     let lastBeatAt: string | null = null;
@@ -80,6 +113,7 @@ export class Ops {
       db: { ok: dbOk, latencyMs },
       audit: { intact: chain.intact, entries: chain.entries },
       memory,
+      memoryHygiene,
       autonomy: { enabled, lastBeatAt, lastBeatAgeSec: ageSec, stale },
       ok: dbOk && chain.intact && !stale,
     };

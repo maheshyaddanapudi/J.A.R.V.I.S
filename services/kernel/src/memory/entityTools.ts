@@ -305,8 +305,11 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     name: "memory.relate",
     description:
       "Record a relationship between two entities (from → relation → to). Reversible. " +
+      "A statement that CONNECTS two things — X is located at Y, P maintains D, S supplies D, A depends on B — is a relation: store it here " +
+      "(traversable for multi-hop questions), not as a fact sentence. " +
       "Exclusive relations — located_in (a thing is in ONE place), maintains (a device has ONE maintainer of record), owns, reports_to — " +
-      "REPLACE the previous edge with history; pass additive:true when both should hold ('she ALSO maintains it').",
+      "REPLACE the previous edge with history; pass additive:true when both should hold ('she ALSO maintains it'). " +
+      "Use each entity's full name exactly as taught ('kiln north', 'coral census two' — never shortened to 'kiln' or 'coral census').",
     riskClass: "LOW_REVERSIBLE",
     action: "store relation in local memory",
     inputSchema: {
@@ -425,7 +428,8 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       "Correct something you already hold: supersede the old value (kept as history) and record the new one. " +
       "Works for entity facts AND preferences — if no entity fact matches, the preference holding the value is corrected instead, so a value keeps ONE home. " +
       "READ-THEN-WRITE: call memory.recall first — it lists each fact with its factId — then pass the exact factId here; otherwise name the attribute in `replaces`. " +
-      "Use this — NOT rememberFact — whenever the user updates/changes/corrects something you know, so the stale value doesn't linger alongside the new one.",
+      "Use this — NOT rememberFact — whenever the user updates/changes/corrects something you know, so the stale value doesn't linger alongside the new one. " +
+      "Pass the entity's full name exactly as taught ('coral census two', 'kiln north'); 'coral census' and 'coral census two' are different things.",
     riskClass: "LOW_REVERSIBLE",
     action: "correct fact in local memory",
     inputSchema: {

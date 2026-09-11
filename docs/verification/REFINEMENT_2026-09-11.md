@@ -354,3 +354,45 @@ with the subject.
 quoted; the facts the old kernel dropped are re-taught in chapter three and
 their landing checked by the strict scorer. G-18 FIXED — every new fact names
 its entity, so any future split is attributable.
+
+## R7 — the small system items (G-08/E-03, G-11, G-15) → FIXED / CORRECTED
+
+**G-08 / E-03 — what the lab ledger actually says.** The ledger row claimed
+"most nights halt on the nightly token cap before three trials complete".
+The data does not support that reading. The XL world ran with a runtime
+override `budget.lab.nightlyTokenCap = 60000` (the code default is 300,000);
+of 46 finished nights, 11 halted on the cap and 3 because the researcher
+produced no candidates twice; and the 65 discards were overwhelmingly
+"no improvement on first trial: 92.8 ≤ baseline 92.8" (the N=3 protocol runs
+trials 2–3 only after trial 1 improves — by design) plus five honesty
+guard-band breaches. The keep rate is low because candidates rarely beat a
+baseline sitting near its ceiling (~93), not because the cap cut trials
+short. What the cap DID do wrong: it was checked only between experiments,
+so a night on a 60k cap ran to 108k–125k — the last experiment started with
+almost no budget left. **Fix:** an experiment now starts only if the remaining
+budget covers a full one (the larger of 3 × the baseline's cost and the
+campaign's observed mean per experiment from the ledger), else the night halts
+honestly ("would be exceeded by the next experiment"); the night summary
+carries `completed`, and the morning report states the keep rate **per
+completed night** ("2 keeps over 31 completed nights (15 halted early)").
+Test: cap 500, baseline 110 → exactly one experiment, halted before the
+second, never over the cap. The cost share (E-03, ~a quarter of the run) is a
+design choice to put to the user at the next check-in: fewer lab nights, or a
+smaller bench, while the baseline sits at its ceiling — recorded as ACCEPTED
+with that recommendation, not silently changed.
+
+**G-11 — agent habits.** Descriptions now say: a statement that connects two
+things (located at, maintains, supplies, depends on) is a RELATION and goes
+through `memory.relate`, not a fact sentence (R5 saw a location stored as a
+fact, invisible to traversal); use each entity's full name exactly as taught
+("kiln north", "coral census two") in `memory.relate` and `memory.correct`.
+And the habits the kernel absorbs are now a **health metric**: `GET /ops/health`
+→ `memoryHygiene` counts, over the last 7 days, refused fact writes,
+corrections, judge alias merges, twin declines, alias splits, one-home
+reconciliations and relation supersessions from the audit log — a rising
+refusal or reconciliation count is the early signal that a battery would only
+show weeks later. Test added.
+
+**G-15** — fixed in R3 (one active template row per NAME); closed there.
+
+**Tests.** 2 new; full suite 521/521, 0 skipped.

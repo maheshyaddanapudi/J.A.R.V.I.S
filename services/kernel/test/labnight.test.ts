@@ -222,6 +222,17 @@ describe.skipIf(!pool)("LabNightRun envelope + protocol", () => {
     expect(runner.calls).toBe(1); // baseline only — the cap held BEFORE experiment 1
   });
 
+  it("G-08: an experiment starts only if the budget still covers a FULL one — the night never overshoots the cap", async () => {
+    // baseline 110 tokens; a full experiment ≈ 3 × 110 = 330; cap 500 → one experiment fits, a second would overshoot
+    const settings = settingsFake({ "lab.enabled": true, "budget.lab.nightlyTokenCap": 500 });
+    const runner = countingRunner(() => report(80, true, 100));
+    const s = await night({ settings, runner }).runNight();
+    expect(s.experiments).toBe(1);
+    expect(s.halted).toMatch(/would be exceeded by the next experiment/);
+    expect(s.tokensSpent).toBeLessThanOrEqual(500);
+    expect(s.completed).toBe(false);
+  });
+
   it("one night per quiet window: the second invocation skips", async () => {
     const runner = countingRunner((c) => (c === 0 ? report(80) : report(86)));
     const n = night({ runner });

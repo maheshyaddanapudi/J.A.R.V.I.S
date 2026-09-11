@@ -66,6 +66,9 @@ export interface NightSummary {
   crashed: number;
   tokensSpent: number;
   announced: boolean;
+  /** G-08 (2026-09-11): a night that ran to its campaign stop rather than a
+   *  halt — the keep rate is measured per COMPLETED night, not per started one */
+  completed?: boolean;
 }
 
 interface SettingsLike {
@@ -211,7 +214,8 @@ export class LabNightRun {
         });
         return summary;
       }
-      summary.tokensSpent += (baseline.telemetry?.input_tokens ?? 0) + (baseline.telemetry?.output_tokens ?? 0);
+      const baselineTokens = (baseline.telemetry?.input_tokens ?? 0) + (baseline.telemetry?.output_tokens ?? 0);
+      summary.tokensSpent += baselineTokens;
       if (!baseline.gates_pass) {
         const failed = baseline.gates.filter((g) => !g.pass).map((g) => g.id).join(",");
         summary.halted = `baseline hard-gate failure: ${failed}`;
@@ -229,6 +233,22 @@ export class LabNightRun {
       let smallKeeps = 0;
       let nullCandidates = 0;
       const kept: ExperimentRow[] = [];
+      // G-08 (2026-09-11): an experiment is up to N=3 trials, each a bench run
+      // like the baseline. The cap used to be checked only BETWEEN experiments,
+      // so a night on a 60k cap ran to 108k–125k: the last experiment started
+      // with far too little budget left. Now an experiment starts only if the
+      // budget still covers a full one — the larger of 3 × baseline cost and
+      // this campaign's observed mean — and the night halts honestly otherwise.
+      let expectedPerExperiment = 3 * baselineTokens;
+      try {
+        const { rows } = await this.deps.pool.query<{ avg: string | null }>(
+          `SELECT avg(tokens_spent) AS avg FROM lab_experiments
+           WHERE campaign = $1 AND tokens_spent > 0 AND started_at > now() - interval '30 days'`,
+          [spec.name],
+        );
+        const observed = Math.round(Number(rows[0]?.avg ?? 0));
+        if (observed > 0) expectedPerExperiment = Math.max(expectedPerExperiment, observed);
+      } catch { /* no ledger yet → 3 × baseline */ }
 
       for (let i = 0; i < maxExperiments; i++) {
         // ---- halt checks between experiments (R-LAB-05)
@@ -237,6 +257,10 @@ export class LabNightRun {
         if (!(await this.inQuietHours())) { summary.halted = "quiet hours ended"; break; }
         if (await this.userActive()) { summary.halted = "live session became active"; break; }
         if (summary.tokensSpent >= nightlyCap) { summary.halted = `nightly token cap (${summary.tokensSpent}/${nightlyCap})`; break; }
+        if (summary.tokensSpent + expectedPerExperiment > nightlyCap) {
+          summary.halted = `nightly token cap would be exceeded by the next experiment (spent ${summary.tokensSpent}, a full experiment needs ~${expectedPerExperiment}, cap ${nightlyCap})`;
+          break;
+        }
 
         const candidate: LabCandidate | null = await generateCandidate(
           this.deps.gateway, spec, await this.deps.engine.history(spec.name, 12), surface,
@@ -264,6 +288,7 @@ export class LabNightRun {
         else summary.discarded++;
       }
 
+      summary.completed = !summary.halted;
       // ---- morning report (R-LAB-07): generated from the ledger, failures and
       // spend included. Raised as a normal announcement: quiet-hours deferral
       // holds it and the D-0077 chat path relays it on the first morning turn.
@@ -292,10 +317,23 @@ export class LabNightRun {
       [spec.name],
     );
     const base = baseline.scores[spec.metric];
+    // keep rate per COMPLETED night (G-08): started nights that halted early
+    // are not evidence about the campaign's candidates
+    let perCompleted = "";
+    try {
+      const { rows: nights } = await this.deps.pool.query<{ completed: string; kept: string }>(
+        `SELECT payload->>'completed' AS completed, payload->>'kept' AS kept FROM audit_log
+         WHERE event = 'lab_night_finished' AND payload->>'campaign' = $1`,
+        [spec.name],
+      );
+      const done = nights.filter((n) => n.completed === "true");
+      const keeps = done.reduce((a, n) => a + Number(n.kept ?? 0), 0);
+      if (nights.length) perCompleted = ` Campaign so far: ${keeps} keep(s) over ${done.length} completed night(s) (${nights.length - done.length} halted early${s.completed ? ", this one completed" : ""}).`;
+    } catch { /* audit table absent */ }
     const lines: string[] = [
       `Night Lab report — campaign '${spec.name}' (baseline ${spec.metric}: ${base ?? "n/a"}).`,
       `${s.experiments} experiment(s): ${s.kept} kept, ${s.discarded} discarded, ${s.crashed} crashed. ` +
-      `~${s.tokensSpent.toLocaleString()} tokens spent.` + (s.halted ? ` Halted early: ${s.halted}.` : ""),
+      `~${s.tokensSpent.toLocaleString()} tokens spent.` + (s.halted ? ` Halted early: ${s.halted}.` : "") + perCompleted,
     ];
     for (const r of rows) {
       if (r.verdict === "keep") {
