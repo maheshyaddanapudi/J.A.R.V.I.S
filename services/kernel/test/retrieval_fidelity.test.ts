@@ -385,3 +385,97 @@ describe.skipIf(!pool)("D-0080 S4 — memory.rememberFacts batch (R-MEM-09)", ()
     expect(tools.find((t) => t.name === "memory.correct")!.description).toMatch(/entity facts AND preferences/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Longitude-XL gap G-05 (2026-09-11): first-person preferences written as
+// entity facts. The three captured objectives from the 1000-day run are the
+// test cases: "my gym day is friday" (filed on an entity named `user`),
+// "my bike colour is olive" (on a thing named `bike`), "my study plant is
+// basil" (on a thing named `study plant`). Every one of chapter two's seven
+// misses was one of these three facts.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("G-05 — a first-person 'my X is Y' is a preference, not an entity fact", () => {
+  let mem: EntityMemory;
+  let prefs: MemoryService;
+  beforeEach(async () => {
+    await pool!.query("TRUNCATE memory_entities, memory_facts, memory_relations, memory_episodes, memory_embeddings, preferences CASCADE");
+    mem = new EntityMemory(pool!, audit);
+    prefs = new MemoryService(pool!, audit);
+  });
+
+  it("rememberFact refuses 'my study plant is basil' on a thing named 'study plant' and hands over the preference write", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    const r = await remember.run({ entity: "study plant", kind: "thing", statement: "my study plant is basil." });
+    expect(r.ok).toBe(false);
+    expect(r.summary).toMatch(/memory\.remember/);
+    expect(r.data).toMatchObject({ route: "preference", key: "study_plant", value: "basil", write: "memory.remember" });
+    expect(await mem.recall("study plant")).toBeNull(); // nothing written as a fact
+    expect(await mem.listEntities()).toHaveLength(0);
+  });
+
+  it("…and on the user's own entity ('user', 'me') — the captured 'my gym day is friday' shape", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    for (const entity of ["user", "me", "the user"]) {
+      const r = await remember.run({ entity, statement: "my gym day is friday" });
+      expect(r.ok).toBe(false);
+      expect(r.data).toMatchObject({ route: "preference", key: "gym_day", value: "friday" });
+    }
+    expect(await mem.listEntities()).toHaveLength(0);
+  });
+
+  it("…and when the entity is the subject's head noun ('bike' for 'my bike colour is olive')", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    const r = await remember.run({ entity: "bike", kind: "thing", statement: "my bike colour is olive" });
+    expect(r.ok).toBe(false);
+    expect(r.data).toMatchObject({ route: "preference", key: "bike_colour", value: "olive" });
+  });
+
+  it("a first-person statement ABOUT SOMEONE ELSE still passes as a fact ('my sister is Anna' on entity Anna)", async () => {
+    const remember = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFact")!;
+    const r = await remember.run({ entity: "Anna", kind: "person", statement: "my sister is Anna" });
+    expect(r.ok).toBe(true);
+    expect((await mem.recall("Anna"))!.facts.map((f) => f.statement)).toEqual(["my sister is Anna"]);
+    // and a third-person fact about the thing passes untouched
+    const ok = await remember.run({ entity: "study plant", kind: "thing", statement: "the study plant's pot is terracotta" });
+    expect(ok.ok).toBe(true);
+  });
+
+  it("the batch tool refuses the first-person item per item and stores the rest", async () => {
+    const batch = entityMemoryTools(mem, prefs).find((t) => t.name === "memory.rememberFacts")!;
+    const b = await batch.run({ entity: "bike", kind: "thing", statements: ["my bike colour is olive", "the bike's service day is tuesday"] });
+    expect(b.ok).toBe(false);
+    const items = (b.data as { items: { stored: boolean; error?: string }[] }).items;
+    expect(items.map((it) => it.stored)).toEqual([false, true]);
+    expect(items[0]!.error).toMatch(/memory\.remember/);
+    expect((await mem.recall("bike"))!.facts.map((f) => f.statement)).toEqual(["the bike's service day is tuesday"]);
+  });
+
+  it("without a preference store the legacy tool stores it as before", async () => {
+    const legacy = entityMemoryTools(mem).find((t) => t.name === "memory.rememberFact")!;
+    const r = await legacy.run({ entity: "study plant", kind: "thing", statement: "my study plant is basil" });
+    expect(r.ok).toBe(true);
+  });
+
+  it("recallPreferences surfaces first-person facts that already live on an entity (the read-side fallback)", async () => {
+    const { recallPreferencesTool } = await import("../src/core/tools/recallPreferences.js");
+    // the day-1000 world's shape: filed on a thing named like the subject, and on `user`
+    await mem.rememberFact({ entityName: "bike", entityKind: "thing", statement: "my bike colour is olive", provenance: "t" });
+    await mem.rememberFact({ entityName: "user", entityKind: "person", statement: "my gym day is friday", provenance: "t" });
+    await mem.rememberFact({ entityName: "user", entityKind: "person", statement: "my dentist is on elm street", provenance: "t" });
+    await prefs.remember({ key: "desk_plant", value: "monstera", provenance: "chat" });
+    const recall = recallPreferencesTool(prefs, mem);
+    const bike = await recall.run({ query: "bike colour" });
+    expect(bike.detail).toContain("my bike colour is olive");
+    expect(bike.detail).toMatch(/ENTITY facts/);
+    expect(bike.data).toMatchObject({ count: 0, entityFacts: 1 });
+    const gym = await recall.run({ query: "my gym day" });
+    expect(gym.detail).toContain("my gym day is friday");
+    expect(gym.detail).not.toContain("dentist"); // only facts sharing a content token with the query
+    const plant = await recall.run({ query: "desk plant" });
+    expect(plant.detail).toContain("desk_plant = monstera");
+    expect(plant.data).toMatchObject({ count: 1, entityFacts: 0 });
+    // without an entity memory the tool is unchanged
+    const legacy = recallPreferencesTool(prefs);
+    expect((await legacy.run({ query: "bike colour" })).data).toMatchObject({ count: 0 });
+  });
+});

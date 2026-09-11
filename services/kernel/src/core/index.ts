@@ -275,7 +275,9 @@ export async function buildCore(opts: {
   tools.register(systemInfoTool);
   tools.register(workspaceNoteTool);
   tools.register(rememberPreferenceTool(memory));
-  tools.register(recallPreferencesTool(memory));
+  // G-05 (2026-09-11): the entity memory rides along so a filtered preference
+  // recall also surfaces first-person facts the agent filed on an entity.
+  tools.register(recallPreferencesTool(memory, entityMemory));
   for (const t of computerControlTools(control)) tools.register(t);
   for (const t of deviceTools(devices, interlock)) tools.register(t);
   for (const t of knowledgeTools(files)) tools.register(t);

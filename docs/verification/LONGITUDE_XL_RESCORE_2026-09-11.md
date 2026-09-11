@@ -135,8 +135,13 @@ ran over the life; once one of them said SAME, the shorter name became an
 alias, its row was superseded into the twin, and every later exact lookup of
 "coral census" resolved to the twin *by design* — the twin's value is then
 stated with full confidence, which is why these are wrong values rather than
-honest misses. No audit event or announcement records an alias merge, so
-nothing surfaced it in 1000 days. This is one root cause behind G-02, G-04 and
+honest misses. The merge direction is visible in the audit trail: the merge
+happened when the *twin* was first taught (`entity_remembered` name "Coral
+Census Two", `resolvedFrom` "Coral Census Two" — a judge verdict against the
+existing candidate "coral census"; likewise "kiln north" absorbing "the kiln",
+"seed vault" absorbing "seed bank", "sensor importer north" absorbing "Sensor
+Importer Two"). The only trace is that one field on 29 audit events; nothing
+was announced, so nothing surfaced it in 1000 days. This is one root cause behind G-02, G-04 and
 G-16 together (the twin family), and it is a *write-side* defect: identity-first
 seeding (D-0080 S1) cannot help when the store itself says the two names are
 one entity. Recorded as **G-17** in the gap ledger; the fix belongs to R3 —

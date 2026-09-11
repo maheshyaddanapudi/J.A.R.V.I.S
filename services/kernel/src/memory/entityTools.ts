@@ -69,6 +69,47 @@ function updateInDisguise(entity: string, statement: string, home: { key: string
   );
 }
 
+/** Entities the agent uses to mean the user themself. */
+const SELF_ENTITY = /^(the\s+)?(user|me|myself|i|owner|you|principal)$/i;
+const FIRST_PERSON = /^\s*(?:my|our)\s+(.+?)\s+(?:is|are|was|=|:)\s+(.+?)\s*[.!]?\s*$/i;
+
+/**
+ * Longitude-XL gap G-05 (2026-09-11): a first-person statement — "my study
+ * plant is basil", "my gym day is friday" — is a PREFERENCE, but the agent
+ * wrote three of them as entity facts (on a thing named `study plant`, on a
+ * thing named `bike`, on an entity named `user`), where
+ * `memory.recallPreferences` cannot see them; every one of chapter two's seven
+ * misses was one of those three facts. Mirror of the update-in-disguise guard:
+ * when the statement is "my X is Y" and the entity IS that X (or the user),
+ * refuse and hand the agent the exact preference write instead. Returns the
+ * suggested key/value, or null when the statement is a genuine third-person
+ * fact ("my sister is Anna" on entity 'Anna' passes — it is about Anna).
+ */
+export function preferenceInDisguise(
+  entity: string,
+  statement: string,
+): { key: string; value: string; subject: string } | null {
+  const m = FIRST_PERSON.exec(statement);
+  if (!m) return null;
+  const subject = m[1]!.trim();
+  const value = m[2]!.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, "");
+  const subj = normalizeKeyTokens(subject);
+  const ent = normalizeKeyTokens(entity);
+  const covers = (a: Set<string>, b: Set<string>) => a.size > 0 && [...a].every((t) => b.has(t));
+  const aboutSelf = SELF_ENTITY.test(entity.trim()) || covers(ent, subj) || covers(subj, ent);
+  if (!aboutSelf || !value) return null;
+  const key = subject.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return key ? { key, value, subject } : null;
+}
+
+function preferenceNotFact(entity: string, statement: string, p: { key: string; value: string; subject: string }): string {
+  return (
+    `refused: "${statement}" is a first-person PREFERENCE about the user (their ${p.subject}), not a fact about a thing called '${entity}'. ` +
+    `Store it with memory.remember (key "${p.key}", value "${p.value}") so memory.recallPreferences can find it later; ` +
+    `entity facts are for people, places and things in the user's world.`
+  );
+}
+
 /**
  * Semantic-memory tools. Writing to J.A.R.V.I.S.'s knowledge of the user's world
  * (entities/facts/relations) is LOW_REVERSIBLE (reversible via forget; auto only
@@ -117,7 +158,9 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     description:
       "Remember ONE new fact about a named entity (creates the entity if new). Reversible. " +
       "If the user gives several things to remember at once, use memory.rememberFacts (one call, all of them). " +
-      "If this REPLACES something already known (an update, change or correction), use memory.correct instead.",
+      "If this REPLACES something already known (an update, change or correction), use memory.correct instead. " +
+      "A first-person statement about the user ('my gym day is Friday', 'my bike colour is olive') is a PREFERENCE — " +
+      "store it with memory.remember, not as a fact on a thing.",
     riskClass: "LOW_REVERSIBLE",
     action: "store fact in local memory",
     inputSchema: {
@@ -132,6 +175,10 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     },
     async run(args: unknown): Promise<ToolResult> {
       const a = args as { entity: string; kind?: string; statement: string };
+      const pref = prefs ? preferenceInDisguise(a.entity, a.statement) : null;
+      if (pref) {
+        return { ok: false, summary: preferenceNotFact(a.entity, a.statement, pref), data: { route: "preference", key: pref.key, value: pref.value, write: "memory.remember" } };
+      }
       const home = await preferenceHome(prefs, a.entity, a.statement);
       if (home) {
         return { ok: false, summary: updateInDisguise(a.entity, a.statement, home), data: { route: "preference", key: home.key, value: home.value } };
@@ -186,6 +233,11 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       const items: { index: number; statement: string; stored: boolean; factId?: string; error?: string }[] = [];
       for (const [i, statement] of statements.entries()) {
         try {
+          const pref = prefs ? preferenceInDisguise(a.entity, statement) : null;
+          if (pref) {
+            items.push({ index: i + 1, statement, stored: false, error: preferenceNotFact(a.entity, statement, pref) });
+            continue;
+          }
           const home = await preferenceHome(prefs, a.entity, statement);
           if (home) {
             items.push({ index: i + 1, statement, stored: false, error: updateInDisguise(a.entity, statement, home) });
