@@ -41,6 +41,20 @@ Classes: **W** write-side (never stored / stored in the wrong home) · **R** rea
 | G-14 | O | Provider credit exhaustion (attempt-1 day 540, attempt-2 day 831) and container idle-freezes (four so far) | The same-day halt (`assert_day_live`) stopped day 831 before it was committed; freezes cost wall-clock only | Mitigated | Keep the guard; the hourly server-side Routine now relaunches after a freeze |
 | G-15 | O | Judge templates are re-seeded into the prompts registry on every boot as new version-1 rows | `prompts` table grows one row per template per restart | Cosmetic | Seed only when absent, or bump the version and dedupe by content |
 
+## Efficiency gaps (cost, tokens, latency, wall-clock)
+
+Measured on the whole life through day 931 ($160.28; first act $70.08 over 499 days, second act $90.16 over 430 days). Sources: `model_calls` (tokens per call by role), `metrics.jsonl` (spend and latency per day), `audit_log` (steps per agent run, tool result sizes), `lab_experiments` (tokens per experiment).
+
+| ID | Gap | Evidence | Candidate refinement |
+|---|---|---|---|
+| E-01 | **The planning role's per-step context is the cost of the whole exercise.** Every agent step re-sends ~12.6k input tokens (tool catalogue + injected context + conversation) with no prompt caching | `planning` (Sonnet 5): 3,113 calls, avg **12,612** input / 201 output tokens → 39.3M input tokens ≈ **$118 of $160 (73%)**. `fast_conversation` (Haiku): 35,811 calls at 354/62 tokens ≈ $24. `deep_reasoning`: 1,355 calls at 1,169/243 ≈ $10 | Anthropic prompt caching on the stable prefix (system + tool schemas + persona) — the adapter does not set `cache_control` today; cached input is billed at a fraction. Then trim: send only the tool schemas the objective can plausibly need (the agent sees ~40 tools per step), and cap injected context |
+| E-02 | Quiz batteries cost 6–8× an ordinary day and dominate spend on quiz days | plain day $0.10 (act 1) / $0.13 (act 2); quiz day $0.47 / $0.84; quiz+lab day $0.67 / $1.09. Battery runs reach 8–10 agent steps per 5-question batch (avg 3.2 steps per run overall; every ≥8-step run in the last 400 was a quiz batch) | A single "answer these N from memory" tool path (one recall per question, no plan loop) for evaluation; for the product, the same shape serves a "what do you know about …" request |
+| E-03 | Night Lab spends a quarter of the budget for one keep | 46 lab nights ≈ **$39.5 (25% of spend)**; 63 experiments, 2.28M tokens; 58 discards, most halted at the 60k nightly cap before N=3 trials | See G-08: size the cap to the bench (or the bench to the cap); skip nights whose baseline already crashed; keep-rate per completed night as the metric |
+| E-04 | `memory.recallPreferences` can return the whole store into the agent's context | avg 7.2 matches per call, **max 94**; "gym day" matched 26 preferences (every key containing "day") | Rank by token overlap and cap the result (top 8 + "N more, narrow the query"); match on whole tokens, not substrings |
+| E-05 | Wall-clock per simulated day doubled in the second act | median day 43 s (act 1) → 91 s (act 2): chapter two, cross-link teaching, larger batteries, hourly heartbeats | Mostly experiment load, not the system; the system-side share is the per-step latency (median 2.3 s, p90 3.2 s, flat across 930 days — no growth with memory size) |
+| E-06 | Deep-reasoning calls are 4% of calls but the second-largest per-call context | 1,355 deep calls, 1,169 input tokens each; almost all are the harness's routine forced-deep controls (2 per day), not learned-topic escalations (`deepOnAuto` fired 5 times in 430 days) | Nothing to fix in the system: the learned reflex is precise; the count is the instrument's control arm |
+| E-07 | Positive finding worth keeping: per-call input does **not** grow with memory | fast-role input tokens per call by life quartile: 493 → 351 → 289 → 285; latency flat | The context injector's caps work; keep them under test when E-01 trims the planning prompt |
+
 ## How to refine from here
 
 1. After day 1000: strict re-score of every battery from the raw answers (G-13), then re-derive the layer numbers.
