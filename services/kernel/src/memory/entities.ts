@@ -65,6 +65,21 @@ function slotCompatible(oldStatement: string, newStatement: string, entityName: 
   return a.slot === b.slot;
 }
 
+/** G-28 (2026-09-12, act three day 1027): the quiet-hours judge folded "theo
+ *  eriksen meets on Tuesday" and "is based in Lisbon" into the nickname fact
+ *  'usually goes by "Theo"' — three different things, merged on trust. A judge
+ *  merge may fold a fact only into a fact about the SAME thing: when both
+ *  statements parse to an attribute slot the slots must agree; otherwise they
+ *  must share at least one content word beyond the entity's own name (a
+ *  paraphrase the heuristic missed — the judge's purpose). The judge keeps its
+ *  say on wording; it never gets to decide that two attributes are one. */
+export function judgeMergeAllowed(oldStatement: string, keepStatement: string, entityName: string): boolean {
+  const a = parseSlot(oldStatement, entityName);
+  const b = parseSlot(keepStatement, entityName);
+  if (a && b) return sameSlot(a.slot, b.slot);
+  return sharedContent(oldStatement, keepStatement, entityName) >= 1;
+}
+
 /** Loose name-similarity PRE-FILTER for entity resolution (D-0075). Deliberately
  *  permissive — it only selects CANDIDATES for the fast-model judge, which makes
  *  the real same/different decision. Catches substring ('Pepper' ⊂ 'Pepper
@@ -325,6 +340,17 @@ export function identityMatch(queryLower: string, name: string): number {
   return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(queryLower) ? n.length : 0;
 }
 
+/** G-26 (2026-09-12): a recorded alias is an identity the USER declared ("ravi
+ *  lindholm usually goes by ravi"), so it matches as a whole word at any length
+ *  — the short-name gate in `identityMatch` guards against incidental names,
+ *  not against names we were told to answer to. */
+export function aliasMatch(queryLower: string, alias: string): number {
+  const a = alias.toLowerCase().trim();
+  if (a.length < 2) return 0;
+  const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(queryLower) ? a.length : 0;
+}
+
 function assertNotSecret(value: string): void {
   if (redactSecrets(value) !== value) {
     throw new Error(
@@ -349,7 +375,7 @@ export class EntityMemory {
    *  into an existing entity) or a reconciliation SPLIT is a memory change the
    *  user must be able to see and undo. The kernel wires this to the announcer;
    *  best-effort, never blocks the write. */
-  onMemoryChange?: (change: { kind: "merge" | "split"; text: string; about: string }) => Promise<unknown>;
+  onMemoryChange?: (change: { kind: "merge" | "split" | "fact-merge"; text: string; about: string }) => Promise<unknown>;
 
   /** D-0080 knob (`memory.recall.identityFirst`, default true): when false,
    *  recallGraph ranks similarity first and uses identity only as a fallback —
@@ -690,6 +716,71 @@ export class EntityMemory {
       kind ? [name, kind] : [name],
     );
     return variants[0] ? this.hydrateEntity(variants[0]) : null;
+  }
+
+  /**
+   * G-26 (2026-09-12): a nickname the user declares ("X usually goes by Y") is an
+   * IDENTITY, not a fact. Before this, no write path reached `aliases` except a
+   * judge merge at write time, so the agent stored 'goes by "Theo"' as a fact,
+   * identity matching never read it, and every nickname question opened with
+   * "not found" (act three, 0/2 by day 1020). The alias lands on the entity row
+   * where `findEntity` and the recall seeds read it. Refused when it already
+   * names or aliases a DIFFERENT active entity (an ambiguous handle must stay a
+   * question — G-12) or is a qualifier twin of the entity's own name (a twin is
+   * a different thing — G-17). Audited; the result is read back.
+   */
+  async addAlias(input: { entityName: string; alias: string; provenance: string }): Promise<{ entity: Entity; aliases: string[]; added: boolean }> {
+    const alias = input.alias.trim().toLowerCase().replace(/^["'“”‘’]+|["'“”‘’]+$/g, "").replace(/\s+/g, " ");
+    if (!alias) throw new Error("refused: an alias needs a name");
+    assertNotSecret(alias);
+    const entity = await this.findEntity(input.entityName);
+    if (!entity) throw new Error(`refused: no active entity named '${input.entityName}' — remember the entity first, then its alias`);
+    if (alias === entity.name.toLowerCase()) throw new Error(`refused: '${alias}' is already the name of '${entity.name}'`);
+    if (qualifierTwin(alias, entity.name)) {
+      throw new Error(`refused: '${alias}' and '${entity.name}' differ only by a qualifier — that is a different thing, not another name for the same one`);
+    }
+    const { rows: clash } = await this.pool.query<{ name: string }>(
+      `SELECT name FROM memory_entities
+        WHERE id <> $1 AND status NOT IN ('deleted','superseded')
+          AND ( lower(name) = $2 OR aliases && ARRAY[$2]::text[] )
+        ORDER BY updated_at DESC LIMIT 3`,
+      [entity.id, alias],
+    );
+    if (clash.length) {
+      throw new Error(`refused: '${alias}' already names ${clash.map((c) => `'${c.name}'`).join(", ")} — an alias must point at ONE entity; use the full name`);
+    }
+    const { rowCount } = await this.pool.query(
+      `UPDATE memory_entities SET aliases = array_append(coalesce(aliases, '{}'), $2), updated_at = now()
+        WHERE id = $1 AND NOT (coalesce(aliases, '{}') @> ARRAY[$2]::text[])`,
+      [entity.id, alias],
+    );
+    const { rows: back } = await this.pool.query<{ aliases: string[] | null }>(`SELECT aliases FROM memory_entities WHERE id = $1`, [entity.id]);
+    const aliases = back[0]?.aliases ?? [];
+    if (!aliases.includes(alias)) throw new Error(`alias '${alias}' did not read back on '${entity.name}'`);
+    if (rowCount) {
+      await this.audit.append({
+        actor: "kernel",
+        event: "entity_alias_added",
+        payload: { entity: entity.name, kind: entity.kind, alias, provenance: input.provenance },
+      });
+    }
+    return { entity, aliases, added: Boolean(rowCount) };
+  }
+
+  /** Rollback for `addAlias`: drop one alias (audited). */
+  async removeAlias(entityName: string, alias: string): Promise<boolean> {
+    const entity = await this.findEntity(entityName);
+    if (!entity) return false;
+    const a = alias.trim().toLowerCase();
+    const { rowCount } = await this.pool.query(
+      `UPDATE memory_entities SET aliases = array_remove(coalesce(aliases, '{}'), $2), updated_at = now()
+        WHERE id = $1 AND coalesce(aliases, '{}') @> ARRAY[$2]::text[]`,
+      [entity.id, a],
+    );
+    if (rowCount) {
+      await this.audit.append({ actor: "kernel", event: "entity_alias_removed", payload: { entity: entity.name, alias: a } });
+    }
+    return Boolean(rowCount);
   }
 
   /** Resolve an entity by name, creating a bare one if it does not exist. */
@@ -1470,6 +1561,7 @@ export class EntityMemory {
     entitiesScanned: number;
     duplicatesMerged: number;
     merged: string[];         // "entity: kept 'x' ⊃ superseded 'y'"
+    refused: string[];        // G-28: judge merges declined because the facts are about different things
     entitiesMerged: number;   // cross-kind same-name entities folded together
     entityMerges: string[];   // "name: merged 'thing' into 'project'"
     staleProposals: string[]; // entity names proposed for review
@@ -1477,7 +1569,24 @@ export class EntityMemory {
     const overlap = Math.min(0.95, Math.max(0.5, opts?.overlap ?? 0.7));
     const staleDays = Math.max(7, opts?.staleDays ?? 90);
     const merged: string[] = [];
+    const refused: string[] = [];
     let duplicatesMerged = 0;
+    // G-28: every merge is its own audit row (ids only — statements stay
+    // encrypted) and is announced by name, so nothing is folded silently.
+    const recordMerge = async (entity: string, kept: { id: string; text: string }, old: { id: string; text: string }, by: "model" | "heuristic") => {
+      await this.audit.append({
+        actor: "kernel",
+        event: "fact_merged_by_consolidation",
+        payload: { entity, kept: kept.id, superseded: old.id, by },
+      });
+      if (this.onMemoryChange) {
+        void this.onMemoryChange({
+          kind: "fact-merge",
+          about: entity,
+          text: `While tidying memory I folded a note about "${entity}" into another: kept "${kept.text}", retired "${old.text}" (still in history). If those were different things, tell me and I'll restore it.`,
+        }).catch(() => undefined);
+      }
+    };
 
     const { rows: entities } = await this.pool.query<{ id: string; name: string }>(
       `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded')
@@ -1508,13 +1617,18 @@ export class EntityMemory {
           privacy,
         );
         if (groups) {
-          handledByJudge = true; // judged — trust the model's call (even if empty)
+          handledByJudge = true; // judged — the model's call on WORDING; the slot guard below has the last word
           for (const g of groups) {
             const keep = decoded[g.keep];
             if (!keep || gone.has(keep.id)) continue;
             for (const si of g.supersede) {
               const old = decoded[si];
               if (!old || gone.has(old.id) || old.id === keep.id) continue;
+              // G-28: a fact may only be folded into a fact about the SAME thing
+              if (!judgeMergeAllowed(old.text, keep.text, e.name)) {
+                refused.push(`${e.name}: kept both — "${old.text}" and "${keep.text}" are about different things`);
+                continue;
+              }
               // status re-check: skip if a LIVE write changed it since we read it
               const { rowCount } = await this.pool.query(
                 `UPDATE memory_facts SET status = 'superseded', superseded_by = $1
@@ -1526,6 +1640,7 @@ export class EntityMemory {
               gone.add(old.id);
               duplicatesMerged++;
               merged.push(`${e.name}: kept "${keep.text}" ⊇ superseded "${old.text}" (model)`);
+              await recordMerge(e.name, keep, old, "model");
             }
           }
         }
@@ -1556,6 +1671,7 @@ export class EntityMemory {
             gone.add(a.id);
             duplicatesMerged++;
             merged.push(`${e.name}: kept "${b.text}" ⊃ superseded "${a.text}"`);
+            await recordMerge(e.name, b, a, "heuristic");
             break; // a is merged; move to the next older fact
           }
         }
@@ -1621,17 +1737,18 @@ export class EntityMemory {
        ORDER BY updated_at ASC LIMIT 10`,
       [staleDays],
     );
-    if (duplicatesMerged || entitiesMerged || stale.length) {
+    if (duplicatesMerged || entitiesMerged || stale.length || refused.length) {
       await this.audit.append({
         actor: "kernel",
         event: "memory_consolidated",
-        payload: { entitiesScanned: entities.length, duplicatesMerged, entitiesMerged, staleProposed: stale.length },
+        payload: { entitiesScanned: entities.length, duplicatesMerged, mergesRefused: refused.length, entitiesMerged, staleProposed: stale.length },
       });
     }
     return {
       entitiesScanned: entities.length,
       duplicatesMerged,
       merged,
+      refused,
       entitiesMerged,
       entityMerges,
       staleProposals: stale.map((s) => s.name),
@@ -1796,8 +1913,9 @@ export class EntityMemory {
     const identity = all
       .map((r) => ({
         r,
-        // G-17: an alias that is a qualifier twin of the entity's name never seeds it
-        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).filter((a) => !qualifierTwin(a, r.name)).map((a) => identityMatch(q, a))),
+        // G-17: an alias that is a qualifier twin of the entity's name never seeds it;
+        // G-26: a declared alias matches as a whole word at any length ('ravi')
+        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).filter((a) => !qualifierTwin(a, r.name)).map((a) => aliasMatch(q, a))),
       }))
       .filter((x) => x.len > 0)
       .sort((a, b) => b.len - a.len);

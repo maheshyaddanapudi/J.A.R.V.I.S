@@ -217,6 +217,12 @@ export async function buildCore(opts: {
   // init() loads dynamically-registered settings (D-0060). Built here (before the
   // memory judge + stores) so the judge's on/off gate can read its setting live.
   const settings = new SettingsRegistry(opts.pool, audit, SETTINGS_CATALOG);
+  // G-25 (2026-09-12): same-target backoff on retryable provider errors — the
+  // knobs are catalogued (D-0053) and read live on every request.
+  opts.gateway.setRetryPolicy(async () => ({
+    maxRetries: await settings.num("gateway.retry.maxRetries", 2),
+    baseDelayMs: await settings.num("gateway.retry.baseDelayMs", 750),
+  }));
   await settings.init();
   // Fast-model memory judge (D-0075): entity resolution + fact-merge + deep-topic
   // extraction via the `fast_conversation` role. BEST-EFFORT — every method falls
@@ -369,6 +375,7 @@ export async function buildCore(opts: {
     prefs: memory,
     prefStore: memory, // G-03: one home per attribute across facts and preferences
     settings,
+    announcer, // G-27: a D-0052 override is said in the next conversation, not only journaled
   });
 
   const loop = new CoreLoop({

@@ -75,7 +75,7 @@ def put_setting(key: str, value, reason: str) -> None:
 
 def converse(text: str, session: str, reasoning: str = "auto") -> dict:
     t0 = time.time()
-    toks, decision = [], None
+    toks, decision, error = [], None, None
     with httpx.stream("POST", f"{K}/core/converse", json={
         "sessionId": session, "text": text, "privacyClass": "STANDARD", "reasoning": reasoning,
     }, timeout=240) as r:
@@ -90,7 +90,11 @@ def converse(text: str, session: str, reasoning: str = "auto") -> dict:
                 toks.append(evt.get("text", ""))
             elif evt.get("type") == "reasoning":
                 decision = evt
-    return {"text": "".join(toks), "decision": decision, "ms": int((time.time() - t0) * 1000)}
+            elif evt.get("type") == "error":
+                # G-25 (2026-09-12): the stream carried a provider error and the
+                # harness used to hear silence — now an empty reply is its own class
+                error = str(evt.get("message") or evt.get("error") or "error")[:200]
+    return {"text": "".join(toks), "decision": decision, "error": error, "ms": int((time.time() - t0) * 1000)}
 
 
 def agent(objective: str, max_steps: int = 5) -> dict:
@@ -821,6 +825,50 @@ def announced_truth(state: dict, fid: str) -> str:
     return f["values"][state.get("announced", {}).get(fid, 0) % len(f["values"])]
 
 
+def kernel_has_value(topic: str, pref: bool, value: str) -> bool:
+    """G-24 instrument: is the announced value on file for EXACTLY this topic —
+    the entity row of that name (never a look-alike) or the preference key of
+    that name? Read-only; any transport failure counts as 'not on file'."""
+    from urllib.parse import quote
+    v = value.lower()
+    try:
+        if pref:
+            key = re.sub(r"[^a-z0-9]+", "_", topic.lower()).strip("_")
+            rows = httpx.get(f"{K}/memory/preferences", params={"limit": 1000}, timeout=30).json()
+            items = rows if isinstance(rows, list) else (rows.get("items") or rows.get("preferences") or [])
+            return any(str(p.get("key")) == key and v in str(p.get("value", "")).lower() for p in items)
+        d = httpx.get(f"{K}/memory/entities/{quote(topic)}", timeout=30).json()
+        e = d.get("entity") or d
+        if str(e.get("name", "")).lower() != topic.lower():
+            return False
+        return any(v in str(f.get("statement") or f.get("content") or "").lower() for f in (d.get("facts") or []))
+    except Exception:
+        return False
+
+
+def assert_recaps_landed(state: dict, day: int) -> dict:
+    """G-24 (act three, days 1003/1009): a recap that reads look-alikes and writes
+    nothing is a silent no-op — the fact simply never lands. Every fact re-taught
+    today is checked on the kernel; a missing one is re-issued ONCE with an
+    explicit write instruction and checked again. Counted, never hidden — the
+    per-day metrics carry both numbers and the log names the topic."""
+    missing = [fid for fid, d in state.get("retaught", {}).items() if d == day
+               and not kernel_has_value(FACT_BY_ID[fid]["topic"], FACT_BY_ID[fid]["pref"], announced_truth(state, fid))]
+    retried_ok = 0
+    for fid in missing:
+        f = FACT_BY_ID[fid]
+        stmt = fact_statement(f, announced_truth(state, fid))
+        how = ("memory.remember (it is a preference of mine)" if f["pref"]
+               else f"memory.rememberFact for the entity named exactly '{f['topic']}' (not a look-alike)")
+        log(f"  [recap-miss] day {day}: '{f['topic']}' not on file after the recap — re-issuing once")
+        agent(f"This did not land on your side — store it now, do not merely read: {stmt}. Use {how}.", max_steps=6)
+        if kernel_has_value(f["topic"], f["pref"], announced_truth(state, fid)):
+            retried_ok += 1
+        else:
+            log(f"  [recap-miss] day {day}: '{f['topic']}' STILL not on file after the retry")
+    return {"recap_noops": len(missing), "recap_retried_ok": retried_ok}
+
+
 # -------------------------------------------------------------------- quiz ---
 NEG = re.compile(r"\b(no record|not found|don'?t have|do not have|won'?t fabricate|"
                  r"haven'?t told|not (on file|recorded|stored)|i have no)\b", re.I)
@@ -1225,6 +1273,7 @@ def main() -> None:
                 sys.exit(2)
         state.setdefault("teach_queue", []).extend(teach_due(day))
         teach_acts = [] if day in QUIET else drain_teach(state, day)
+        empty_replies = 0
         for kind, text in plan_day(day, rng, teach_acts):
             if kind in ("agent", "agent-teach"):
                 r = agent(text, max_steps=8 if kind == "agent-teach" else 5)
@@ -1233,10 +1282,16 @@ def main() -> None:
                 reasoning = "deep" if kind in ("chat-deep", "chat-forced-deep") else "auto"
                 r = converse(text, session, reasoning)
                 lat.append(r["ms"])
+                if r.get("error") or not r["text"].strip():
+                    # G-25: an empty reply is counted and named, never mistaken for an answer
+                    empty_replies += 1
+                    log(f"  [empty-reply] day {day} {kind}: {r.get('error') or 'no tokens'}")
                 d = r.get("decision") or {}
                 if kind == "chat" and d.get("mode") == "deep":
                     deep_on_auto += 1
             time.sleep(0.3)
+        # G-24: every fact re-taught today must be on file for exactly its topic
+        recap = assert_recaps_landed(state, day) if day not in QUIET else {"recap_noops": 0, "recap_retried_ok": 0}
 
         # D-0052 arc: pin day 5; after each announced override, re-pin 3 days
         # later (up to 2 re-pins → bars 6, 12, 24 — the escalating-cost story).
@@ -1308,6 +1363,9 @@ def main() -> None:
             "retaught": len(state.get("retaught", {})),
             "tick_lab": str(tick.get("lab", "-"))[:60],
             "cols_shifted": shifted, "deep_on_auto": deep_on_auto,
+            "empty_replies": empty_replies,          # G-25 instrument
+            "recap_noops": recap["recap_noops"],     # G-24 instrument: recaps that had not landed
+            "recap_retried_ok": recap["recap_retried_ok"],
             "avg_latency_ms": int(sum(lat) / max(1, len(lat))),
             "day_wall_s": int(time.time() - t_day),
         })

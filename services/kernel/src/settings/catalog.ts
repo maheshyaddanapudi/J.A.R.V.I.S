@@ -247,6 +247,30 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     default: () => 90,
     description: "Entities unused for this many days are PROPOSED for review during the sleep cycle — never auto-forgotten.",
   },
+
+  // ---- Gateway retry (G-25, 2026-09-12): same-target backoff before fallback ----
+  {
+    key: "gateway.retry.maxRetries",
+    label: "Model-call retries on a retryable error",
+    category: "Gateway",
+    type: "number",
+    min: 0,
+    max: 5,
+    step: 1,
+    default: () => 2,
+    description: "How many times a model call that fails BEFORE anything streamed (rate limit, 5xx, unreachable) is retried on the same provider with backoff before the fallback chain moves on. 0 = never retry.",
+  },
+  {
+    key: "gateway.retry.baseDelayMs",
+    label: "Retry backoff base (ms)",
+    category: "Gateway",
+    type: "number",
+    min: 100,
+    max: 5000,
+    step: 50,
+    default: () => 750,
+    description: "First retry waits this long (jittered); each further retry doubles it, capped at 8 s.",
+  },
   {
     key: "tools.validateArgs",
     label: "Validate tool arguments against their schema",

@@ -39,9 +39,49 @@ export interface RoleOverride {
   at: string;
 }
 
+/**
+ * G-25 (2026-09-12, Longitude-XL act three): a retryable provider error (HTTP
+ * 429 / 5xx / unreachable) on a role with ONE target failed the call outright —
+ * during a 14-minute OpenRouter rate-limit window 107 calls failed and the memory
+ * judge fell back silently 96 times. The same target is now retried with
+ * jittered exponential backoff BEFORE the fallback chain moves on; the knobs are
+ * catalogued settings (D-0053) read live per request. Never mid-stream.
+ */
+export interface RetryPolicy {
+  maxRetries: number;
+  baseDelayMs: number;
+}
+export const DEFAULT_RETRY: RetryPolicy = { maxRetries: 2, baseDelayMs: 750 };
+const MAX_BACKOFF_MS = 8000;
+
+function backoff(ms: number, signal?: AbortSignal): Promise<void> {
+  const wait = Math.min(MAX_BACKOFF_MS, Math.max(0, ms)) * (1 + Math.random() * 0.25);
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("aborted"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(new Error("aborted"));
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, wait);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 export class GatewayRouter {
   private adapters = new Map<string, ProviderAdapter>();
   private roleOverrides = new Map<ModelRole, RoleOverride>();
+  private retryPolicy: () => Promise<RetryPolicy> = async () => DEFAULT_RETRY;
+
+  /** Install the live retry policy (the kernel wires the catalogued settings). */
+  setRetryPolicy(policy: () => Promise<RetryPolicy>): void {
+    this.retryPolicy = policy;
+  }
 
   constructor(
     private readonly config: GatewayConfig,
@@ -157,71 +197,82 @@ export class GatewayRouter {
 
     const fallbackFrom: string[] = [];
     let lastError: unknown;
+    const policy = await this.retryPolicy().catch(() => DEFAULT_RETRY);
 
     for (const target of targets) {
       const adapter = this.adapters.get(target.provider)!;
-      const started = Date.now();
-      let text = "";
-      const toolCalls: ToolCall[] = [];
-      let usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number } = { inputTokens: 0, outputTokens: 0 };
-      let finishReason: ChatResult["finishReason"] = "stop";
-      let streamedAnything = false;
+      // G-25: a retryable failure BEFORE anything streamed is retried on the SAME
+      // target (jittered backoff) before the chain moves on. Every attempt is
+      // its own audit row — a rate-limit window stays visible, never hidden.
+      for (let attempt = 0; ; attempt++) {
+        const started = Date.now();
+        let text = "";
+        const toolCalls: ToolCall[] = [];
+        let usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number } = { inputTokens: 0, outputTokens: 0 };
+        let finishReason: ChatResult["finishReason"] = "stop";
+        let streamedAnything = false;
 
-      try {
-        // legacy "adaptive" alias normalizes to neutral "on" (config load also
-        // normalizes; this is defense in depth for programmatic configs)
-        const thinking = target.thinking === "adaptive" ? "on" : target.thinking;
-        const targetOpts = {
-          ...(target.effort ? { effort: target.effort } : {}),
-          ...(thinking ? { thinking } : {}),
-        };
-        for await (const event of adapter.chatStream(req, target.model, signal, targetOpts)) {
-          if (event.type === "text_delta") {
-            streamedAnything = true;
-            text += event.text;
-            yield event;
-          } else if (event.type === "tool_call") {
-            streamedAnything = true;
-            toolCalls.push(event.call);
-            yield event;
-          } else if (event.type === "done") {
-            usage = event.usage;
-            finishReason = event.finishReason;
-            yield event;
+        try {
+          // legacy "adaptive" alias normalizes to neutral "on" (config load also
+          // normalizes; this is defense in depth for programmatic configs)
+          const thinking = target.thinking === "adaptive" ? "on" : target.thinking;
+          const targetOpts = {
+            ...(target.effort ? { effort: target.effort } : {}),
+            ...(thinking ? { thinking } : {}),
+          };
+          for await (const event of adapter.chatStream(req, target.model, signal, targetOpts)) {
+            if (event.type === "text_delta") {
+              streamedAnything = true;
+              text += event.text;
+              yield event;
+            } else if (event.type === "tool_call") {
+              streamedAnything = true;
+              toolCalls.push(event.call);
+              yield event;
+            } else if (event.type === "done") {
+              usage = event.usage;
+              finishReason = event.finishReason;
+              yield event;
+            }
           }
-        }
 
-        if (req.responseSchema && finishReason === "stop") {
-          this.validateStructured(text, req.responseSchema);
-        }
+          if (req.responseSchema && finishReason === "stop") {
+            this.validateStructured(text, req.responseSchema);
+          }
 
-        const latencyMs = Date.now() - started;
-        const result: ChatResult = {
-          text,
-          toolCalls,
-          finishReason,
-          usage,
-          provider: target.provider,
-          model: target.model,
-          latencyMs,
-          ...(fallbackFrom.length ? { fallbackFrom } : {}),
-        };
-        await this.audit(req, target.provider, target.model, latencyMs, {
-          ok: true,
-          usage,
-          fallbacks: fallbackFrom,
-        });
-        return result;
-      } catch (err) {
-        lastError = err;
-        const retryable = err instanceof ProviderError && err.retryable && !streamedAnything;
-        await this.audit(req, target.provider, target.model, Date.now() - started, {
-          ok: false,
-          error: err instanceof Error ? err.message : String(err),
-          fallbacks: fallbackFrom,
-        });
-        if (!retryable) throw err;
-        fallbackFrom.push(`${target.provider}/${target.model}`);
+          const latencyMs = Date.now() - started;
+          const result: ChatResult = {
+            text,
+            toolCalls,
+            finishReason,
+            usage,
+            provider: target.provider,
+            model: target.model,
+            latencyMs,
+            ...(fallbackFrom.length ? { fallbackFrom } : {}),
+          };
+          await this.audit(req, target.provider, target.model, latencyMs, {
+            ok: true,
+            usage,
+            fallbacks: fallbackFrom,
+          });
+          return result;
+        } catch (err) {
+          lastError = err;
+          const retryable = err instanceof ProviderError && err.retryable && !streamedAnything;
+          await this.audit(req, target.provider, target.model, Date.now() - started, {
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+            fallbacks: fallbackFrom,
+          });
+          if (!retryable) throw err;
+          if (attempt < policy.maxRetries) {
+            await backoff(policy.baseDelayMs * 2 ** attempt, signal);
+            continue;
+          }
+          fallbackFrom.push(`${target.provider}/${target.model}`);
+          break;
+        }
       }
     }
     throw lastError instanceof Error

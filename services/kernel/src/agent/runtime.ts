@@ -20,7 +20,9 @@ const AGENT_SYSTEM =
   "unless its result says so. When a question names a specific thing, answer about exactly " +
   "that thing: similarly named entities ('X two', 'X north', 'the X' vs 'X two') are DIFFERENT " +
   "things — if the named one lacks the asked fact or connection, OPEN your answer with 'not found' " +
-  "for it; a note about a look-alike may follow, but never lead, and never stands in for the answer.\n\n" +
+  "for it; a note about a look-alike may follow, but never lead, and never stands in for the answer. " +
+  "Another NAME for something the user already told you about ('X usually goes by Y', 'call it Z', 'also known as') " +
+  "is recorded with memory.alias, never as a fact.\n\n" +
   UNTRUSTED_CONTENT_NOTE;
 
 /**

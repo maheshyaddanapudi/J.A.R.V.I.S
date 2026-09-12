@@ -58,6 +58,8 @@ export interface ConsolidationReport {
     /** near-duplicate preference KEYS folded (Longitude finding #5) */
     preferenceDupes?: number;
     homesReconciled?: number;
+    /** G-28: judge merges declined by the slot guard (facts about different attributes) */
+    mergesRefused?: number;
   };
 }
 
@@ -106,6 +108,18 @@ export class SleepCycle {
       };
       /** thresholds read live from the editable catalog (D-0058) */
       settings?: SettingsRegistry;
+      /** G-27 (2026-09-12): a D-0052 override of a USER-set value must reach the
+       *  user in conversation (the D-0077 relay), not only the timeline */
+      announcer?: {
+        raise(input: {
+          text: string;
+          about?: string;
+          kind?: "say" | "concern";
+          urgency?: "info" | "advisory" | "urgent";
+          source: string;
+          dedupeKey?: string;
+        }): Promise<unknown>;
+      };
     },
   ) {}
 
@@ -188,6 +202,20 @@ export class SleepCycle {
           adjustments.push(
             `changed your manual setting ${tune.signalThreshold}→${target} — the trail outweighed the pin (${contradictions} ≥ ${needed}); re-set it and I'll hold it twice as long`,
           );
+          // G-27: say it where the user will hear it — the announcer feeds the
+          // next conversation turn (D-0077); the timeline alone was a whisper.
+          try {
+            await this.deps.announcer?.raise({
+              text:
+                `I've changed your manual escalation threshold ${tune.signalThreshold}→${target}: ${contradictions} contradictions since you set it` +
+                `${tune.at ? ` on ${tune.at}` : ""} cleared the bar of ${needed}. Re-set it and I'll hold it twice as long.`,
+              about: "reasoning threshold",
+              kind: "say",
+              urgency: "advisory",
+              source: "sleep-cycle",
+              dedupeKey: `sleep-cycle:override:${tune.at ?? "unknown"}`,
+            });
+          } catch { /* the change stands and is journaled either way */ }
         }
       } else if (contradictions > 0) {
         notes.push(
@@ -266,6 +294,13 @@ export class SleepCycle {
           findings.push(`memory: merged ${m.duplicatesMerged} duplicate fact(s) across ${m.entitiesScanned} entities`);
           for (const d of m.merged.slice(0, 5)) notes.push(`memory merge — ${d}`);
         }
+        // G-28: declined merges are part of the record too — the judge wanted
+        // to fold facts about different attributes; the slot guard kept both
+        if (m.refused.length) {
+          memorySection.mergesRefused = m.refused.length;
+          findings.push(`memory: declined ${m.refused.length} judge merge(s) — the facts were about different attributes; kept both`);
+          for (const d of m.refused.slice(0, 5)) notes.push(`merge declined — ${d}`);
+        }
         if (m.entitiesMerged) {
           findings.push(`memory: merged ${m.entitiesMerged} cross-kind same-name entity(ies) into one`);
           for (const d of m.entityMerges.slice(0, 5)) notes.push(`entity merge — ${d}`);
@@ -333,7 +368,13 @@ export class SleepCycle {
     try {
       await this.deps.episodes?.record({
         summary: `Sleep-cycle consolidation: ${findings.length} finding(s), ${adjustments.length} adjustment(s), ${proposals.length} proposal(s)`,
-        detail: [...findings, ...adjustments.map((a) => `adjusted: ${a}`), ...proposals.map((p) => `proposed: ${p}`)].join("\n") || "quiet period — nothing to adjust",
+        // G-28: the memory changes are named on the timeline, not just counted
+        detail: [
+          ...findings,
+          ...adjustments.map((a) => `adjusted: ${a}`),
+          ...notes.filter((n) => /^(memory merge|merge declined|entity merge|preference tidy|one-home|one-edge) — /.test(n)).map((n) => `note: ${n}`),
+          ...proposals.map((p) => `proposed: ${p}`),
+        ].join("\n") || "quiet period — nothing to adjust",
         kind: "decision",
         importance: adjustments.length || proposals.length ? 0.6 : 0.3,
         tags: ["sleep-cycle", "reasoning"],

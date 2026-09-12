@@ -335,6 +335,77 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     expect(rec!.facts[0]!.statement).toBe("reaches high altitudes in flight");
   });
 
+  it("G-28: a judge merge may not fold facts about DIFFERENT attributes — the slot guard keeps them (act three, day 1027)", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async () => ({ sameAs: null, reason: "n/a" }),
+      // the model claims all three restate one thing — what the fast judge did to theo eriksen
+      mergeFacts: async (_entity, facts) => (facts.length >= 3 ? [{ keep: 2, supersede: [0, 1] }] : []),
+      mergeEntities: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    await mem.rememberEntity({ kind: "person", name: "theo eriksen", provenance: "test" });
+    await mem.rememberFact({ entityName: "theo eriksen", statement: "theo eriksen meets on Tuesday", provenance: "test" });
+    await mem.rememberFact({ entityName: "theo eriksen", statement: "theo eriksen is based in Lisbon", provenance: "test" });
+    await mem.rememberFact({ entityName: "theo eriksen", statement: 'theo eriksen usually goes by "Theo" — same person', provenance: "test" });
+    const r = await mem.consolidate();
+    expect(r.duplicatesMerged).toBe(0);
+    expect(r.refused.length).toBe(2);
+    expect(r.refused.join(" ")).toContain("different things");
+    const rec = await mem.recall("theo eriksen");
+    expect(rec!.facts.length).toBe(3);
+    expect(rec!.facts.map((f) => f.statement)).toEqual(
+      expect.arrayContaining(["theo eriksen meets on Tuesday", "theo eriksen is based in Lisbon"]),
+    );
+  });
+
+  it("G-28: a judge merge on the SAME slot still goes through — audited per fact and announced by name", async () => {
+    const judge: MemoryJudge = {
+      resolveEntity: async () => ({ sameAs: null, reason: "n/a" }),
+      mergeFacts: async (_entity, facts) => (facts.length >= 2 ? [{ keep: 1, supersede: [0] }] : []),
+      mergeEntities: async () => [],
+      extractTopics: async () => [],
+    };
+    const mem = new EntityMemory(pool!, audit, vault, undefined, judge);
+    const changes: { kind: string; about: string; text: string }[] = [];
+    mem.onMemoryChange = async (c) => { changes.push(c); };
+    await mem.rememberEntity({ kind: "person", name: "umar brandt", provenance: "test" });
+    await mem.rememberFact({ entityName: "umar brandt", statement: "umar brandt is based in Bergen", provenance: "test" });
+    await mem.rememberFact({ entityName: "umar brandt", statement: "umar brandt is based in Bergen, Norway", provenance: "test" });
+    (audit.append as unknown as ReturnType<typeof vi.fn>).mockClear();
+    const r = await mem.consolidate();
+    expect(r.duplicatesMerged).toBe(1);
+    expect(r.refused).toEqual([]);
+    const events = (audit.append as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as { event: string }).event);
+    expect(events).toContain("fact_merged_by_consolidation");
+    expect(changes.some((c) => c.kind === "fact-merge" && c.about === "umar brandt" && c.text.includes("Bergen"))).toBe(true);
+  });
+
+  it("G-26: a declared alias is an identity — a SHORT nickname resolves on every read path; clashes and twins are refused", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    await mem.rememberEntity({ kind: "person", name: "ravi lindholm", provenance: "test" });
+    await mem.rememberFact({ entityName: "ravi lindholm", statement: "ravi lindholm meets on Tuesday", provenance: "test" });
+    const r = await mem.addAlias({ entityName: "ravi lindholm", alias: "Ravi", provenance: "test" });
+    expect(r.added).toBe(true);
+    expect(r.aliases).toEqual(["ravi"]);
+    expect((await mem.recall("ravi"))!.entity.name).toBe("ravi lindholm");
+    const g = await mem.recallGraph("what is the ravi's meets on?");
+    expect(g.seeds[0]).toEqual({ name: "ravi lindholm", via: "identity" });
+    // idempotent
+    expect((await mem.addAlias({ entityName: "ravi lindholm", alias: "ravi", provenance: "test" })).added).toBe(false);
+    // an alias that already names another entity is refused — an ambiguous handle stays a question (G-12)
+    await mem.rememberEntity({ kind: "person", name: "pavel bergstrom", provenance: "test" });
+    await mem.rememberEntity({ kind: "person", name: "pavel hoffmann", provenance: "test" });
+    await mem.addAlias({ entityName: "pavel bergstrom", alias: "pavel", provenance: "test" });
+    await expect(mem.addAlias({ entityName: "pavel hoffmann", alias: "pavel", provenance: "test" })).rejects.toThrow(/already names/);
+    // a qualifier twin is a different thing, never another name (G-17)
+    await mem.rememberEntity({ kind: "device", name: "kiln north", provenance: "test" });
+    await expect(mem.addAlias({ entityName: "kiln north", alias: "kiln", provenance: "test" })).rejects.toThrow(/qualifier/);
+    // rollback path
+    expect(await mem.removeAlias("ravi lindholm", "ravi")).toBe(true);
+    expect(await mem.recall("ravi")).toBeNull();
+  });
+
   it("falls back to deterministic logic when the judge is absent (offline honesty)", async () => {
     // no judge injected → the string-heuristic path still merges obvious dupes
     const mem = new EntityMemory(pool!, audit, vault);

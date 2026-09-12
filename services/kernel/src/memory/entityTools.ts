@@ -119,6 +119,30 @@ export function withSubject(entity: string, statement: string): string {
   return named ? s : `${entity.trim()}: ${s}`;
 }
 
+/**
+ * G-26 (2026-09-12): "X usually goes by Y — same person" is another NAME for X,
+ * not a fact about X. Stored as a fact it is invisible to identity matching, so
+ * every later question that uses the nickname opened with "not found" (act
+ * three, batteries 1010/1020). The guard mirrors the preference guard: refuse
+ * the fact write and hand back the exact `memory.alias` call. Returns the alias
+ * when the statement is purely a naming statement, null otherwise.
+ */
+const ALIAS_CUE = /\b(?:usually\s+|often\s+|just\s+|also\s+|simply\s+)*(?:goes\s+by|is\s+(?:also\s+)?(?:known\s+as|called)|is\s+nicknamed|nicknamed|a\.?k\.?a\.?|answers\s+to|prefers\s+to\s+be\s+called)\s+["'“”‘’]?([a-z0-9][a-z0-9 .'\-]{0,40}?)["'“”‘’]?(?=\s*(?:[—–\-,;.(]|$|\s+(?:same|which|who|and)\b))/i;
+export function aliasInDisguise(entity: string, statement: string): { alias: string } | null {
+  const m = ALIAS_CUE.exec(statement);
+  if (!m) return null;
+  const alias = m[1]!.trim().replace(/[.]+$/, "");
+  if (!alias || alias.toLowerCase() === entity.trim().toLowerCase()) return null;
+  return { alias };
+}
+
+function aliasNotFact(entity: string, statement: string, alias: string): string {
+  return (
+    `refused: "${statement}" gives another NAME for '${entity}', not a fact about it. ` +
+    `Record it with memory.alias (entity "${entity}", alias "${alias}") so questions that use that name find '${entity}'.`
+  );
+}
+
 function preferenceNotFact(entity: string, statement: string, p: { key: string; value: string; subject: string }): string {
   return (
     `refused: "${statement}" is a first-person PREFERENCE about the user (their ${p.subject}), not a fact about a thing called '${entity}'. ` +
@@ -140,7 +164,8 @@ function preferenceNotFact(entity: string, statement: string, p: { key: string; 
 export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Tool[] {
   const rememberEntity: Tool = {
     name: "memory.rememberEntity",
-    description: "Remember an entity in J.A.R.V.I.S.'s knowledge (kind + name, optional attributes). Reversible.",
+    description:
+      "Remember an entity in J.A.R.V.I.S.'s knowledge (kind + name, optional attributes, optional other names it goes by). Reversible.",
     riskClass: "LOW_REVERSIBLE",
     action: "store entity in local memory",
     inputSchema: {
@@ -149,23 +174,68 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
         kind: { type: "string", description: "person | project | place | org | thing | topic" },
         name: { type: "string" },
         attributes: { type: "string", description: "free-text notes (encrypted at rest)" },
+        aliases: { type: "array", items: { type: "string" }, maxItems: 8, description: "other names the same entity goes by (nicknames, short forms)" },
       },
       required: ["kind", "name"],
       additionalProperties: false,
     },
     async run(args: unknown): Promise<ToolResult> {
-      const a = args as { kind: string; name: string; attributes?: string };
+      const a = args as { kind: string; name: string; attributes?: string; aliases?: unknown };
       const e = await mem.rememberEntity({
         kind: a.kind,
         name: a.name,
         ...(a.attributes ? { attributes: a.attributes } : {}),
         provenance: "conversation (user asked me to remember)",
       });
+      // G-26: declared other names land as aliases (each refusal reported, never silent)
+      const wanted = Array.isArray(a.aliases) ? a.aliases.map((x) => String(x ?? "").trim()).filter(Boolean) : [];
+      const aliasNotes: string[] = [];
+      for (const al of wanted) {
+        try {
+          const r = await mem.addAlias({ entityName: e.name, alias: al, provenance: "conversation (user asked me to remember)" });
+          aliasNotes.push(`alias '${al}' ${r.added ? "recorded" : "already present"}`);
+        } catch (err) {
+          aliasNotes.push(`alias '${al}' ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
       return {
         ok: true,
-        summary: `remembered ${e.kind} '${e.name}'`,
-        data: { id: e.id, name: e.name, kind: e.kind },
+        summary: `remembered ${e.kind} '${e.name}'${aliasNotes.length ? ` — ${aliasNotes.join("; ")}` : ""}`,
+        data: { id: e.id, name: e.name, kind: e.kind, ...(aliasNotes.length ? { aliases: aliasNotes } : {}) },
         rollback: async () => { await mem.forgetEntity(e.name); },
+      };
+    },
+  };
+
+  // G-26 (2026-09-12): the nickname write path. "X usually goes by Y" is an
+  // identity — it lives in the entity's aliases, where lookups read it.
+  const alias: Tool = {
+    name: "memory.alias",
+    description:
+      "Record ANOTHER NAME for an entity already in memory — a nickname, a short form, 'X usually goes by Y', 'also known as', 'call it Z'. " +
+      "The alias becomes an identity: questions that use it find the entity. Never store a naming statement as a fact. Reversible.",
+    riskClass: "LOW_REVERSIBLE",
+    action: "record an alias in local memory",
+    inputSchema: {
+      type: "object",
+      properties: {
+        entity: { type: "string", description: "the entity's full name as known" },
+        alias: { type: "string", description: "the other name it goes by" },
+      },
+      required: ["entity", "alias"],
+      additionalProperties: false,
+    },
+    async run(args: unknown): Promise<ToolResult> {
+      const a = args as { entity: string; alias: string };
+      const r = await mem.addAlias({ entityName: a.entity, alias: a.alias, provenance: "conversation (user asked me to remember)" });
+      const list = r.aliases.join(", ");
+      return {
+        ok: true,
+        summary: r.added
+          ? `'${r.entity.name}' also goes by '${a.alias}' — aliases now: ${list} (read back)`
+          : `'${r.entity.name}' already had the alias '${a.alias}' — aliases: ${list}`,
+        data: { entity: r.entity.name, kind: r.entity.kind, alias: a.alias.trim().toLowerCase(), aliases: r.aliases, added: r.added },
+        ...(r.added ? { rollback: async () => { await mem.removeAlias(r.entity.name, a.alias); } } : {}),
       };
     },
   };
@@ -197,6 +267,10 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
       const pref = prefs ? preferenceInDisguise(a.entity, a.statement) : null;
       if (pref) {
         return { ok: false, summary: preferenceNotFact(a.entity, a.statement, pref), data: { route: "preference", key: pref.key, value: pref.value, write: "memory.remember" } };
+      }
+      const nick = aliasInDisguise(a.entity, a.statement);
+      if (nick) {
+        return { ok: false, summary: aliasNotFact(a.entity, a.statement, nick.alias), data: { route: "alias", entity: a.entity, alias: nick.alias, write: "memory.alias" } };
       }
       const home = await preferenceHome(prefs, a.entity, a.statement);
       if (home) {
@@ -262,6 +336,11 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
           const pref = prefs ? preferenceInDisguise(a.entity, statement) : null;
           if (pref) {
             items.push({ index: i + 1, statement, stored: false, error: preferenceNotFact(a.entity, statement, pref) });
+            continue;
+          }
+          const nick = aliasInDisguise(a.entity, statement);
+          if (nick) {
+            items.push({ index: i + 1, statement, stored: false, error: aliasNotFact(a.entity, statement, nick.alias) });
             continue;
           }
           const home = await preferenceHome(prefs, a.entity, statement);
@@ -624,7 +703,7 @@ export function entityMemoryTools(mem: EntityMemory, prefs?: MemoryService): Too
     },
   };
 
-  return [rememberEntity, rememberFact, rememberFacts, correct, relate, recall, related, recallGraph, lookup, forget];
+  return [rememberEntity, alias, rememberFact, rememberFacts, correct, relate, recall, related, recallGraph, lookup, forget];
 }
 
 function renderNeighborhood(g: GraphNeighborhood): string {
