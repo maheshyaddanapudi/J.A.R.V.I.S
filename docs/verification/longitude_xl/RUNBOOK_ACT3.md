@@ -143,3 +143,67 @@ changed during the act; an instrument repair is disclosed in the record.
 
 - **2026-09-11 23:43 UTC — launched** on build `76f2e6b` after the full checklist (suite 526/526, safety dump `jarvis_xl.day1000-pre-act3.sql.gz`, dry run PASS, kernel 28/28). Chapter three pinned in the log (`7806a9a6f228d3c9`); day 1001 ran 11 model calls, **all failed — Anthropic HTTP 400 "Your credit balance is too low"**. `assert_day_live` halted the day before aging or checkpoint: `state.json` still says `next_day 1001`, no `chapter3_hash` pinned yet, the world untouched (189 active entities, audit chain 28,736). The first incident of the act is the same class as act two's days 540/831, caught by the guard on the first day (T12 holds: 0 void days committed).
 - **2026-09-12 14:55 UTC — still exhausted** (one-token probe: HTTP 400, same message). The hourly Routine now probes the account with a one-token call whenever the last log line is the credit FATAL and relaunches automatically when the balance is back (relaunch resumes at day 1001, restarts the kernel and the embedder itself); it stays silent otherwise. Resume by hand: `cd /home/user/J.A.R.V.I.S && XL_COST_CAP_USD=300 setsid nohup python3 -u scripts/longitude_xl.py 1500 >> /tmp/longitude_xl/run.log 2>&1 < /dev/null & disown`.
+
+## Provider switch for the third act (2026-09-12) — OpenRouter, Qwen 3.8 Max
+
+**Why.** The Anthropic account behind the act ran out of credits on day 1001
+(see the ops log); the user asked to move the experiments to OpenRouter and
+chose **Qwen 3.8 Max** as the model. The gateway is provider-agnostic by
+design (D-0049): OpenRouter is a configuration entry for the existing
+OpenAI-compatible adapter, which sends tool definitions, replays tool calls,
+parses streamed tool calls and passes `reasoning_effort`; **no kernel code
+changed**. A one-call probe with a tool definition returned a correct
+`tool_calls` finish with reasoning enabled.
+
+**Configuration** (`/tmp/xl-gw.json` and `/tmp/fidelity-gw.json`; the
+Anthropic versions are kept as `*.anthropic.json`):
+
+| Role | Target (act two → act three) |
+|---|---|
+| `fast_conversation` | `anthropic/claude-haiku-4-5` → `openrouter/qwen/qwen3.8-max-0902@low+thinking` (the model cannot switch reasoning off — OpenRouter answers "Reasoning is mandatory for this endpoint"; `low` halves the reasoning tokens and latency of the default: 64 vs 135 reasoning tokens, 3.8 s vs 5.6 s on a two-sentence reply) |
+| `planning` | `anthropic/claude-sonnet-5@high+thinking` → `openrouter/qwen/qwen3.8-max-0902@medium+thinking` |
+| `deep_reasoning` | `anthropic/claude-sonnet-5@xhigh+thinking` → `openrouter/qwen/qwen3.8-max-0902@high+thinking` |
+| `embeddings` | `embedserver/all-mpnet-base-v2` (local, unchanged) |
+
+The model id is pinned to the dated snapshot OpenRouter resolves the
+`qwen/qwen3.8-max` alias to, so the act stays on ONE model even if the alias
+moves. Provider entry: `{"kind":"openai_compat","baseUrl":"https://openrouter.ai/api/v1","apiKeyEnv":"OPENROUTER_API_KEY","local":false}`.
+The key lives only in the git-ignored `.claude/graphify.env` (mode 600),
+exported into the kernel processes by the restart scripts exactly like the
+Anthropic key; it is never written to the repo, the audit log or the records.
+
+**What changes in the measurement (disclosed).** Acts one and two were driven
+by Sonnet 5 (planning/deep) and Haiku 4.5 (fast); act three is driven by Qwen
+3.8 Max for all three generative roles. "Act three vs act two" therefore
+measures the kernel refinements PLUS a model change; the within-act
+comparisons (re-taught vs untouched facts, chapter three vs old world, the
+G-09 promotion arc, the G-10 pin arc, two-hop on the new chains) are
+unaffected. The pre-registered targets T1–T12 stand as written; a target
+missed because of the model rather than the kernel is reported as such, from
+the strict-class breakdown. Prompt caching (E-01) is an Anthropic-adapter
+feature: the OpenAI-compatible adapter sends no cache markers, so T11's
+per-step uncached-input figure is measured on raw input tokens. `spend_usd()`
+and the same-day guard now count the `openrouter` provider; the ledger price
+for the model is the 2026-09-12 list price ($2.00 / $6.00 per M input /
+output tokens); OpenRouter's own bill is the authoritative cost.
+
+**Price check, from OpenRouter's live list (2026-09-12).** Qwen 3.8 Max is
+NOT an open-weights price point: at $2.00 / $6.00 per M tokens it sits beside
+Sonnet 5 on OpenRouter ($2.00 / $10.00). At act two's token volume (58 M in,
+3.5 M out over 500 days) an act costs about **$140 on Qwen 3.8 Max**, about $9
+on `qwen/qwen3.8-flash` ($0.15 / $0.47), about $21 on `qwen/qwen3.8-27b`
+($0.21 / $2.55) and about $3 on `openai/gpt-oss-120b` ($0.04 / $0.17, the
+model the Mac target runs locally under D-0012). Act three's volume should be
+below act two's because of `memory.lookup`; the ten-day shakeout below gives
+the measured per-day cost.
+
+**Calibration before launch** (both on scratch, the real world untouched):
+1. the R10 mini-life (`scripts/minilife_r10.py`, 25 code-computed verdicts)
+   on the fidelity kernel with the new config — record
+   `docs/verification/refinement/R11_minilife_qwen38max_run1.md`;
+2. a ten-day shakeout, days 1001–1010 including the first quiz battery, on the
+   scratch restore of the day-1000 world (`jarvis_replay`, kernel :4180,
+   `XL_OUT=/tmp/longitude_xl_shakeout` so the real checkpoint and evidence
+   files are never written) — the same harness, the same chapter three.
+Go criterion: mini-life ≥ 23/25 and a shakeout with no crash, the day-1010
+battery scored, and the per-day cost acceptable to the user.

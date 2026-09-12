@@ -39,14 +39,19 @@ DAYS = int(sys.argv[1]) if len(sys.argv) > 1 else 1000
 LIFE = 1000
 K = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:4160"
 DB = sys.argv[3] if len(sys.argv) > 3 else "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_xl"
-OUT = Path("/tmp/longitude_xl")
+# XL_OUT lets a SHAKEOUT run against a scratch kernel/DB write its checkpoint and
+# evidence elsewhere (R11): the real run's state.json/metrics/quizzes are never
+# touched by a rehearsal. Default unchanged.
+OUT = Path(os.environ.get("XL_OUT", "/tmp/longitude_xl"))
 OUT.mkdir(exist_ok=True)
 STATE = OUT / "state.json"
 SEED = 20260830
 COST_CAP = float(os.environ.get("XL_COST_CAP_USD", "400"))
 EMBED = os.environ.get("XL_EMBED_URL", "http://127.0.0.1:9302")
-# Sonnet-5 / Haiku-4.5 $/Mtok (input, output)
-PRICE = {"claude-sonnet-5": (3.0, 15.0), "claude-haiku-4-5": (1.0, 5.0)}
+# $/Mtok (input, output): Sonnet-5 / Haiku-4.5 (acts one and two), Qwen 3.8 Max via
+# OpenRouter (act three, list price 2026-09-12; OpenRouter also reports exact cost
+# per call, so the ledger figure is an estimate the provider's bill will confirm)
+PRICE = {"claude-sonnet-5": (3.0, 15.0), "claude-haiku-4-5": (1.0, 5.0), "qwen/qwen3.8-max-0902": (2.0, 6.0)}
 
 LAB_EVERY, QUIZ_EVERY = 20, 10
 RESTARTS = {100, 300, 500, 700, 900, 1100, 1300}
@@ -1029,7 +1034,7 @@ def shift_world_one_day() -> int:
 
 def spend_usd() -> float:
     rows = psql("SELECT model, sum(input_tokens), sum(output_tokens) FROM model_calls "
-                "WHERE provider='anthropic' GROUP BY model").splitlines()
+                "WHERE provider IN ('anthropic','openrouter') GROUP BY model").splitlines()
     total = 0.0
     for row in rows:
         try:
@@ -1136,7 +1141,7 @@ def assert_day_live(day: int, start_id: int) -> None:
     2026-09-01 second act lost its credits mid-quiz on day 540: the quiz scored
     5/20 against a dead model and three 11-second void days followed."""
     row = psql(f"SELECT count(*) FILTER (WHERE ok), count(*) FILTER (WHERE NOT ok) "
-               f"FROM model_calls WHERE id > {start_id} AND provider='anthropic'")
+               f"FROM model_calls WHERE id > {start_id} AND provider <> 'embedserver'")
     try:
         ok, bad = (int(x) for x in row.split("|"))
     except ValueError:
