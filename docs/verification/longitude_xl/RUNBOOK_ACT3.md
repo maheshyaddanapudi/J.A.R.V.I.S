@@ -138,3 +138,8 @@ changed during the act; an instrument repair is disclosed in the record.
 - Never change the measured kernel during the act. An instrument repair is
   allowed and disclosed in the record.
 - Never report a number the guards did not let stand (a void day is re-run, not counted).
+
+## Ops log
+
+- **2026-09-11 23:43 UTC — launched** on build `76f2e6b` after the full checklist (suite 526/526, safety dump `jarvis_xl.day1000-pre-act3.sql.gz`, dry run PASS, kernel 28/28). Chapter three pinned in the log (`7806a9a6f228d3c9`); day 1001 ran 11 model calls, **all failed — Anthropic HTTP 400 "Your credit balance is too low"**. `assert_day_live` halted the day before aging or checkpoint: `state.json` still says `next_day 1001`, no `chapter3_hash` pinned yet, the world untouched (189 active entities, audit chain 28,736). The first incident of the act is the same class as act two's days 540/831, caught by the guard on the first day (T12 holds: 0 void days committed).
+- **2026-09-12 14:55 UTC — still exhausted** (one-token probe: HTTP 400, same message). The hourly Routine now probes the account with a one-token call whenever the last log line is the credit FATAL and relaunches automatically when the balance is back (relaunch resumes at day 1001, restarts the kernel and the embedder itself); it stays silent otherwise. Resume by hand: `cd /home/user/J.A.R.V.I.S && XL_COST_CAP_USD=300 setsid nohup python3 -u scripts/longitude_xl.py 1500 >> /tmp/longitude_xl/run.log 2>&1 < /dev/null & disown`.
