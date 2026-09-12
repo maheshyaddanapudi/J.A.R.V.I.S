@@ -141,6 +141,18 @@ export const GatewayConfigSchema = z.object({
       apiKeyEnv: z.string().optional(),
       /** local = reachable without leaving the machine; gates LOCAL_ONLY + offline mode */
       local: z.boolean(),
+      /**
+       * Wire dialect for REASONING CONTROL on an `openai_compat` provider.
+       * Omitting `reasoning_effort` means "provider default", and on gateways
+       * whose models think by default that is NOT "thinking off" — found in the
+       * field 2026-09-12 (G-23): a fast role pinned `thinking: "off"` still
+       * reasoned on every call, 10.6 s and 566 output tokens against 1.4 s and
+       * 33 when reasoning was explicitly disabled. `"openrouter"` makes
+       * `thinking: "off"` send OpenRouter's documented `reasoning.enabled:false`.
+       * Unset = send nothing extra (plain OpenAI/vLLM/llama.cpp reject unknown
+       * body fields, so this is never sent speculatively).
+       */
+      reasoningDialect: z.enum(["openrouter"]).optional(),
     }),
   ),
   /** Partial: unconfigured roles route to `local_fallback` (R-MODEL-04). */

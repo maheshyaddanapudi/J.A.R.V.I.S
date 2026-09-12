@@ -63,7 +63,12 @@ export class GatewayRouter {
       } else if (p.kind === "anthropic") {
         this.adapters.set(id, createAnthropicAdapter({ ...common, ...creds }));
       } else {
-        this.adapters.set(id, createOpenAiCompatAdapter({ ...common, local: p.local, ...creds }));
+        this.adapters.set(id, createOpenAiCompatAdapter({
+          ...common,
+          local: p.local,
+          ...creds,
+          ...(p.reasoningDialect ? { reasoningDialect: p.reasoningDialect } : {}),
+        }));
       }
     }
   }
