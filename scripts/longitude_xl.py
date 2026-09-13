@@ -839,7 +839,17 @@ def kernel_has_value(topic: str, pref: bool, value: str) -> bool:
             return any(str(p.get("key")) == key and v in str(p.get("value", "")).lower() for p in items)
         d = httpx.get(f"{K}/memory/entities/{quote(topic)}", timeout=30).json()
         e = d.get("entity") or d
-        if str(e.get("name", "")).lower() != topic.lower():
+        # The topic is "on file" when the store resolves it to THIS entity —
+        # by canonical name or by a recorded alias. Requiring the canonical name
+        # to equal the topic was too strict (found live, act-three attempt 5 day
+        # 1003): the day-1000 world carries legacy rows whose canonical name is
+        # an attribute phrase ("Lena Moreau's meeting") that absorbed the real
+        # person as an alias, so a fact stored correctly under `lena moreau`
+        # read as "not on file" and the recap was re-issued forever (G-29).
+        # A qualifier twin still cannot satisfy this: `findEntity` refuses to
+        # resolve `coral census` to `coral census two` (G-17).
+        names = {str(e.get("name", "")).lower()} | {str(a).lower() for a in (e.get("aliases") or [])}
+        if topic.lower() not in names:
             return False
         return any(v in str(f.get("statement") or f.get("content") or "").lower() for f in (d.get("facts") or []))
     except Exception:
