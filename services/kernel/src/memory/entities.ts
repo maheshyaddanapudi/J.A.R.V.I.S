@@ -268,6 +268,8 @@ export interface Entity {
   kind: EntityKind;
   name: string;
   attributes: string;
+  /** other names this entity goes by (G-26) — present when the row was read by name */
+  aliases?: string[] | null;
   status: EpistemicStatus;
   provenance: string;
   confidence: number;
@@ -690,7 +692,7 @@ export class EntityMemory {
    *  kind. An exact-name match is preferred over an alias-only match. */
   private async findEntity(name: string, kind?: string): Promise<Entity | null> {
     const { rows } = await this.pool.query(
-      `SELECT id, kind, name, attributes, status, provenance, confidence, sensitivity, created_at, updated_at
+      `SELECT id, kind, name, attributes, aliases, status, provenance, confidence, sensitivity, created_at, updated_at
        FROM memory_entities
        WHERE ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
          AND status NOT IN ('deleted','superseded')
@@ -707,7 +709,7 @@ export class EntityMemory {
     if (row) return this.hydrateEntity(row);
     // an article variant IS the same thing ('kiln' ⇄ 'the kiln') — same base, same qualifiers
     const { rows: variants } = await this.pool.query(
-      `SELECT id, kind, name, attributes, status, provenance, confidence, sensitivity, created_at, updated_at
+      `SELECT id, kind, name, attributes, aliases, status, provenance, confidence, sensitivity, created_at, updated_at
        FROM memory_entities
        WHERE regexp_replace(lower(name), '^the\\s+', '') = regexp_replace(lower($1), '^the\\s+', '')
          AND status NOT IN ('deleted','superseded')

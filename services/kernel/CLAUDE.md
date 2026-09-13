@@ -610,6 +610,30 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   `docs/verification/refinement/R10_minilife_sonnet5_run{1,2}.md`). The third
   act (chapter three, `docs/verification/longitude_xl/RUNBOOK_ACT3.md`) is the
   field retest on this build.
+- Act-three attempt-4 fixes ✅ (D-0084, 2026-09-12; found by attempt 3, days
+  1001–1035, on the Qwen two-model config): **G-28** `entities.ts`
+  `judgeMergeAllowed` — a quiet-hours judge merge may fold a fact only into a
+  fact about the SAME attribute (both parse to a slot → `sameSlot`; else at
+  least one shared content word beyond the entity's name); refusals returned
+  (`refused`), counted (`memory_consolidated.mergesRefused`) and named in the
+  report + timeline episode; every merge (judge or heuristic) audited
+  `fact_merged_by_consolidation` (ids only) and announced by name via
+  `onMemoryChange('fact-merge')`. Before this the judge folded `theo eriksen`'s
+  meeting day and location into the nickname fact, silently. **G-26**
+  `EntityMemory.addAlias/removeAlias` (audited `entity_alias_added`, read back;
+  refused for a clash with another active entity's name/alias or a qualifier
+  twin of the entity's own name) behind the `memory.alias` tool and `aliases`
+  on `memory.rememberEntity`; `entityTools.ts` `aliasInDisguise` refuses a
+  naming statement ("usually goes by ravi — same person") as a fact and hands
+  back the alias call; `aliasMatch` lets a declared alias seed identity recall
+  as a whole word at any length (the short-name gate in `identityMatch` stays
+  for incidental names). **G-27** `SleepCycle` `announcer` dep — an applied
+  D-0052 override raises one dedupe-keyed advisory announcement for the D-0077
+  chat relay. **G-25** `router.ts` jittered exponential backoff on retryable
+  pre-stream `ProviderError`s on the SAME target before the fallback chain
+  (`setRetryPolicy`; knobs `gateway.retry.maxRetries` = 2 and
+  `gateway.retry.baseDelayMs` = 750 catalogued, D-0053; every attempt its own
+  `model_calls` row). **539 kernel tests, 0 skipped.**
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both
