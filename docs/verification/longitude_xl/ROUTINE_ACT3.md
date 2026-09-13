@@ -27,6 +27,20 @@ T1–T12 in `RUNBOOK_ACT3.md`.
 Never mix their rows in. The live attempt's first `model_calls` id is recorded
 in the ops log at each launch.
 
+## A pause is not a freeze
+
+**Before anything else, check `/tmp/longitude_xl/PAUSED`.** If that file exists,
+the harness is down because a human decision is outstanding, not because the
+container froze. Print its contents, relaunch NOTHING, and say nothing further
+to the user — they already hold the question. Only a person clears the file (or
+Claude does, on their explicit answer). Automated carriers that relaunch a
+deliberately paused act destroy exactly the evidence the pause was protecting.
+
+Introduced 2026-09-13, when the 20-minute keepalive fired 3 minutes into a pause
+taken to stop an OpenRouter rate-limit window from writing more confounded days,
+and its own rule ("harness gone + no FATAL/HALT ⇒ relaunch") would have resumed
+the run over an unanswered question.
+
 ## Every wake, in order
 
 1. **Look.** `tail -n 3 /tmp/longitude_xl/run.log`; `next_day` from
