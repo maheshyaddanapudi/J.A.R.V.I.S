@@ -870,10 +870,10 @@
     "semantic_hash": "d54be859ca4f967a49c806626f1eeda3"
   },
   "services/kernel/src/memory/entities.ts": {
-    "mtime": 1789256795.6445422,
-    "seen": 1789256797.9019296,
-    "ast_hash": "27f1def903701cc606be86ceca74da24",
-    "semantic_hash": "27f1def903701cc606be86ceca74da24"
+    "mtime": 1789257704.6885962,
+    "seen": 1789257899.2134936,
+    "ast_hash": "170bf536f6e91bdeb1a78c3068af3119",
+    "semantic_hash": "170bf536f6e91bdeb1a78c3068af3119"
   },
   "services/kernel/src/memory/entityTools.ts": {
     "mtime": 1789256848.3405454,
@@ -1458,10 +1458,10 @@
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   "CLAUDE.md": {
-    "mtime": 1789247199.3793864,
-    "seen": 1789256236.8930447,
-    "ast_hash": "8ee4313a1b2a0d2e4ff335b37b18aa2a",
-    "semantic_hash": "8ee4313a1b2a0d2e4ff335b37b18aa2a"
+    "mtime": 1789257555.0125873,
+    "seen": 1789257899.2169454,
+    "ast_hash": "fd7191dba004e7d7155b4f2c130a14f5",
+    "semantic_hash": "fd7191dba004e7d7155b4f2c130a14f5"
   },
   "README.md": {
     "mtime": 1787690224.869232,
@@ -1548,10 +1548,10 @@
     "semantic_hash": "0f736884e791fa91a6edb38a10f03dfe"
   },
   "docs/DECISION_LOG.md": {
-    "mtime": 1789250316.9361572,
-    "seen": 1789256236.8934472,
-    "ast_hash": "b756cfbe1656a6f473d7c77e1c457557",
-    "semantic_hash": "b756cfbe1656a6f473d7c77e1c457557"
+    "mtime": 1789257526.6885858,
+    "seen": 1789257899.2173645,
+    "ast_hash": "28aebfc51b8ed8d816ce9cf0d6fec67a",
+    "semantic_hash": "28aebfc51b8ed8d816ce9cf0d6fec67a"
   },
   "docs/DESIGN_SYSTEM.md": {
     "mtime": 1787690224.8882782,
@@ -1566,10 +1566,10 @@
     "semantic_hash": "2e5c686f37987b0bb7afce86764b7212"
   },
   "docs/IMPLEMENTATION_PLAN.md": {
-    "mtime": 1789247199.3791285,
-    "seen": 1789256236.8935158,
-    "ast_hash": "3c7e1e45e1401af08d0e7277de24c09c",
-    "semantic_hash": "3c7e1e45e1401af08d0e7277de24c09c"
+    "mtime": 1789257535.160586,
+    "seen": 1789257899.2174387,
+    "ast_hash": "5f4fe168c2b9772b8343c3b7a34a8bc0",
+    "semantic_hash": "5f4fe168c2b9772b8343c3b7a34a8bc0"
   },
   "docs/MAC_BRINGUP.md": {
     "mtime": 1787690224.8882782,
@@ -1584,10 +1584,10 @@
     "semantic_hash": "3c62455dad242cb6a8ac14ef55460b6b"
   },
   "docs/REQUIREMENTS_TRACEABILITY.md": {
-    "mtime": 1789169548.5221715,
-    "seen": 1789169669.5063717,
-    "ast_hash": "f4407d0e31b8224f0415c76fccb21aae",
-    "semantic_hash": "f4407d0e31b8224f0415c76fccb21aae"
+    "mtime": 1789257604.5525904,
+    "seen": 1789257899.2175188,
+    "ast_hash": "f88b4d978c4ba72ffdd702830a953f35",
+    "semantic_hash": "f88b4d978c4ba72ffdd702830a953f35"
   },
   "docs/RESEARCH_VERIFICATION.md": {
     "mtime": 1787690224.8882782,
@@ -1704,10 +1704,10 @@
     "semantic_hash": "0ebfe3bd2bd1a4862143d0d024d3f3fe"
   },
   "services/kernel/CLAUDE.md": {
-    "mtime": 1789169867.2082763,
-    "seen": 1789256236.8946626,
-    "ast_hash": "41a94fad0c979cae1090f9db87ac3441",
-    "semantic_hash": "41a94fad0c979cae1090f9db87ac3441"
+    "mtime": 1789257547.452587,
+    "seen": 1789257899.2187777,
+    "ast_hash": "6890703f917734131216ebf821c90798",
+    "semantic_hash": "6890703f917734131216ebf821c90798"
   },
   "services/kernel/src/agent/CLAUDE.md": {
     "mtime": 1787690225.019587,
@@ -2100,10 +2100,10 @@
     "semantic_hash": "143861d85b37ac5762d678ffaac24fb6"
   },
   "docs/verification/LONGITUDE_XL_GAP_LEDGER.md": {
-    "mtime": 1789255933.180491,
-    "seen": 1789256236.8940592,
-    "ast_hash": "7560d39b2911b1d3b251b38a8a209a23",
-    "semantic_hash": "7560d39b2911b1d3b251b38a8a209a23"
+    "mtime": 1789257469.9285824,
+    "seen": 1789257899.2180107,
+    "ast_hash": "38f45efa75e0ec2c34ea2572e8a51338",
+    "semantic_hash": "38f45efa75e0ec2c34ea2572e8a51338"
   },
   "docs/verification/longitude_xl/day700/README.md": {
     "mtime": 1789006590.729103,
@@ -2214,10 +2214,10 @@
     "semantic_hash": "9910b80ae93075f86e870972b4c77d47"
   },
   "docs/verification/longitude_xl/RUNBOOK_ACT3.md": {
-    "mtime": 1789255979.8724937,
-    "seen": 1789256236.8943036,
-    "ast_hash": "4c1478026909c5f74c8e4ecdb8dd584f",
-    "semantic_hash": "4c1478026909c5f74c8e4ecdb8dd584f"
+    "mtime": 1789257487.5125833,
+    "seen": 1789257899.2182868,
+    "ast_hash": "91726c2ae676937aceb60bec6320c41c",
+    "semantic_hash": "91726c2ae676937aceb60bec6320c41c"
   },
   "docs/verification/longitude_xl/day1000/replay_after_r10.json": {
     "mtime": 1789168994.448221,
