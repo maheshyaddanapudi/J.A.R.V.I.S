@@ -80,6 +80,13 @@ export function registerMemoryRoutes(
     });
     // G-03 reconciliation: one home per attribute — the newer record wins, the
     // older is retired with history. Dry-run unless {apply: true}; audited.
+    // G-21: fold article-variant duplicate rows ("the boat shed north" into
+    // "boat shed north"); dry-run by default like the other reconcilers
+    app.post("/memory/reconcile-articles", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileArticleVariants({ apply: body.apply === true });
+    });
+
     app.post("/memory/reconcile-homes", async (req) => {
       const body = (req.body ?? {}) as { apply?: boolean };
       return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });

@@ -333,6 +333,19 @@ export class SleepCycle {
           for (const c of r.conflicts.slice(0, 5)) notes.push(`one-home — ${c.entity}'s ${c.slot}: kept ${c.kept.value} (${c.kept.home}), retired ${c.retired.value} (${c.retired.home})`);
         }
       } catch { /* reconciliation is best-effort */ }
+      // G-21: two active rows for one thing that differ only by a leading
+      // article are folded into the plain name BEFORE the one-home pass, so the
+      // stale duplicate's values meet the truth on a single entity and the
+      // newer wins there in the ordinary way
+      try {
+        const av = await this.deps.memory.reconcileArticleVariants({ apply: true });
+        if (av.merged.length) {
+          findings.push(`memory: folded ${av.merged.length} duplicate entry(ies) that differed only by "the"`);
+          for (const m of av.merged.slice(0, 5)) {
+            notes.push(`article-variant — kept "${m.kept}", folded "${m.folded}" (${m.facts} fact(s), ${m.relations} connection(s))`);
+          }
+        }
+      } catch { /* best-effort */ }
       // G-07: exclusive relations keep one current edge (newest); the rest go to history
       try {
         const rr = await this.deps.memory.reconcileRelations({ apply: true });

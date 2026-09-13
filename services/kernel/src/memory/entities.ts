@@ -1190,6 +1190,116 @@ export class EntityMemory {
    * deleted: the canonical keeps everything not attributable to the alias, and
    * the old superseded rows stay as history.
    */
+  /**
+   * G-21 (found in the Longitude-XL 1000-day world, fixed 2026-09-13): two
+   * ACTIVE rows for one thing, differing only by a leading article — `boat shed
+   * north` (Bergen, the truth) beside `the boat shed north` (Hobart, stale).
+   * Both seed identity recall, so the agent can answer from the stale one.
+   * R3 made `findEntity` resolve `X` ⇄ `the X` and stopped NEW splits, but
+   * nothing merged rows that already existed: `reconcileHomes` works within one
+   * entity and `splitTwinAliases` splits rather than merges.
+   *
+   * This folds the article variant into the plain name (the form the world
+   * teaches and `withSubject` writes), migrating active facts and relations
+   * forward conflict-safely and keeping the folded spelling as an alias, so
+   * nothing is lost and the old name still resolves. The values themselves are
+   * NOT judged here — once the facts sit on one entity, `reconcileHomes` does
+   * what it always does and retires the older of two homes with history.
+   *
+   * Deliberately narrow: only a leading article differs, so a qualifier twin
+   * (`kiln` vs `kiln north`) can never be folded by this pass.
+   */
+  async reconcileArticleVariants(opts: { apply?: boolean } = {}): Promise<{
+    applied: boolean;
+    merged: { kept: string; folded: string; kind: string; facts: number; relations: number }[];
+  }> {
+    const strip = (n: string) => n.toLowerCase().trim().replace(/^(the|a|an)\s+/, "");
+    const { rows } = await this.pool.query<{ id: string; name: string; kind: string; updated_at: string }>(
+      `SELECT id, name, kind, updated_at::text FROM memory_entities
+        WHERE status NOT IN ('deleted','superseded') ORDER BY updated_at DESC`,
+    );
+    const groups = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const key = `${r.kind}|${strip(r.name)}`;
+      (groups.get(key) ?? groups.set(key, []).get(key)!).push(r);
+    }
+    const merged: { kept: string; folded: string; kind: string; facts: number; relations: number }[] = [];
+    for (const [, group] of groups) {
+      if (group.length < 2) continue;
+      // canonical: the plain (article-less) spelling; ties and all-articled
+      // groups fall back to the most recently updated row (the list is sorted)
+      const keep = group.find((r) => strip(r.name) === r.name.toLowerCase().trim()) ?? group[0]!;
+      for (const fold of group) {
+        if (fold.id === keep.id) continue;
+        const counts = { facts: 0, relations: 0 };
+        if (opts.apply) {
+          const client = await this.pool.connect();
+          try {
+            await client.query("BEGIN");
+            const f = await client.query(
+              `UPDATE memory_facts SET entity_id = $1 WHERE entity_id = $2 AND status NOT IN ('deleted','superseded')`,
+              [keep.id, fold.id],
+            );
+            counts.facts = f.rowCount ?? 0;
+            const ro = await client.query(
+              `UPDATE memory_relations r SET from_entity = $1 WHERE r.from_entity = $2
+                 AND NOT EXISTS (SELECT 1 FROM memory_relations x
+                   WHERE x.from_entity = $1 AND x.to_entity = r.to_entity AND x.relation = r.relation)`,
+              [keep.id, fold.id],
+            );
+            const ri = await client.query(
+              `UPDATE memory_relations r SET to_entity = $1 WHERE r.to_entity = $2
+                 AND NOT EXISTS (SELECT 1 FROM memory_relations x
+                   WHERE x.to_entity = $1 AND x.from_entity = r.from_entity AND x.relation = r.relation)`,
+              [keep.id, fold.id],
+            );
+            counts.relations = (ro.rowCount ?? 0) + (ri.rowCount ?? 0);
+            await client.query(
+              `UPDATE memory_entities SET aliases = array_append(coalesce(aliases, '{}'), $2), updated_at = now()
+                WHERE id = $1 AND NOT (coalesce(aliases, '{}') @> ARRAY[$2]::text[])`,
+              [keep.id, fold.name.toLowerCase()],
+            );
+            await client.query(
+              `UPDATE memory_entities SET status = 'superseded', superseded_by = $1, updated_at = now() WHERE id = $2`,
+              [keep.id, fold.id],
+            );
+            await client.query("COMMIT");
+          } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+          } finally {
+            client.release();
+          }
+          await this.audit.append({
+            actor: "kernel",
+            event: "entity_article_variant_merged",
+            payload: { kept: keep.name, folded: fold.name, kind: keep.kind, facts: counts.facts, relations: counts.relations },
+          });
+          if (this.onMemoryChange) {
+            void this.onMemoryChange({
+              kind: "merge",
+              about: keep.name,
+              text: `"${fold.name}" and "${keep.name}" were two separate entries for the same thing — I've folded them into "${keep.name}" (${counts.facts} fact(s), ${counts.relations} connection(s) moved across, the old spelling kept as another name). If they were different things, tell me and I'll split them again.`,
+            }).catch(() => undefined);
+          }
+        } else {
+          const f = await this.pool.query<{ n: string }>(
+            `SELECT count(*) n FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')`,
+            [fold.id],
+          );
+          const r = await this.pool.query<{ n: string }>(
+            `SELECT count(*) n FROM memory_relations WHERE from_entity = $1 OR to_entity = $1`,
+            [fold.id],
+          );
+          counts.facts = Number(f.rows[0]!.n);
+          counts.relations = Number(r.rows[0]!.n);
+        }
+        merged.push({ kept: keep.name, folded: fold.name, kind: keep.kind, ...counts });
+      }
+    }
+    return { applied: Boolean(opts.apply), merged };
+  }
+
   async splitTwinAliases(
     opts: { apply?: boolean; relationHints?: { from: string; to: string; relation: string }[] } = {},
   ): Promise<{

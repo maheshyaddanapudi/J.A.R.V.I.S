@@ -86,6 +86,64 @@ describe("GatewayMemoryJudge (D-0075 fast-model memory judgments)", () => {
     expect(await j.mergeFacts("E", [{ idx: 0, text: "a" }, { idx: 1, text: "b" }], "STANDARD")).toBeNull();
   });
 
+  /**
+   * G-20 (found 2026-09-12 in the D-0082 calibration, fixed 2026-09-13): the
+   * abort cap was a constructor constant, so on a judge model whose calls run
+   * 2–14 s a latency spike silently abandoned the judgment and the caller fell
+   * back to the deterministic path — for topic extraction that means `judged`
+   * stays 0 and a genuine correction never promotes. The cap now reads the
+   * catalogued `memory.judge.timeoutMs` live (D-0053).
+   */
+  function slowGateway(delayMs: number) {
+    return {
+      chat: (_req: ChatRequest, signal?: AbortSignal): Promise<ChatResult> =>
+        new Promise<ChatResult>((resolve, reject) => {
+          const t = setTimeout(
+            () =>
+              resolve({
+                text: '{"topics":["palladium"]}',
+                toolCalls: [],
+                finishReason: "stop" as const,
+                usage: { inputTokens: 0, outputTokens: 0 },
+                provider: "stub",
+                model: "stub",
+                latencyMs: delayMs,
+              }),
+            delayMs,
+          );
+          signal?.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(t);
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        }),
+    };
+  }
+
+  it("G-20: the abort cap is read live — a raised cap lets a slow judgment through, a low one abandons it", async () => {
+    // cap BELOW the model's latency → abandoned, caller falls back (null)
+    const tight = new GatewayMemoryJudge(slowGateway(150), { timeoutMs: () => 20 });
+    expect(await tight.extractTopics("one line about palladium", "STANDARD")).toBeNull();
+
+    // same model, cap raised → the judgment lands
+    const roomy = new GatewayMemoryJudge(slowGateway(30), { timeoutMs: () => 500 });
+    expect(await roomy.extractTopics("one line about palladium", "STANDARD")).toEqual(["palladium"]);
+  });
+
+  it("G-20: a resolver that throws or returns nonsense falls back to the 15 s default, never to no cap", async () => {
+    const thrower = new GatewayMemoryJudge(slowGateway(20), {
+      timeoutMs: () => {
+        throw new Error("settings unavailable");
+      },
+    });
+    expect(await thrower.extractTopics("one line about palladium", "STANDARD")).toEqual(["palladium"]);
+    const nonsense = new GatewayMemoryJudge(slowGateway(20), { timeoutMs: () => Number.NaN });
+    expect(await nonsense.extractTopics("one line about palladium", "STANDARD")).toEqual(["palladium"]);
+  });
+
   it("gate off → every method returns null (no model call)", async () => {
     const j = new GatewayMemoryJudge(stubGateway(() => { throw new Error("must not call the model"); }), {
       enabled: () => false,

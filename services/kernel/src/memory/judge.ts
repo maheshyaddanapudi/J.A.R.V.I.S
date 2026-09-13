@@ -244,8 +244,17 @@ export class GatewayMemoryJudge implements MemoryJudge {
     private readonly opts: {
       /** live gate — reads the `memory.llmJudgment` setting; false → all null */
       enabled?: () => Promise<boolean> | boolean;
-      /** hard cap so a stuck provider can't stall a memory write (default 15s) */
-      timeoutMs?: number;
+      /**
+       * Hard cap so a stuck provider can't stall a memory write (default 15 s).
+       * G-20 (found 2026-09-12 in the D-0082 calibration, fixed 2026-09-13):
+       * this was a constructor constant, so on a model whose judge calls run
+       * 2–14 s a latency spike aborted the call silently and the best-effort
+       * contract fell back to the deterministic path — for topic extraction
+       * that means `judged` stays 0 and a genuine correction never promotes.
+       * A RESOLVER reads the catalogued `memory.judge.timeoutMs` live (D-0053),
+       * so the cap is tunable per deployment without a rebuild.
+       */
+      timeoutMs?: number | (() => Promise<number> | number);
       /** optional prompt-template override source (D-0079: the prompts registry).
        *  Best-effort: null/throw → the JUDGE_TEMPLATES code constant. */
       templates?: JudgeTemplateResolver;
@@ -257,6 +266,20 @@ export class GatewayMemoryJudge implements MemoryJudge {
       return this.opts.enabled ? Boolean(await this.opts.enabled()) : true;
     } catch {
       return false;
+    }
+  }
+
+  /** G-20: the abort cap, read live when a resolver is wired. A resolver that
+   *  throws or returns nonsense falls back to the 15 s default rather than
+   *  leaving a memory write without a cap. */
+  private async timeoutMs(): Promise<number> {
+    const DEFAULT = 15000;
+    try {
+      const raw = typeof this.opts.timeoutMs === "function" ? await this.opts.timeoutMs() : this.opts.timeoutMs;
+      const ms = Number(raw);
+      return Number.isFinite(ms) && ms > 0 ? ms : DEFAULT;
+    } catch {
+      return DEFAULT;
     }
   }
 
@@ -281,7 +304,7 @@ export class GatewayMemoryJudge implements MemoryJudge {
   ): Promise<T | null> {
     if (!(await this.enabled())) return null;
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), this.opts.timeoutMs ?? 15000);
+    const timer = setTimeout(() => ac.abort(), await this.timeoutMs());
     try {
       const res = await this.gateway.chat(
         {

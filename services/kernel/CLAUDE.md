@@ -634,6 +634,21 @@ transport (Z2). See `docs/ARCHITECTURE.md §3` and `docs/THREAT_MODEL.md §2`.
   (`setRetryPolicy`; knobs `gateway.retry.maxRetries` = 2 and
   `gateway.retry.baseDelayMs` = 750 catalogued, D-0053; every attempt its own
   `model_calls` row). **539 kernel tests, 0 skipped.**
+- Ledger close-out during the act-three credit halt ✅ (D-0085, 2026-09-13):
+  **G-20** `memory/judge.ts` — the abort cap is the catalogued
+  `memory.judge.timeoutMs` (D-0053, 2 s–120 s, default 15 s) read LIVE through a
+  resolver (`timeoutMs?: number | (() => Promise<number> | number)`); a resolver
+  that throws or returns nonsense falls back to the default, never to no cap. A
+  cap below the judge model's real latency silently disables learning-by-
+  correction (`judged` stays 0), so it is a config knob, not a build constant.
+  **G-21** `entities.ts` `reconcileArticleVariants({apply})` — folds an article
+  variant into the plain name (facts + relations migrated conflict-safely, the
+  folded spelling kept as an alias, row superseded with `superseded_by`, audited
+  `entity_article_variant_merged`, announced); runs in the sleep cycle BEFORE
+  `reconcileHomes` so the duplicate's values meet the truth on one entity and the
+  newer wins there; route `POST /memory/reconcile-articles` (dry-run default).
+  Only a leading article may differ — a qualifier twin can never be folded.
+  **542 kernel tests, 0 skipped.**
 - **Test isolation (2026-07-17):** added `vitest.config.ts` with
   `fileParallelism: false`. The DB-integration suites share one `jarvis_test` DB and
   several files `TRUNCATE` the same tables in `beforeEach` (memory + context both

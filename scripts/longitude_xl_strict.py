@@ -128,6 +128,29 @@ class StrictScorer:
         first = clauses(text)[:1]
         return bool(first and self.NEG.search(first[0])) or bool(self.NEG.search(text[:25]))
 
+    def twin_leads(self, text: str, asked: str | None, present: set[str]) -> bool:
+        """G-22 (2026-09-12, fixed 2026-09-13): a twin SUBSTITUTION is a twin
+        that CARRIES the answer, not one mentioned as an aside. The old rule
+        fired whenever the asked name was absent and any twin was present, so a
+        correct answer that annotated its twin — "sencha (your weekend evening
+        drink is chamomile)", the asked `evening drink` occurring only inside
+        the longer twin after `names_in` blanks it — scored as a substitution;
+        it systematically under-scored the 28 weekend-twin preference topics.
+        The twin must appear in the LEADING clause (the one carrying the
+        answer); a twin behind a separator or in a parenthetical is an
+        annotation. `fact()` additionally requires the stated value to differ
+        from the truth — an answer that leads with the asked entity's own truth
+        cannot be answering from its twin."""
+        if not asked or asked in present:
+            return False
+        twins = self.TWINS.get(asked, [])
+        if not twins:
+            return False
+        lead = clauses(text)[:1]
+        if not lead:
+            return False
+        return any(self.NAME_RE[t].search(lead[0]) for t in twins)
+
     # ------------------------------------------------------------------ rules
     def fact(self, rec: dict, full: str, pool: str, asked: str | None) -> tuple[int, str]:
         """(hit, class). Classes: hit · honest · twin · hedge · stale · negated · wrong · empty · nomatch."""
@@ -136,12 +159,18 @@ class StrictScorer:
         if not text.strip():
             return 0, "empty"
         present = self.names_in(text)
-        if asked and asked not in present and any(t in present for t in self.TWINS.get(asked, [])):
-            return 0, "twin"
+        twin_named = bool(asked) and asked not in present and any(t in present for t in self.TWINS.get(asked, []))
         if self.leading_neg(text):
             return 0, "honest"
         stated, committed = stated_value(text, list(self.pools[pool]))
         truth_hit = bool(wb(truth).search(text))
+        # G-22: a twin SUBSTITUTION answers with the twin's value. When the
+        # stated value IS the asked entity's truth, a named twin is an
+        # annotation ("sencha (your weekend evening drink is chamomile)") and
+        # the answer stands; only a value other than the truth, offered while
+        # the asked entity is unnamed, is a substitution.
+        if twin_named and stated != truth:
+            return 0, "twin"
         if stated is None:
             return 0, "honest" if self.NEG.search(text) else "nomatch"
         if stated != truth:
@@ -160,7 +189,7 @@ class StrictScorer:
         if not text.strip():
             return 0, "empty"
         present = self.names_in(text)
-        if asked and asked not in present and any(t in present for t in self.TWINS.get(asked, [])):
+        if self.twin_leads(text, asked, present):
             return 0, "twin"
         if self.leading_neg(text):
             return 0, "honest"

@@ -406,6 +406,49 @@ describe.skipIf(!pool)("EntityMemory (semantic knowledge store)", () => {
     expect(await mem.recall("ravi")).toBeNull();
   });
 
+  it("G-21: two rows differing only by 'the' are folded into the plain name — facts and relations move, the old spelling stays an alias, twins are untouched", async () => {
+    const mem = new EntityMemory(pool!, audit, vault);
+    // the shape the 1000-day world carries: the stale duplicate holds an older value
+    await mem.rememberEntity({ kind: "place", name: "boat shed north", provenance: "test" });
+    await mem.rememberFact({ entityName: "boat shed north", statement: "boat shed north's home city is bergen", provenance: "test" });
+    await mem.rememberEntity({ kind: "place", name: "the boat shed north", provenance: "test" });
+    await mem.rememberFact({ entityName: "the boat shed north", statement: "the boat shed north's home city is hobart", provenance: "test" });
+    await mem.relate({ fromName: "irrigation controller north", toName: "the boat shed north", relation: "located_in", provenance: "test", kind: "device" });
+    // a qualifier twin must never be folded by this pass
+    await mem.rememberEntity({ kind: "device", name: "kiln", provenance: "test" });
+    await mem.rememberEntity({ kind: "device", name: "kiln north", provenance: "test" });
+
+    const dry = await mem.reconcileArticleVariants();
+    expect(dry.applied).toBe(false);
+    expect(dry.merged.map((m) => `${m.folded}->${m.kept}`)).toEqual(["the boat shed north->boat shed north"]);
+    expect(dry.merged[0]!.facts).toBe(1);
+    // dry run changed nothing
+    expect((await pool!.query("SELECT count(*) n FROM memory_entities WHERE kind='place' AND status NOT IN ('deleted','superseded')")).rows[0].n).toBe("2");
+
+    const applied = await mem.reconcileArticleVariants({ apply: true });
+    expect(applied.applied).toBe(true);
+    expect(applied.merged.length).toBe(1);
+
+    const places = await pool!.query<{ name: string; aliases: string[] }>(
+      "SELECT name, aliases FROM memory_entities WHERE kind='place' AND status NOT IN ('deleted','superseded')",
+    );
+    expect(places.rows.length).toBe(1);
+    expect(places.rows[0]!.name).toBe("boat shed north");
+    expect(places.rows[0]!.aliases).toContain("the boat shed north");
+
+    // both values now sit on ONE entity (reconcileHomes then retires the older)
+    const rec = await mem.recall("boat shed north");
+    expect(rec!.facts.map((f) => f.statement).join(" ")).toContain("bergen");
+    expect(rec!.facts.map((f) => f.statement).join(" ")).toContain("hobart");
+    expect(rec!.relationsIn.some((r) => r.fromName === "irrigation controller north")).toBe(true);
+    // the old spelling still resolves
+    expect((await mem.recall("the boat shed north"))!.entity.name).toBe("boat shed north");
+    // twins untouched
+    expect((await pool!.query("SELECT count(*) n FROM memory_entities WHERE kind='device' AND status NOT IN ('deleted','superseded')")).rows[0].n).toBe("3");
+    const events = (audit.append as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as { event: string }).event);
+    expect(events).toContain("entity_article_variant_merged");
+  });
+
   it("falls back to deterministic logic when the judge is absent (offline honesty)", async () => {
     // no judge injected → the string-heuristic path still merges obvious dupes
     const mem = new EntityMemory(pool!, audit, vault);

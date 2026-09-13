@@ -248,6 +248,18 @@ export const SETTINGS_CATALOG: SettingSpec[] = [
     description: "Entities unused for this many days are PROPOSED for review during the sleep cycle — never auto-forgotten.",
   },
 
+  {
+    key: "memory.judge.timeoutMs",
+    label: "Memory-judgment timeout (ms)",
+    category: "Memory",
+    type: "number",
+    min: 2000,
+    max: 120000,
+    step: 500,
+    default: () => 15000,
+    description: "How long a memory judgment (entity resolution, fact merge, deep-topic extraction) may take before it is abandoned and the deterministic path runs instead. Raise it for a slower judge model — an abandoned call is silent by contract, so a cap below the model's real latency quietly disables learning-by-correction.",
+  },
+
   // ---- Gateway retry (G-25, 2026-09-12): same-target backoff before fallback ----
   {
     key: "gateway.retry.maxRetries",

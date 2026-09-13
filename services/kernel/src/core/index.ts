@@ -237,6 +237,9 @@ export async function buildCore(opts: {
   await seedJudgeTemplates(prompts);
   const memoryJudge = new GatewayMemoryJudge(opts.gateway, {
     enabled: () => settings.bool("memory.llmJudgment", true),
+    // G-20: the abort cap is catalogued and read live, not a build constant —
+    // a slower judge model is a config change, never a silent fallback
+    timeoutMs: () => settings.num("memory.judge.timeoutMs", 15000),
     templates: async (name) => (await prompts.get(name, "template"))?.content ?? null,
   });
   // Semantic knowledge store (entities/facts/relations) — encrypted at rest; the
