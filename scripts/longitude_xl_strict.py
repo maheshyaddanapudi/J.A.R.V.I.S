@@ -164,12 +164,14 @@ class StrictScorer:
             return 0, "honest"
         stated, committed = stated_value(text, list(self.pools[pool]))
         truth_hit = bool(wb(truth).search(text))
-        # G-22: a twin SUBSTITUTION answers with the twin's value. When the
-        # stated value IS the asked entity's truth, a named twin is an
-        # annotation ("sencha (your weekend evening drink is chamomile)") and
-        # the answer stands; only a value other than the truth, offered while
-        # the asked entity is unnamed, is a substitution.
-        if twin_named and stated != truth:
+        # G-22: a twin SUBSTITUTION is an answer whose SUBJECT is the twin —
+        # either the twin carries the leading clause ("the coral census two's
+        # status colour is teal", which answers about the wrong thing even when
+        # the value happens to coincide), or the answer offers a value that is
+        # not the asked entity's truth while naming only the twin. A twin named
+        # BESIDE the asked entity's own truth is an annotation ("sencha (your
+        # weekend evening drink is chamomile)") and the answer stands.
+        if twin_named and (self.twin_leads(text, asked, present) or stated != truth):
             return 0, "twin"
         if stated is None:
             return 0, "honest" if self.NEG.search(text) else "nomatch"
