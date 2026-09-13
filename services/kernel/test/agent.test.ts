@@ -192,3 +192,24 @@ describe("LocalAgentRuntime (multi-step plan-and-act through the gated loop)", (
     expect(res.answer).toMatch(/budget/);
   });
 });
+
+describe("LocalAgentRuntime tool scope (Longitude-XL E-01, 2026-09-11)", () => {
+  it("toolScope trims the catalogue sent to the model to matching names/prefixes; no scope sends everything", async () => {
+    const { ToolRegistry } = await import("../src/core/tools.js");
+    const tools = new ToolRegistry();
+    const mk = (name: string) => ({ name, description: name, riskClass: "READ_ONLY" as const, action: name, inputSchema: { type: "object" }, run: async () => ({ ok: true, summary: name }) });
+    tools.register(mk("memory.recall"));
+    tools.register(mk("memory.recallPreferences"));
+    tools.register(mk("system.info"));
+    tools.register(mk("files.read"));
+    const estop = makeEstop();
+    const { gw, calls } = scriptedGateway([{ text: "done" }]);
+    const { loop, activity } = makeLoop(gw, tools, estop);
+    const { LocalAgentRuntime } = await import("../src/agent/runtime.js");
+    const rt = new LocalAgentRuntime({ gateway: gw, loop, tools, audit, activity, estop });
+    await rt.run("what is my coffee order?", { toolScope: ["memory.", "system.info"] });
+    expect(calls[0]!.tools!.map((t) => t.name).sort()).toEqual(["memory.recall", "memory.recallPreferences", "system.info"]);
+    await rt.run("what is my coffee order?");
+    expect(calls[1]!.tools!).toHaveLength(4);
+  });
+});

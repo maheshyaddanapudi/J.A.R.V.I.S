@@ -71,6 +71,25 @@ export function registerMemoryRoutes(
       const name = decodeURIComponent((req.params as { name?: string }).name ?? "");
       return { forgotten: await entities.forgetEntity(name) };
     });
+    // G-17 reconciliation: split aliases that were separately-taught things
+    // folded in by a pre-fix name-variant merge. Dry-run unless {apply: true};
+    // every applied split is audited (`entity_alias_split`) and announced.
+    app.post("/memory/reconcile-twins", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.splitTwinAliases({ apply: body.apply === true });
+    });
+    // G-03 reconciliation: one home per attribute — the newer record wins, the
+    // older is retired with history. Dry-run unless {apply: true}; audited.
+    app.post("/memory/reconcile-homes", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });
+    });
+    // G-07 reconciliation: exclusive relations keep their newest edge; the rest
+    // move to history. Twin-touched anchors are skipped (re-teach). Dry-run default.
+    app.post("/memory/reconcile-relations", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileRelations({ apply: body.apply === true });
+    });
   }
   app.get("/memory/preferences", async (req) => {
     const q = (req.query as { q?: string }).q;

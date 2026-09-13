@@ -1,0 +1,501 @@
+{
+ "label": "before_r10",
+ "kernel": "http://127.0.0.1:4180",
+ "misses": 35,
+ "aggregate": {
+  "surfaced_by_graph": 23,
+  "in_graph_but_missed": 0,
+  "prefs_only": 7,
+  "absent": 5
+ },
+ "surfaced_by_any_probe": 30,
+ "rows": [
+  {
+   "fid": "58.0",
+   "first_missed_day": 510,
+   "topic": "weekend preferred meeting day",
+   "pref": true,
+   "question": "What is my weekend preferred meeting day?",
+   "truth": "wednesday",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "weekend_preferred_meeting_day"
+  },
+  {
+   "fid": "107.0",
+   "first_missed_day": 520,
+   "topic": "lab-glass supplier",
+   "pref": false,
+   "question": "What is the lab-glass supplier's status colour?",
+   "truth": "ochre",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "hybrid",
+   "graph_seed0": "lab-glass supplier"
+  },
+  {
+   "fid": "104.1",
+   "first_missed_day": 520,
+   "topic": "filament shop",
+   "pref": false,
+   "question": "What is the filament shop's assigned number?",
+   "truth": "3",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "filament shop"
+  },
+  {
+   "fid": "123.0",
+   "first_missed_day": 540,
+   "topic": "microscope two",
+   "pref": false,
+   "question": "What is the microscope two's status colour?",
+   "truth": "ochre",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "Microscope Two"
+  },
+  {
+   "fid": "122.1",
+   "first_missed_day": 540,
+   "topic": "microscope",
+   "pref": false,
+   "question": "What is the microscope's service day?",
+   "truth": "thursday",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "microscope north"
+  },
+  {
+   "fid": "109.1",
+   "first_missed_day": 550,
+   "topic": "lab-glass supplier north",
+   "pref": false,
+   "question": "What is the lab-glass supplier north's core material?",
+   "truth": "cedar",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "lab-glass supplier north"
+  },
+  {
+   "fid": "152.1",
+   "first_missed_day": 560,
+   "topic": "boat shed",
+   "pref": false,
+   "question": "What is the boat shed's status colour?",
+   "truth": "cobalt",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "boat shed"
+  },
+  {
+   "fid": "38.0",
+   "first_missed_day": 570,
+   "topic": "tea order",
+   "pref": true,
+   "question": "What is my tea order?",
+   "truth": "darjeeling",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "semantic",
+   "graph_seed0": "fermentation workshop"
+  },
+  {
+   "fid": "1039.0",
+   "first_missed_day": 590,
+   "topic": "gym day",
+   "pref": true,
+   "question": "What is my gym day?",
+   "truth": "thursday",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "user"
+  },
+  {
+   "fid": "83.2",
+   "first_missed_day": 610,
+   "topic": "coral census",
+   "pref": false,
+   "question": "What is the coral census's service day?",
+   "truth": "friday",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "semantic",
+   "graph_seed0": "Coral Census Two"
+  },
+  {
+   "fid": "71.0",
+   "first_missed_day": 610,
+   "topic": "archive digitisation",
+   "pref": false,
+   "question": "What is the archive digitisation's assigned number?",
+   "truth": "19",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "hybrid",
+   "graph_seed0": "Archive Digitisation"
+  },
+  {
+   "fid": "93.1",
+   "first_missed_day": 620,
+   "topic": "optics vendor two",
+   "pref": false,
+   "question": "What is the optics vendor two's assigned number?",
+   "truth": "12",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "hybrid",
+   "graph_seed0": "optics vendor two"
+  },
+  {
+   "fid": "149.1",
+   "first_missed_day": 630,
+   "topic": "test range",
+   "pref": false,
+   "question": "What is the test range's home city?",
+   "truth": "lisbon",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "hybrid",
+   "graph_seed0": "the test range"
+  },
+  {
+   "fid": "138.1",
+   "first_missed_day": 650,
+   "topic": "lakeside cabin two",
+   "pref": false,
+   "question": "What is the lakeside cabin two's home city?",
+   "truth": "lisbon",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "hybrid",
+   "graph_seed0": "Lakeside Cabin Two"
+  },
+  {
+   "fid": "85.0",
+   "first_missed_day": 650,
+   "topic": "coral census north",
+   "pref": false,
+   "question": "What is the coral census north's core material?",
+   "truth": "graphene",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "the coral census north"
+  },
+  {
+   "fid": "111.1",
+   "first_missed_day": 670,
+   "topic": "sensor importer two",
+   "pref": false,
+   "question": "What is the sensor importer two's home city?",
+   "truth": "lisbon",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "The Sensor Importer Two"
+  },
+  {
+   "fid": "134.0",
+   "first_missed_day": 700,
+   "topic": "irrigation controller",
+   "pref": false,
+   "question": "What is the irrigation controller's assigned number?",
+   "truth": "91",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "hybrid",
+   "graph_seed0": "irrigation controller"
+  },
+  {
+   "fid": "150.1",
+   "first_missed_day": 720,
+   "topic": "test range two",
+   "pref": false,
+   "question": "What is the test range two's assigned number?",
+   "truth": "68",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "the test range"
+  },
+  {
+   "fid": "146.2",
+   "first_missed_day": 720,
+   "topic": "storage unit",
+   "pref": false,
+   "question": "What is the storage unit's assigned number?",
+   "truth": "7",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "hybrid",
+   "graph_seed0": "Storage Unit"
+  },
+  {
+   "fid": "111.0",
+   "first_missed_day": 720,
+   "topic": "sensor importer two",
+   "pref": false,
+   "question": "What is the sensor importer two's status colour?",
+   "truth": "ochre",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "The Sensor Importer Two"
+  },
+  {
+   "fid": "121.1",
+   "first_missed_day": 730,
+   "topic": "kiln north",
+   "pref": false,
+   "question": "What is the kiln north's home city?",
+   "truth": "windhoek",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "kiln north"
+  },
+  {
+   "fid": "1042.0",
+   "first_missed_day": 750,
+   "topic": "study plant",
+   "pref": true,
+   "question": "What is my study plant?",
+   "truth": "basil",
+   "via": [
+    "graph",
+    "exact"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "study plant"
+  },
+  {
+   "fid": "86.0",
+   "first_missed_day": 780,
+   "topic": "glacier telemetry",
+   "pref": false,
+   "question": "What is the glacier telemetry's status colour?",
+   "truth": "ochre",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "glacier telemetry north"
+  },
+  {
+   "fid": "122.0",
+   "first_missed_day": 780,
+   "topic": "microscope",
+   "pref": false,
+   "question": "What is the microscope's status colour?",
+   "truth": "slate",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Microscope Two"
+  },
+  {
+   "fid": "86.1",
+   "first_missed_day": 790,
+   "topic": "glacier telemetry",
+   "pref": false,
+   "question": "What is the glacier telemetry's home city?",
+   "truth": "hobart",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Glacier Telemetry Two"
+  },
+  {
+   "fid": "161.1",
+   "first_missed_day": 880,
+   "topic": "morning swim",
+   "pref": false,
+   "question": "What is the morning swim's assigned number?",
+   "truth": "12",
+   "via": [
+    "graph",
+    "prefs"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "the morning swim north"
+  },
+  {
+   "fid": "79.2",
+   "first_missed_day": 880,
+   "topic": "tidal model north",
+   "pref": false,
+   "question": "What is the tidal model north's status colour?",
+   "truth": "olive",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "the tidal model north"
+  },
+  {
+   "fid": "94.0",
+   "first_missed_day": 900,
+   "topic": "optics vendor north",
+   "pref": false,
+   "question": "What is the optics vendor north's core material?",
+   "truth": "basalt fiber",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "optics vendor north"
+  },
+  {
+   "fid": "117.2",
+   "first_missed_day": 910,
+   "topic": "roof array two",
+   "pref": false,
+   "question": "What is the roof array two's status colour?",
+   "truth": "crimson",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "hybrid",
+   "graph_seed0": "Rooftop Garden Two"
+  },
+  {
+   "fid": "67.1",
+   "first_missed_day": 930,
+   "topic": "fusion sim north",
+   "pref": false,
+   "question": "What is the fusion sim north's status colour?",
+   "truth": "cobalt",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "Fusion Sim North"
+  },
+  {
+   "fid": "101.2",
+   "first_missed_day": 930,
+   "topic": "seed bank",
+   "pref": false,
+   "question": "What is the seed bank's assigned number?",
+   "truth": "19",
+   "via": [
+    "prefs"
+   ],
+   "class": "prefs_only",
+   "graph_mode": "hybrid",
+   "graph_seed0": "seed vault"
+  },
+  {
+   "fid": "114.1",
+   "first_missed_day": 940,
+   "topic": "air scrubber two",
+   "pref": false,
+   "question": "What is the air scrubber two's assigned number?",
+   "truth": "24",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "hybrid",
+   "graph_seed0": "air scrubber two"
+  },
+  {
+   "fid": "98.0",
+   "first_missed_day": 980,
+   "topic": "cloud recycler",
+   "pref": false,
+   "question": "What is the cloud recycler's home city?",
+   "truth": "bergen",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "Cloud Recycler Two"
+  },
+  {
+   "fid": "135.2",
+   "first_missed_day": 990,
+   "topic": "irrigation controller two",
+   "pref": false,
+   "question": "What is the irrigation controller two's assigned number?",
+   "truth": "68",
+   "via": [],
+   "class": "absent",
+   "graph_mode": "hybrid",
+   "graph_seed0": "irrigation controller two"
+  },
+  {
+   "fid": "1040.0",
+   "first_missed_day": 990,
+   "topic": "bike colour",
+   "pref": true,
+   "question": "What is my bike colour?",
+   "truth": "olive",
+   "via": [
+    "graph"
+   ],
+   "class": "surfaced_by_graph",
+   "graph_mode": "semantic",
+   "graph_seed0": "bike"
+  }
+ ]
+}

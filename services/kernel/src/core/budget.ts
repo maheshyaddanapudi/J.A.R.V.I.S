@@ -29,7 +29,7 @@ const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
 };
 
 /** Sources that count as AUTONOMY (self-driven), meterable against the autonomy cap. */
-const AUTONOMY_SOURCES = ["heartbeat", "sleep-cycle", "autonomy", "proactive"];
+const AUTONOMY_SOURCES = ["heartbeat", "sleep-cycle", "autonomy", "proactive", "night-lab"];
 
 export interface BudgetStatus {
   windowHours: number;

@@ -50,7 +50,17 @@ export interface ConsolidationReport {
   notes: string[];
   autotune: Autotune;
   /** quiet-hours MEMORY consolidation (D-0063): dupes merged + stale proposals */
-  memory?: { entitiesScanned: number; duplicatesMerged: number; entitiesMerged: number; staleProposals: number };
+  memory?: {
+    entitiesScanned: number;
+    duplicatesMerged: number;
+    entitiesMerged: number;
+    staleProposals: number;
+    /** near-duplicate preference KEYS folded (Longitude finding #5) */
+    preferenceDupes?: number;
+    homesReconciled?: number;
+    /** G-28: judge merges declined by the slot guard (facts about different attributes) */
+    mergesRefused?: number;
+  };
 }
 
 export const CONSOLIDATION_KEY = "reasoning_last_consolidation";
@@ -87,8 +97,29 @@ export class SleepCycle {
       store: { remember(i: { key: string; value: string; provenance: string }): Promise<unknown> };
       /** quiet-hours MEMORY consolidation (D-0063) — merge duplicate facts, propose stale */
       memory?: EntityMemory;
+      /** near-duplicate preference-KEY tidy (Longitude finding #5) — best-effort */
+      prefs?: { tidyDuplicates(): Promise<{ merged: string[]; proposals: string[] }> };
+      /** G-03 (2026-09-11): the preference side of "one home per attribute" — the
+       *  quiet-hours pass retires the OLDER of two disagreeing records with history */
+      prefStore?: {
+        matchKeys(subject: string, hint?: string): Promise<{ key: string; value: string }[]>;
+        get(key: string): Promise<{ key: string; value: string; updated_at: string; sensitivity?: string } | null>;
+        delete(key: string): Promise<boolean>;
+      };
       /** thresholds read live from the editable catalog (D-0058) */
       settings?: SettingsRegistry;
+      /** G-27 (2026-09-12): a D-0052 override of a USER-set value must reach the
+       *  user in conversation (the D-0077 relay), not only the timeline */
+      announcer?: {
+        raise(input: {
+          text: string;
+          about?: string;
+          kind?: "say" | "concern";
+          urgency?: "info" | "advisory" | "urgent";
+          source: string;
+          dedupeKey?: string;
+        }): Promise<unknown>;
+      };
     },
   ) {}
 
@@ -171,6 +202,20 @@ export class SleepCycle {
           adjustments.push(
             `changed your manual setting ${tune.signalThreshold}→${target} — the trail outweighed the pin (${contradictions} ≥ ${needed}); re-set it and I'll hold it twice as long`,
           );
+          // G-27: say it where the user will hear it — the announcer feeds the
+          // next conversation turn (D-0077); the timeline alone was a whisper.
+          try {
+            await this.deps.announcer?.raise({
+              text:
+                `I've changed your manual escalation threshold ${tune.signalThreshold}→${target}: ${contradictions} contradictions since you set it` +
+                `${tune.at ? ` on ${tune.at}` : ""} cleared the bar of ${needed}. Re-set it and I'll hold it twice as long.`,
+              about: "reasoning threshold",
+              kind: "say",
+              urgency: "advisory",
+              source: "sleep-cycle",
+              dedupeKey: `sleep-cycle:override:${tune.at ?? "unknown"}`,
+            });
+          } catch { /* the change stands and is journaled either way */ }
         }
       } else if (contradictions > 0) {
         notes.push(
@@ -249,6 +294,13 @@ export class SleepCycle {
           findings.push(`memory: merged ${m.duplicatesMerged} duplicate fact(s) across ${m.entitiesScanned} entities`);
           for (const d of m.merged.slice(0, 5)) notes.push(`memory merge — ${d}`);
         }
+        // G-28: declined merges are part of the record too — the judge wanted
+        // to fold facts about different attributes; the slot guard kept both
+        if (m.refused.length) {
+          memorySection.mergesRefused = m.refused.length;
+          findings.push(`memory: declined ${m.refused.length} judge merge(s) — the facts were about different attributes; kept both`);
+          for (const d of m.refused.slice(0, 5)) notes.push(`merge declined — ${d}`);
+        }
         if (m.entitiesMerged) {
           findings.push(`memory: merged ${m.entitiesMerged} cross-kind same-name entity(ies) into one`);
           for (const d of m.entityMerges.slice(0, 5)) notes.push(`entity merge — ${d}`);
@@ -257,6 +309,38 @@ export class SleepCycle {
           proposals.push(`memory: '${name}' hasn't come up in a long while — forget it, or keep it? (never auto-forgotten)`);
         }
       } catch { /* memory pass is best-effort */ }
+    }
+    if (this.deps.prefs) {
+      try {
+        const t = await this.deps.prefs.tidyDuplicates();
+        if (memorySection) memorySection.preferenceDupes = t.merged.length;
+        if (t.merged.length) {
+          findings.push(`memory: folded ${t.merged.length} duplicate preference key(s)`);
+          for (const d of t.merged.slice(0, 5)) notes.push(`preference tidy — ${d}`);
+        }
+        for (const p of t.proposals) proposals.push(p);
+      } catch { /* preference tidy is best-effort */ }
+    }
+    // G-03: one home per attribute. Two disagreeing records for the same
+    // entity + slot (fact/fact, fact/preference, fact/attribute clause) → the
+    // newer wins, the older is retired WITH history and the change announced.
+    if (this.deps.memory) {
+      try {
+        const r = await this.deps.memory.reconcileHomes({ apply: true, ...(this.deps.prefStore ? { prefs: this.deps.prefStore } : {}) });
+        if (memorySection) memorySection.homesReconciled = r.conflicts.length;
+        if (r.conflicts.length) {
+          findings.push(`memory: ${r.conflicts.length} attribute(s) had two homes with different values — kept the newer, retired the older with history`);
+          for (const c of r.conflicts.slice(0, 5)) notes.push(`one-home — ${c.entity}'s ${c.slot}: kept ${c.kept.value} (${c.kept.home}), retired ${c.retired.value} (${c.retired.home})`);
+        }
+      } catch { /* reconciliation is best-effort */ }
+      // G-07: exclusive relations keep one current edge (newest); the rest go to history
+      try {
+        const rr = await this.deps.memory.reconcileRelations({ apply: true });
+        if (rr.resolved.length) {
+          findings.push(`memory: ${rr.resolved.length} exclusive relation(s) held more than one value — kept the newest, moved the rest to history`);
+          for (const r of rr.resolved.slice(0, 5)) notes.push(`one-edge — ${r.anchor} ${r.relation}: kept ${r.kept}, retired ${r.retired.join(", ")}`);
+        }
+      } catch { /* best-effort */ }
     }
 
     const atRow = await pool.query<{ now: string }>("SELECT now()::text AS now");
@@ -284,7 +368,13 @@ export class SleepCycle {
     try {
       await this.deps.episodes?.record({
         summary: `Sleep-cycle consolidation: ${findings.length} finding(s), ${adjustments.length} adjustment(s), ${proposals.length} proposal(s)`,
-        detail: [...findings, ...adjustments.map((a) => `adjusted: ${a}`), ...proposals.map((p) => `proposed: ${p}`)].join("\n") || "quiet period — nothing to adjust",
+        // G-28: the memory changes are named on the timeline, not just counted
+        detail: [
+          ...findings,
+          ...adjustments.map((a) => `adjusted: ${a}`),
+          ...notes.filter((n) => /^(memory merge|merge declined|entity merge|preference tidy|one-home|one-edge) — /.test(n)).map((n) => `note: ${n}`),
+          ...proposals.map((p) => `proposed: ${p}`),
+        ].join("\n") || "quiet period — nothing to adjust",
         kind: "decision",
         importance: adjustments.length || proposals.length ? 0.6 : 0.3,
         tags: ["sleep-cycle", "reasoning"],

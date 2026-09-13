@@ -24,6 +24,18 @@ function reasoningEffort(target: TargetOptions | undefined): string | undefined 
   return target.effort ?? (target.thinking === "on" ? "medium" : undefined);
 }
 
+/**
+ * G-23 (2026-09-12): "thinking: off" must DISABLE reasoning, not merely decline
+ * to ask for it. Omitting `reasoning_effort` leaves the provider's default in
+ * force, and on OpenRouter the Qwen family reasons by default — a fast role
+ * pinned off still spent 400+ reasoning tokens and ~10 s per call. Only a
+ * provider that declares the dialect gets the explicit switch, because plain
+ * OpenAI-compatible servers reject unknown body fields.
+ */
+function reasoningOff(dialect: string | undefined, target: TargetOptions | undefined): object {
+  return dialect === "openrouter" && target?.thinking === "off" ? { reasoning: { enabled: false } } : {};
+}
+
 function toOpenAiMessages(messages: NeutralMessage[]) {
   return messages.map((m) => {
     switch (m.role) {
@@ -71,6 +83,8 @@ export function createOpenAiCompatAdapter(opts: {
   /** resolves a named secret from the encrypted vault; undefined = no vault */
   resolveSecret?: (name: string) => Promise<string | undefined>;
   local: boolean;
+  /** reasoning-control dialect; see `reasoningOff` and the schema comment (G-23) */
+  reasoningDialect?: "openrouter";
 }): ProviderAdapter {
   const baseUrl = (opts.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
 
@@ -101,6 +115,7 @@ export function createOpenAiCompatAdapter(opts: {
         stream: true,
         stream_options: { include_usage: true },
         ...(effort ? { reasoning_effort: effort } : {}),
+        ...reasoningOff(opts.reasoningDialect, target),
         ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
         ...(req.temperature !== undefined && !effort ? { temperature: req.temperature } : {}),
         ...(req.tools?.length

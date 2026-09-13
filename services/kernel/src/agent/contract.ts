@@ -38,6 +38,15 @@ export interface AgentResult {
 export interface AgentRunOptions {
   /** hard cap on tool steps (R-SEC-04 runaway bound); default is set by the runtime */
   maxSteps?: number;
+  /**
+   * Longitude-XL E-01 (2026-09-11): restrict the tool catalogue offered to the
+   * model to these names or name prefixes ("memory." → every memory tool).
+   * The full catalogue (~60 schemas, the bulk of every planning step's input)
+   * is the default; a caller that knows the objective's shape — a memory
+   * question, a file task — trims what it sends. Never grants a tool that is
+   * not registered and gated; every step still runs through the loop.
+   */
+  toolScope?: string[];
   privacyClass?: "LOCAL_ONLY" | "STANDARD";
   source?: string;
   /**

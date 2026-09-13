@@ -38,8 +38,46 @@ function stem(w: string): string {
 }
 function contentWords(s: string): Set<string> {
   return new Set(
-    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP_WORDS.has(w)).map(stem),
+    (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length > 1 && !STOP_WORDS.has(w)).map(stem),
   );
+}
+/** Content words two statements share, ignoring the entity's own name (which
+ *  every statement about it repeats) — "is this about the same attribute?" */
+function sharedContent(a: string, b: string, entityName: string): number {
+  const skip = contentWords(entityName);
+  const wb = contentWords(b);
+  let n = 0;
+  for (const w of contentWords(a)) if (wb.has(w) && !skip.has(w)) n++;
+  return n;
+}
+
+/** R10 / G-19 (2026-09-11): a correction may only supersede a fact about the SAME
+ *  attribute slot. Shared words are not enough — "status is closed" shares
+ *  "status" with "status colour is slate", and a retirement written as a
+ *  correction retired the colour instead (Sonnet-5 mini-life run 2). When both
+ *  statements parse to a slot, the slots must be identical; a statement whose
+ *  slot no active fact carries becomes a NEW fact (the sleep cycle's
+ *  `reconcileHomes` still merges genuine same-slot variants later). */
+function slotCompatible(oldStatement: string, newStatement: string, entityName: string): boolean {
+  const a = parseSlot(oldStatement, entityName);
+  const b = parseSlot(newStatement, entityName);
+  if (!a || !b) return true;
+  return a.slot === b.slot;
+}
+
+/** G-28 (2026-09-12, act three day 1027): the quiet-hours judge folded "theo
+ *  eriksen meets on Tuesday" and "is based in Lisbon" into the nickname fact
+ *  'usually goes by "Theo"' — three different things, merged on trust. A judge
+ *  merge may fold a fact only into a fact about the SAME thing: when both
+ *  statements parse to an attribute slot the slots must agree; otherwise they
+ *  must share at least one content word beyond the entity's own name (a
+ *  paraphrase the heuristic missed — the judge's purpose). The judge keeps its
+ *  say on wording; it never gets to decide that two attributes are one. */
+export function judgeMergeAllowed(oldStatement: string, keepStatement: string, entityName: string): boolean {
+  const a = parseSlot(oldStatement, entityName);
+  const b = parseSlot(keepStatement, entityName);
+  if (a && b) return sameSlot(a.slot, b.slot);
+  return sharedContent(oldStatement, keepStatement, entityName) >= 1;
 }
 
 /** Loose name-similarity PRE-FILTER for entity resolution (D-0075). Deliberately
@@ -116,6 +154,102 @@ function preferFuller(existing: string, incoming: string): string {
 function fullestName(names: string[]): string {
   return names.reduce((best, n) => preferFuller(best, n));
 }
+/** Tokens that make a name a DIFFERENT member of the same family rather than a
+ *  variant spelling: 'coral census' vs 'coral census two', 'kiln' vs 'kiln north'. */
+const QUALIFIER_TOKENS = new Set([
+  "two", "three", "four", "five", "2", "3", "4", "5", "ii", "iii", "iv", "v",
+  "north", "south", "east", "west", "new", "old", "second", "third", "alpha", "beta", "mk", "mark", "jr", "sr",
+]);
+function nameShape(name: string): { base: string; quals: string } {
+  const toks = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  const body = toks[0] === "the" ? toks.slice(1) : toks;
+  return {
+    base: body.filter((t) => !QUALIFIER_TOKENS.has(t)).join(" "),
+    quals: body.filter((t) => QUALIFIER_TOKENS.has(t)).join(" "),
+  };
+}
+/**
+ * Longitude-XL G-17 (2026-09-11): two names are QUALIFIER TWINS when they share
+ * the same base words and differ only in qualifier tokens — 'coral census' ⇄
+ * 'coral census two', 'the kiln' ⇄ 'kiln north', 'sensor importer two' ⇄
+ * 'sensor importer north'. Twins are different things by default and are never
+ * merged as name variants of one entity: over 1000 simulated days the resolver
+ * had folded 29 separately-taught twins into their longer siblings, and every
+ * later exact lookup of the shorter name answered with the sibling's values.
+ * 'Pepper' ⇄ 'Pepper Potts' and 'kiln' ⇄ 'the kiln' are NOT twins (same base,
+ * no qualifier difference / a genuinely fuller name).
+ */
+export function qualifierTwin(a: string, b: string): boolean {
+  const A = nameShape(a);
+  const B = nameShape(b);
+  return A.base.length > 0 && A.base === B.base && A.quals !== B.quals;
+}
+/** Slot words of a statement / key: lowercase tokens minus filler. */
+const SLOT_FILLER = new Set(["its", "the", "a", "an", "is", "are", "was", "now", "currently", "of", "for", "their", "his", "her", "my", "our", "to", "as"]);
+function normalizeSlot(s: string): Set<string> {
+  return new Set(s.toLowerCase().replace(/'s\b/g, " ").split(/[^a-z0-9]+/).filter((t) => t && !SLOT_FILLER.has(t)));
+}
+const UNIT_WORDS = new Set(["day", "hour", "number", "city", "colour", "color", "material", "name", "value"]);
+function sameSlot(a: string, b: string): boolean {
+  if (a === b) return true;
+  const A = new Set(a.split(" ")), B = new Set(b.split(" "));
+  const diff = [...A].filter((t) => !B.has(t)).concat([...B].filter((t) => !A.has(t)));
+  const small = A.size <= B.size ? A : B;
+  return diff.length === 1 && UNIT_WORDS.has(diff[0]!) && [...small].every((t) => A.has(t) && B.has(t));
+}
+function normValue(v: string): string {
+  return v.toLowerCase().replace(/\(.*?\)/g, "").replace(/\s+(now|currently|as of .*)$/i, "").replace(/[.!]$/, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
+}
+/**
+ * G-03: the attribute SLOT and VALUE a statement carries, with the entity's own
+ * name stripped — "Status colour is ochre (changed from slate)." → {status colour,
+ * ochre}; "Umar Brandt is based in Bergen" → {based in, bergen}; "umar brandt's
+ * meeting is on wednesday" → {meeting, wednesday}. Null when no slot is found.
+ */
+export function parseSlot(statement: string, entityName: string): { slot: string; value: string } | null {
+  let s = statement.toLowerCase().replace(/\(.*?\)/g, " ").replace(/\s+/g, " ").trim().replace(/[.!]$/, "");
+  const ent = entityName.toLowerCase().replace(/[^a-z0-9]+/g, "[^a-z0-9]+");
+  s = s.replace(new RegExp(`(^|[^a-z0-9])(the\\s+)?${ent}('s)?(?=[^a-z0-9]|$)`, "g"), "$1").replace(/\s+/g, " ").trim();
+  s = s.replace(/^[\s:;,\-—–]+/, ""); // "coral census two: status colour is teal" → "status colour is teal"
+  let m = /^(?:its|their|his|her|the)?\s*(.+?)(?:\s+(?:is|are|was)\s+|\s*[:=]\s*)(?:now\s+|currently\s+)?(.+)$/.exec(s);
+  let slotText = "", value = "";
+  if (m && m[1]!.trim()) {
+    slotText = m[1]!; value = m[2]!;
+  } else {
+    m = /^(?:is\s+|are\s+)?(based in|located (?:at|in)|meets on|meeting is on|lives in|works at)\s+(.+)$/.exec(s);
+    if (!m) return null;
+    slotText = m[1]!.replace(/\s+is\s+on$/, ""); value = m[2]!;
+  }
+  value = normValue(value.replace(/^(?:in|on|at|to|of|as|now)\s+/, ""));
+  const slot = [...normalizeSlot(slotText)].sort().join(" ");
+  return slot && value ? { slot, value } : null;
+}
+/**
+ * G-07 (2026-09-11): relations that hold ONE value per subject (a thing is in
+ * one place) or per object (a device has one maintainer of record). A new edge
+ * on an exclusive relation REPLACES the previous one — the displaced edge moves
+ * to `memory_relation_history` and the audit names the change — unless the
+ * caller says `additive` ("she ALSO maintains it"). Non-exclusive verbs
+ * (supplies, depends_on, knows, works_on) accumulate as before.
+ */
+const RELATION_EXCLUSIVITY: Record<string, "subject" | "object"> = {
+  located_in: "subject", based_in: "subject", lives_in: "subject", reports_to: "subject", works_at: "subject",
+  maintains: "object", owns: "object", manages: "object",
+};
+export function normalizeVerb(v: string): string {
+  const t = v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return t.replace(/^is_/, "").replace(/^located_at$/, "located_in").replace(/^(lives|based)_at$/, "$1_in");
+}
+export function relationExclusivity(verb: string): "subject" | "object" | null {
+  return RELATION_EXCLUSIVITY[normalizeVerb(verb)] ?? null;
+}
+/** A name is a mere VARIANT of another (article/case/spacing) — same base, same
+ *  qualifiers — as opposed to a different thing that was folded in. */
+function sameShape(a: string, b: string): boolean {
+  const A = nameShape(a);
+  const B = nameShape(b);
+  return A.base === B.base && A.quals === B.quals;
+}
 /** Cheap gate before spending a model call on consolidation: do any two facts
  *  share a content word at all? If not, there is nothing plausibly duplicated. */
 function anyPairShareWord(decoded: { words: Set<string> }[]): boolean {
@@ -134,6 +268,8 @@ export interface Entity {
   kind: EntityKind;
   name: string;
   attributes: string;
+  /** other names this entity goes by (G-26) — present when the row was read by name */
+  aliases?: string[] | null;
   status: EpistemicStatus;
   provenance: string;
   confidence: number;
@@ -179,8 +315,42 @@ export interface GraphNeighborhood {
 export interface GraphRecall {
   entities: { name: string; kind: string; facts: string[] }[];
   relations: { fromName: string; relation: string; toName: string }[];
-  /** how the entry points were found: semantic (embeddings) or lexical fallback */
-  mode: "semantic" | "lexical";
+  /** how the entry points were found: identity (a name in the query) and/or
+   *  similarity (embeddings). "hybrid" = both contributed; "lexical" = no
+   *  embedder or no similarity hits; "semantic" = similarity only. */
+  mode: "hybrid" | "semantic" | "lexical";
+  /** the entry points in rank order, each with how it was found (D-0080) */
+  seeds: { name: string; via: "identity" | "similarity" }[];
+}
+
+/**
+ * D-0080 / R-MEM-07: an entity name counts as PRESENT in a query only on word
+ * boundaries, and only if it is specific enough to mean something on its own
+ * (two or more tokens, or five or more characters) — 'kiln' must not seed from
+ * inside 'kilning', 'weather mast' must. Returns the matched length so callers
+ * can rank the MOST SPECIFIC name first ('optics vendor two' before 'optics
+ * vendor'). Deterministic; no model involved.
+ */
+const GRAPH_STOP = new Set(["what", "the", "and", "for", "with", "from", "about", "does", "did", "who", "which",
+  "where", "when", "how", "tell", "know", "any", "its", "his", "her", "their", "that", "this", "have", "has"]);
+
+export function identityMatch(queryLower: string, name: string): number {
+  const n = name.toLowerCase().trim();
+  if (!n) return 0;
+  if (n.split(/\s+/).filter(Boolean).length < 2 && n.length < 5) return 0;
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(queryLower) ? n.length : 0;
+}
+
+/** G-26 (2026-09-12): a recorded alias is an identity the USER declared ("ravi
+ *  lindholm usually goes by ravi"), so it matches as a whole word at any length
+ *  — the short-name gate in `identityMatch` guards against incidental names,
+ *  not against names we were told to answer to. */
+export function aliasMatch(queryLower: string, alias: string): number {
+  const a = alias.toLowerCase().trim();
+  if (a.length < 2) return 0;
+  const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(queryLower) ? a.length : 0;
 }
 
 function assertNotSecret(value: string): void {
@@ -202,6 +372,17 @@ export class EntityMemory {
      *  best-effort — every method falls back to deterministic logic on null */
     private readonly judge?: MemoryJudge,
   ) {}
+
+  /** G-17 transparency hook: a name-variant MERGE (the judge folded a mention
+   *  into an existing entity) or a reconciliation SPLIT is a memory change the
+   *  user must be able to see and undo. The kernel wires this to the announcer;
+   *  best-effort, never blocks the write. */
+  onMemoryChange?: (change: { kind: "merge" | "split" | "fact-merge"; text: string; about: string }) => Promise<unknown>;
+
+  /** D-0080 knob (`memory.recall.identityFirst`, default true): when false,
+   *  recallGraph ranks similarity first and uses identity only as a fallback —
+   *  the pre-D-0080 behaviour, kept for A/B. Read live on every call. */
+  identityFirst?: () => Promise<boolean>;
 
   private enc(plaintext: string): string {
     return this.vault && plaintext ? this.vault.encrypt(plaintext) : plaintext;
@@ -322,6 +503,22 @@ export class EntityMemory {
           ...(plan.resolvedFrom ? { resolvedFrom: plan.resolvedFrom } : {}),
         },
       });
+      if (plan.merged) {
+        // G-17: a judge merge is its own audited, announced memory change — not
+        // a field on another event that nothing reads.
+        await this.audit.append({
+          actor: "kernel",
+          event: "entity_alias_merged",
+          payload: { mention: plan.merged.mention, into: plan.merged.into, canonical: plan.canonicalName, kind: plan.canonicalKind, aliases: plan.aliases, reason: plan.merged.reason },
+        });
+        if (this.onMemoryChange) {
+          void this.onMemoryChange({
+            kind: "merge",
+            about: plan.canonicalName,
+            text: `I've treated "${plan.merged.mention}" as another name for "${plan.merged.into}" (${plan.merged.reason}); it now lives under "${plan.canonicalName}". If they are different things, tell me and I'll split them again.`,
+          }).catch(() => undefined);
+        }
+      }
       const entity = this.hydrateEntity(rows[0]);
       // Best-effort vector indexing (hybrid graph recall, D-0045) — embedded from
       // the plaintext (never ciphertext); a missing embedder is a no-op.
@@ -352,15 +549,21 @@ export class EntityMemory {
     aliases: string[];
     supersedeIds: string[];
     resolvedFrom?: string;
+    /** set when a judge verdict folded two names together (G-17: audited + announced) */
+    merged?: { mention: string; into: string; reason: string };
   }> {
-    // 1. exact name OR existing alias, same kind
-    const { rows: exact } = await this.pool.query<{ id: string; name: string; attributes: string; aliases: string[] }>(
+    // 1. exact name OR existing alias, same kind. G-17: an alias that is a
+    //    qualifier TWIN of the row's name ('coral census' on 'Coral Census Two',
+    //    left behind by a pre-fix merge) does not count as a hit — the mention
+    //    gets its own entity again instead of accruing to its sibling.
+    const { rows: hits } = await this.pool.query<{ id: string; name: string; attributes: string; aliases: string[] }>(
       `SELECT id, name, attributes, aliases FROM memory_entities
        WHERE kind = $2 AND status NOT IN ('deleted','superseded')
          AND ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
        ORDER BY updated_at DESC`,
       [input.name, input.kind],
     );
+    const exact = hits.filter((r) => r.name.toLowerCase() === input.name.toLowerCase() || !qualifierTwin(input.name, r.name));
     if (exact.length) {
       // Prefer the FULLER name as canonical (D-0075): matching by an ALIAS (e.g.
       // the mention 'Pepper' hitting canonical 'Pepper Potts') must NOT rename the
@@ -402,7 +605,17 @@ export class EntityMemory {
           cands.map<EntityCandidate>((c) => ({ name: c.name, kind: c.kind, attributes: c.attributes, facts: c.facts })),
           privacy,
         );
-        const C = verdict?.sameAs != null ? cands[verdict.sameAs] : undefined;
+        let C = verdict?.sameAs != null ? cands[verdict.sameAs] : undefined;
+        if (C && qualifierTwin(C.name, input.name)) {
+          // G-17 belt-and-braces: candidates are already twin-filtered; should a
+          // twin still be affirmed, decline on the record and keep both.
+          await this.audit.append({
+            actor: "kernel",
+            event: "entity_resolution_declined",
+            payload: { mention: input.name, candidate: C.name, reason: "qualifier twin — different thing by rule", judge: verdict?.reason ?? "" },
+          });
+          C = undefined;
+        }
         if (C) {
           // Prefer the FULLER name as canonical (D-0075): if the incoming mention
           // is the more complete form ('Pepper Potts' resolving to existing
@@ -418,6 +631,8 @@ export class EntityMemory {
             aliases: [...aliases],
             supersedeIds: [C.id],
             resolvedFrom: input.name,
+            // a case/spacing variant of the same name is a re-mention, not a merge
+            ...(sameShape(C.name, input.name) ? {} : { merged: { mention: input.name, into: C.name, reason: verdict?.reason ?? "same entity" } }),
           };
         }
       }
@@ -448,6 +663,9 @@ export class EntityMemory {
     );
     const similar = rows
       .filter((r) => nameSimilar(name, r.name) || (r.aliases ?? []).some((a) => nameSimilar(name, a)))
+      // G-17: a qualifier twin is a different thing by rule — the judge never
+      // gets to call 'coral census two' the same as 'coral census'
+      .filter((r) => !qualifierTwin(name, r.name))
       .slice(0, 8);
     const out: { id: string; name: string; kind: string; attributes: string; facts: string[]; aliases: string[]; sensitivity: string }[] = [];
     for (const r of similar) {
@@ -474,15 +692,97 @@ export class EntityMemory {
    *  kind. An exact-name match is preferred over an alias-only match. */
   private async findEntity(name: string, kind?: string): Promise<Entity | null> {
     const { rows } = await this.pool.query(
-      `SELECT id, kind, name, attributes, status, provenance, confidence, sensitivity, created_at, updated_at
+      `SELECT id, kind, name, attributes, aliases, status, provenance, confidence, sensitivity, created_at, updated_at
        FROM memory_entities
        WHERE ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
          AND status NOT IN ('deleted','superseded')
          ${kind ? "AND kind = $2" : ""}
-       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 1`,
+       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 8`,
       kind ? [name, kind] : [name],
     );
-    return rows[0] ? this.hydrateEntity(rows[0]) : null;
+    // G-17: an exact name wins; an alias hit counts only when the alias is a
+    // genuine variant of the entity's name, never a qualifier twin left behind
+    // by a pre-fix merge ('coral census' must not resolve to 'Coral Census Two').
+    const row =
+      rows.find((r) => String(r.name).toLowerCase() === name.toLowerCase()) ??
+      rows.find((r) => !qualifierTwin(name, String(r.name)));
+    if (row) return this.hydrateEntity(row);
+    // an article variant IS the same thing ('kiln' ⇄ 'the kiln') — same base, same qualifiers
+    const { rows: variants } = await this.pool.query(
+      `SELECT id, kind, name, attributes, aliases, status, provenance, confidence, sensitivity, created_at, updated_at
+       FROM memory_entities
+       WHERE regexp_replace(lower(name), '^the\\s+', '') = regexp_replace(lower($1), '^the\\s+', '')
+         AND status NOT IN ('deleted','superseded')
+         ${kind ? "AND kind = $2" : ""}
+       ORDER BY updated_at DESC LIMIT 1`,
+      kind ? [name, kind] : [name],
+    );
+    return variants[0] ? this.hydrateEntity(variants[0]) : null;
+  }
+
+  /**
+   * G-26 (2026-09-12): a nickname the user declares ("X usually goes by Y") is an
+   * IDENTITY, not a fact. Before this, no write path reached `aliases` except a
+   * judge merge at write time, so the agent stored 'goes by "Theo"' as a fact,
+   * identity matching never read it, and every nickname question opened with
+   * "not found" (act three, 0/2 by day 1020). The alias lands on the entity row
+   * where `findEntity` and the recall seeds read it. Refused when it already
+   * names or aliases a DIFFERENT active entity (an ambiguous handle must stay a
+   * question — G-12) or is a qualifier twin of the entity's own name (a twin is
+   * a different thing — G-17). Audited; the result is read back.
+   */
+  async addAlias(input: { entityName: string; alias: string; provenance: string }): Promise<{ entity: Entity; aliases: string[]; added: boolean }> {
+    const alias = input.alias.trim().toLowerCase().replace(/^["'“”‘’]+|["'“”‘’]+$/g, "").replace(/\s+/g, " ");
+    if (!alias) throw new Error("refused: an alias needs a name");
+    assertNotSecret(alias);
+    const entity = await this.findEntity(input.entityName);
+    if (!entity) throw new Error(`refused: no active entity named '${input.entityName}' — remember the entity first, then its alias`);
+    if (alias === entity.name.toLowerCase()) throw new Error(`refused: '${alias}' is already the name of '${entity.name}'`);
+    if (qualifierTwin(alias, entity.name)) {
+      throw new Error(`refused: '${alias}' and '${entity.name}' differ only by a qualifier — that is a different thing, not another name for the same one`);
+    }
+    const { rows: clash } = await this.pool.query<{ name: string }>(
+      `SELECT name FROM memory_entities
+        WHERE id <> $1 AND status NOT IN ('deleted','superseded')
+          AND ( lower(name) = $2 OR aliases && ARRAY[$2]::text[] )
+        ORDER BY updated_at DESC LIMIT 3`,
+      [entity.id, alias],
+    );
+    if (clash.length) {
+      throw new Error(`refused: '${alias}' already names ${clash.map((c) => `'${c.name}'`).join(", ")} — an alias must point at ONE entity; use the full name`);
+    }
+    const { rowCount } = await this.pool.query(
+      `UPDATE memory_entities SET aliases = array_append(coalesce(aliases, '{}'), $2), updated_at = now()
+        WHERE id = $1 AND NOT (coalesce(aliases, '{}') @> ARRAY[$2]::text[])`,
+      [entity.id, alias],
+    );
+    const { rows: back } = await this.pool.query<{ aliases: string[] | null }>(`SELECT aliases FROM memory_entities WHERE id = $1`, [entity.id]);
+    const aliases = back[0]?.aliases ?? [];
+    if (!aliases.includes(alias)) throw new Error(`alias '${alias}' did not read back on '${entity.name}'`);
+    if (rowCount) {
+      await this.audit.append({
+        actor: "kernel",
+        event: "entity_alias_added",
+        payload: { entity: entity.name, kind: entity.kind, alias, provenance: input.provenance },
+      });
+    }
+    return { entity, aliases, added: Boolean(rowCount) };
+  }
+
+  /** Rollback for `addAlias`: drop one alias (audited). */
+  async removeAlias(entityName: string, alias: string): Promise<boolean> {
+    const entity = await this.findEntity(entityName);
+    if (!entity) return false;
+    const a = alias.trim().toLowerCase();
+    const { rowCount } = await this.pool.query(
+      `UPDATE memory_entities SET aliases = array_remove(coalesce(aliases, '{}'), $2), updated_at = now()
+        WHERE id = $1 AND coalesce(aliases, '{}') @> ARRAY[$2]::text[]`,
+      [entity.id, a],
+    );
+    if (rowCount) {
+      await this.audit.append({ actor: "kernel", event: "entity_alias_removed", payload: { entity: entity.name, alias: a } });
+    }
+    return Boolean(rowCount);
   }
 
   /** Resolve an entity by name, creating a bare one if it does not exist. */
@@ -534,8 +834,9 @@ export class EntityMemory {
    * one. This is the fact-level analogue of entity re-remember (D-0060 gap fix):
    * before this, a contradicting fact just piled up alongside the stale one.
    * `replaces` (a substring of the old statement, case-insensitive) targets which
-   * fact(s) to supersede; if omitted, the single most-recent active fact is
-   * superseded. If nothing matches, the new fact is still recorded (reported).
+   * fact(s) to supersede; if omitted, the active fact sharing content words
+   * with the NEW statement is superseded (D-0080 — was: the most recent fact).
+   * If nothing matches, the new fact is still recorded (reported).
    */
   async correctFact(input: {
     entityName: string;
@@ -559,37 +860,7 @@ export class EntityMemory {
          ORDER BY created_at DESC`,
         [entity.id],
       );
-      let targets: string[];
-      if (input.factId) {
-        // Explicit id from a prior recall — exact, no guessing. Must belong to
-        // this entity and still be active, else the correction is refused
-        // (an id typo must not silently supersede nothing or the wrong thing).
-        if (!active.some((r) => r.id === input.factId)) {
-          throw new Error(`no active fact ${input.factId} on '${entity.name}' — recall the entity and use a current fact id`);
-        }
-        targets = [input.factId];
-      } else if (input.replaces && input.replaces.trim()) {
-        const needle = input.replaces.trim().toLowerCase();
-        // 1) exact substring match (precise).
-        targets = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
-        // 2) fallback: the active fact sharing the most CONTENT words with
-        //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
-        //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
-        //    ≥1 shared content word; otherwise the new statement is just added.
-        if (!targets.length) {
-          const want = contentWords(needle);
-          let best: { id: string; shared: number } | null = null;
-          for (const r of active) {
-            const have = contentWords(this.dec(r.statement));
-            let shared = 0;
-            for (const w of want) if (have.has(w)) shared++;
-            if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
-          }
-          if (best && best.shared >= 1) targets = [best.id];
-        }
-      } else {
-        targets = active.length ? [active[0]!.id] : []; // no target named → most recent active fact
-      }
+      const targets = this.pickCorrectionTargets(active, entity.name, input);
       const { rows: ins } = await client.query(
         `INSERT INTO memory_facts (entity_id, statement, status, provenance, confidence, sensitivity)
          VALUES ($1,$2,'user_statement',$3,1.0,'personal')
@@ -623,6 +894,121 @@ export class EntityMemory {
     }
   }
 
+  /** Which active fact(s) a correction supersedes — shared by `correctFact`
+   *  and the read-only `correctionTargets` probe so both agree exactly. */
+  private pickCorrectionTargets(
+    active: { id: string; statement: string }[],
+    entityName: string,
+    input: { factId?: string; replaces?: string; newStatement?: string },
+  ): string[] {
+    if (input.factId) {
+      // Explicit id from a prior recall — exact, no guessing. Must belong to
+      // this entity and still be active, else the correction is refused
+      // (an id typo must not silently supersede nothing or the wrong thing).
+      const target = active.find((r) => r.id === input.factId);
+      if (!target) {
+        throw new Error(`no active fact ${input.factId} on '${entityName}' — recall the entity and use a current fact id`);
+      }
+      // D-0080 guard (mini-life 2026-09-01): an id whose statement shares NO
+      // content with the new statement is almost certainly the wrong fact —
+      // the model targeted the entity's only fact (assigned number) for a
+      // service-day update and a good fact was lost. Refuse rather than
+      // supersede; `replaces` naming the old text is the explicit override.
+      if (input.newStatement) {
+        const old = this.dec(target.statement);
+        const confirmed =
+          !!input.replaces?.trim() &&
+          (old.toLowerCase().includes(input.replaces.trim().toLowerCase()) || sharedContent(old, input.replaces, entityName) >= 1);
+        if (!confirmed && (sharedContent(old, input.newStatement, entityName) === 0 || !slotCompatible(old, input.newStatement, entityName))) {
+          throw new Error(
+            `fact ${input.factId} on '${entityName}' says "${old}" — that is not about the same thing (attribute) as "${input.newStatement}". ` +
+            `Omit factId to let me find the right home (fact or preference), or pass 'replaces' quoting the old text if you really mean to supersede it`,
+          );
+        }
+      }
+      return [input.factId];
+    }
+    // R10 / G-19: a candidate must be about the same attribute SLOT as the new
+    // statement (when both parse) — shared words alone retired a status colour
+    // for a status. Applies to every guessed target below, never to an explicit id.
+    const compatible = (statement: string) => !input.newStatement || slotCompatible(statement, input.newStatement, entityName);
+    if (input.replaces && input.replaces.trim()) {
+      const needle = input.replaces.trim().toLowerCase();
+      // 1) exact substring match (precise).
+      const exact = active.filter((r) => this.dec(r.statement).toLowerCase().includes(needle)).map((r) => r.id);
+      if (exact.length) return exact;
+      // 2) fallback: the active fact sharing the most CONTENT words with
+      //    `replaces` (stop-words dropped, so "likes coffee" vs "likes tea"
+      //    does NOT false-match, but "6am run" vs "runs at 6am" does). Requires
+      //    ≥1 shared content word; otherwise the new statement is just added.
+      //    The entity's own name never counts (mini-life 2026-09-01: the model
+      //    passed 'pine_shed_service_day' and the name words matched the
+      //    assigned-number fact) — only attribute words say "same thing".
+      let best: { id: string; shared: number } | null = null;
+      for (const r of active) {
+        const old = this.dec(r.statement);
+        if (!compatible(old)) continue;
+        const shared = sharedContent(old, needle, entityName);
+        if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+      }
+      return best && best.shared >= 1 ? [best.id] : [];
+    }
+    // No target named. Pre-D-0080 this superseded the MOST RECENT active fact,
+    // which on an entity holding one attribute superseded an unrelated one
+    // (mini-life 2026-09-01). Now the NEW statement's own content words (the
+    // entity's name excluded) pick the fact about the same attribute; nothing
+    // shared → no target, and the caller looks in preferences / records new.
+    if (input.newStatement) {
+      let best: { id: string; shared: number } | null = null;
+      for (const r of active) {
+        const old = this.dec(r.statement);
+        if (!compatible(old)) continue;
+        const shared = sharedContent(old, input.newStatement, entityName);
+        if (shared > (best?.shared ?? 0)) best = { id: r.id, shared };
+      }
+      return best && best.shared >= 1 ? [best.id] : [];
+    }
+    return active.length ? [active[0]!.id] : [];
+  }
+
+  /**
+   * D-0080 B1 (R-MEM-08): READ-ONLY probe — which active fact(s) a correction
+   * WOULD supersede, without creating the entity or writing anything. Lets the
+   * `memory.correct` tool look in the OTHER store (preferences) before it
+   * invents a second home for a value that already lives there. Throws the
+   * same stale-factId refusal as `correctFact`.
+   */
+  async correctionTargets(input: {
+    entityName: string;
+    factId?: string;
+    replaces?: string;
+    newStatement?: string;
+  }): Promise<{ entity: Entity | null; targets: string[] }> {
+    const entity = await this.findEntity(input.entityName);
+    if (!entity) {
+      if (input.factId) throw new Error(`no active fact ${input.factId} on '${input.entityName}' — recall the entity and use a current fact id`);
+      return { entity: null, targets: [] };
+    }
+    const { rows: active } = await this.pool.query<{ id: string; statement: string }>(
+      `SELECT id, statement FROM memory_facts
+       WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
+       ORDER BY created_at DESC`,
+      [entity.id],
+    );
+    return { entity, targets: this.pickCorrectionTargets(active, entity.name, input) };
+  }
+
+  /** One ACTIVE fact by id (decrypted), or null — the re-read half of a
+   *  write-then-verify (D-0080 B2 batch remember). */
+  async factById(id: string): Promise<Fact | null> {
+    const { rows } = await this.pool.query(
+      `SELECT id, entity_id, statement, status, provenance, confidence, sensitivity, created_at
+       FROM memory_facts WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
+      [id],
+    );
+    return rows[0] ? this.hydrateFact(rows[0]) : null;
+  }
+
   async relate(input: {
     fromName: string;
     toName: string;
@@ -630,11 +1016,25 @@ export class EntityMemory {
     note?: string;
     provenance: string;
     kind?: string;
-  }): Promise<Relation> {
+    /** keep an existing edge on an exclusive relation instead of replacing it */
+    additive?: boolean;
+  }): Promise<Relation & { replaced: { fromName: string; relation: string; toName: string }[] }> {
     if (!input.relation.trim()) throw new Error("refused: relation needs a type");
     if (input.note) assertNotSecret(input.note);
     const from = await this.ensureEntity(input.fromName, input.kind ?? "thing", input.provenance);
     const to = await this.ensureEntity(input.toName, input.kind ?? "thing", input.provenance);
+    // G-07: an exclusive relation replaces the previous edge (with history)
+    const excl = input.additive ? null : relationExclusivity(input.relation);
+    let displaced: { id: string; from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string }[] = [];
+    if (excl) {
+      const { rows } = await this.pool.query<{ id: string; from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string }>(
+        `SELECT r.id, r.from_entity, r.to_entity, r.relation, f.name AS from_name, t.name AS to_name
+         FROM memory_relations r JOIN memory_entities f ON f.id = r.from_entity JOIN memory_entities t ON t.id = r.to_entity
+         WHERE ${excl === "subject" ? "r.from_entity = $1 AND r.to_entity <> $2" : "r.to_entity = $2 AND r.from_entity <> $1"}`,
+        [from.id, to.id],
+      );
+      displaced = rows.filter((r) => normalizeVerb(r.relation) === normalizeVerb(input.relation));
+    }
     const { rows } = await this.pool.query(
       `INSERT INTO memory_relations (from_entity, to_entity, relation, note, provenance)
        VALUES ($1,$2,$3,$4,$5)
@@ -643,12 +1043,107 @@ export class EntityMemory {
        RETURNING id, from_entity, to_entity, relation, note, provenance`,
       [from.id, to.id, input.relation, this.enc(input.note ?? ""), input.provenance],
     );
+    const replaced: { fromName: string; relation: string; toName: string }[] = [];
+    for (const d of displaced) {
+      await this.retireRelation(d.id, rows[0].id, `exclusive relation '${normalizeVerb(input.relation)}': replaced by ${from.name} → ${to.name}`);
+      replaced.push({ fromName: d.from_name, relation: d.relation, toName: d.to_name });
+      await this.audit.append({
+        actor: "kernel",
+        event: "relation_superseded",
+        payload: { relation: normalizeVerb(input.relation), retired: { from: d.from_name, to: d.to_name }, replacedBy: { from: from.name, to: to.name } },
+      });
+    }
     await this.audit.append({
       actor: "kernel",
       event: "relation_remembered",
-      payload: { from: from.name, to: to.name, relation: input.relation },
+      payload: { from: from.name, to: to.name, relation: input.relation, ...(replaced.length ? { replaced: replaced.length } : {}) },
     });
-    return this.hydrateRelation(rows[0]);
+    return { ...this.hydrateRelation(rows[0]), replaced };
+  }
+
+  /** Move an edge to `memory_relation_history` (nothing is deleted from the record). */
+  private async retireRelation(id: string, supersededBy: string | null, reason: string): Promise<void> {
+    await this.pool.query(
+      `WITH gone AS (DELETE FROM memory_relations WHERE id = $1 RETURNING id, from_entity, to_entity, relation, note, provenance, created_at)
+       INSERT INTO memory_relation_history (id, from_entity, to_entity, relation, note, provenance, created_at, superseded_by, reason)
+       SELECT id, from_entity, to_entity, relation, note, provenance, created_at, $2, $3 FROM gone`,
+      [id, supersededBy, reason],
+    );
+  }
+
+  /**
+   * G-07 reconciliation for a world written before exclusive relations
+   * existed: where an exclusive relation holds several values for one anchor
+   * (two `located_in` for one thing, two maintainers of record for one device)
+   * the NEWEST edge wins and the others move to history. Anchors that were
+   * touched by a twin merge (foreign aliases now, or an `entity_alias_split`
+   * in the audit) are SKIPPED — their edges were recorded under a merged name
+   * and recency would only guess; they belong to the re-teach set.
+   */
+  async reconcileRelations(opts: { apply?: boolean } = {}): Promise<{
+    applied: boolean;
+    resolved: { relation: string; anchor: string; kept: string; retired: string[] }[];
+    skipped: { relation: string; anchor: string; values: string[]; reason: string }[];
+  }> {
+    const tainted = new Set<string>();
+    const { rows: aliased } = await this.pool.query<{ id: string; name: string; aliases: string[] | null }>(
+      `SELECT id, name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') AND cardinality(aliases) > 0`,
+    );
+    for (const e of aliased) if ((e.aliases ?? []).some((a) => !sameShape(a, e.name))) tainted.add(e.id);
+    try {
+      const { rows } = await this.pool.query<{ canonical: string; alias: string }>(
+        `SELECT payload->>'canonical' AS canonical, payload->>'alias' AS alias FROM audit_log WHERE event = 'entity_alias_split'`,
+      );
+      const names = new Set(rows.flatMap((r) => [r.canonical, r.alias].filter(Boolean).map((n) => n.toLowerCase())));
+      if (names.size) {
+        const { rows: ids } = await this.pool.query<{ id: string }>(
+          `SELECT id FROM memory_entities WHERE status NOT IN ('deleted','superseded') AND lower(name) = ANY($1::text[])`,
+          [[...names]],
+        );
+        for (const r of ids) tainted.add(r.id);
+      }
+    } catch { /* no audit table (tests) — alias check alone */ }
+    const { rows: edges } = await this.pool.query<{ id: string; from_entity: string; to_entity: string; relation: string; created_at: string; from_name: string; to_name: string }>(
+      `SELECT r.id, r.from_entity, r.to_entity, r.relation, r.created_at::text, f.name AS from_name, t.name AS to_name
+       FROM memory_relations r JOIN memory_entities f ON f.id = r.from_entity JOIN memory_entities t ON t.id = r.to_entity
+       WHERE f.status NOT IN ('deleted','superseded') AND t.status NOT IN ('deleted','superseded')`,
+    );
+    const groups = new Map<string, typeof edges>();
+    for (const e of edges) {
+      const excl = relationExclusivity(e.relation);
+      if (!excl) continue;
+      const key = `${normalizeVerb(e.relation)}|${excl === "subject" ? e.from_entity : e.to_entity}`;
+      groups.set(key, [...(groups.get(key) ?? []), e]);
+    }
+    const resolved: { relation: string; anchor: string; kept: string; retired: string[] }[] = [];
+    const skipped: { relation: string; anchor: string; values: string[]; reason: string }[] = [];
+    for (const [key, g] of groups) {
+      const [verb, anchorId] = key.split("|") as [string, string];
+      const excl = RELATION_EXCLUSIVITY[verb]!;
+      const other = (e: (typeof edges)[number]) => (excl === "subject" ? e.to_name : e.from_name);
+      const distinct = new Set(g.map((e) => (excl === "subject" ? e.to_entity : e.from_entity)));
+      if (distinct.size < 2) continue;
+      const anchor = excl === "subject" ? g[0]!.from_name : g[0]!.to_name;
+      const values = [...new Set(g.map(other))];
+      if (tainted.has(anchorId)) {
+        skipped.push({ relation: verb, anchor, values, reason: "anchor was touched by a twin merge — edges were recorded under a merged name; re-teach" });
+        continue;
+      }
+      const sorted = [...g].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+      const winner = sorted[0]!;
+      const losers = sorted.slice(1).filter((e) => (excl === "subject" ? e.to_entity !== winner.to_entity : e.from_entity !== winner.from_entity));
+      resolved.push({ relation: verb, anchor, kept: other(winner), retired: losers.map(other) });
+      if (!opts.apply) continue;
+      for (const l of losers) {
+        await this.retireRelation(l.id, winner.id, `reconciliation: exclusive relation '${verb}', newer edge kept`);
+        await this.audit.append({ actor: "kernel", event: "relation_superseded", payload: { relation: verb, retired: { from: l.from_name, to: l.to_name }, replacedBy: { from: winner.from_name, to: winner.to_name }, via: "reconciliation" } });
+      }
+    }
+    if (opts.apply && resolved.length && this.onMemoryChange) {
+      const sample = resolved.slice(0, 3).map((r) => `${r.anchor} ${r.relation.replace(/_/g, " ")}: kept ${r.kept}, retired ${r.retired.join(", ")}`).join("; ");
+      void this.onMemoryChange({ kind: "split", about: "memory reconciliation", text: `While tidying memory I found ${resolved.length} relation(s) with more than one current value where only one can hold (e.g. ${sample}); I kept the newest each time and moved the rest to history. Tell me if any of these is wrong.` }).catch(() => undefined);
+    }
+    return { applied: Boolean(opts.apply), resolved, skipped };
   }
 
   /** Everything J.A.R.V.I.S. knows about a named entity. */
@@ -678,6 +1173,311 @@ export class EntityMemory {
       relationsOut: out.rows.map((r) => ({ ...this.hydrateRelation(r), toName: r.to_name, toKind: r.to_kind })),
       relationsIn: inc.rows.map((r) => ({ ...this.hydrateRelation(r), fromName: r.from_name, fromKind: r.from_kind })),
     };
+  }
+
+  /**
+   * G-17 reconciliation (2026-09-11): undo pre-fix merges that folded a
+   * separately-taught thing into a sibling as an "alias" — 'Coral Census Two'
+   * carrying the alias 'coral census', 'seed vault' carrying 'seed bank'. For
+   * every active entity whose alias is NOT a mere variant of its name (article,
+   * case, spacing), the alias becomes its own entity again: facts whose
+   * statement names the alias (word-bounded) and not the canonical move with
+   * it; relations move when the audit trail (`relation_remembered` payload
+   * names) or explicit hints say the edge was recorded against the alias.
+   * Aliases that are variants of each other ('kiln', 'the kiln') split as ONE
+   * entity. Dry-run by default — `apply` writes, with an `entity_alias_split`
+   * audit event per split and the transparency announcement. Nothing is
+   * deleted: the canonical keeps everything not attributable to the alias, and
+   * the old superseded rows stay as history.
+   */
+  async splitTwinAliases(
+    opts: { apply?: boolean; relationHints?: { from: string; to: string; relation: string }[] } = {},
+  ): Promise<{
+    applied: boolean;
+    splits: { canonical: string; kind: string; alias: string; aliases: string[]; facts: string[]; relations: number; entityId?: string }[];
+    /** twins whose facts carry no subject ("Status colour is teal") and whose
+     *  relations were recorded under the merged name — nothing attributes them,
+     *  so the store cannot split them honestly; they need re-teaching */
+    unsplit: { canonical: string; kind: string; alias: string; factsOnCanonical: number; reason: string }[];
+  }> {
+    const nameRe = (n: string) =>
+      new RegExp(`(^|[^a-z0-9])${n.toLowerCase().trim().replace(/[^a-z0-9]+/g, "[^a-z0-9]+")}([^a-z0-9]|$)`);
+    let hints = opts.relationHints;
+    if (!hints) {
+      try {
+        const { rows } = await this.pool.query<{ payload: { from?: string; to?: string; relation?: string } }>(
+          `SELECT payload FROM audit_log WHERE event = 'relation_remembered'`,
+        );
+        hints = rows.map((r) => ({ from: String(r.payload?.from ?? "").toLowerCase(), to: String(r.payload?.to ?? "").toLowerCase(), relation: String(r.payload?.relation ?? "") }));
+      } catch {
+        hints = [];
+      }
+    } else {
+      hints = hints.map((h) => ({ from: h.from.toLowerCase(), to: h.to.toLowerCase(), relation: h.relation }));
+    }
+    const { rows: ents } = await this.pool.query<{ id: string; name: string; kind: string; aliases: string[] | null }>(
+      `SELECT id, name, kind, aliases FROM memory_entities
+       WHERE status NOT IN ('deleted','superseded') AND aliases IS NOT NULL AND cardinality(aliases) > 0
+       ORDER BY name`,
+    );
+    const splits: { canonical: string; kind: string; alias: string; aliases: string[]; facts: string[]; relations: number; entityId?: string }[] = [];
+    const unsplit: { canonical: string; kind: string; alias: string; factsOnCanonical: number; reason: string }[] = [];
+    for (const e of ents) {
+      // hygiene: an alias equal to the entity's own name is meaningless — prune it (audited)
+      const self = (e.aliases ?? []).filter((a) => a === e.name.toLowerCase());
+      if (self.length && opts.apply) {
+        await this.pool.query(`UPDATE memory_entities SET aliases = array_remove(aliases, $2), updated_at = now() WHERE id = $1`, [e.id, e.name.toLowerCase()]);
+        await this.audit.append({ actor: "kernel", event: "entity_alias_pruned", payload: { name: e.name, alias: e.name.toLowerCase(), reason: "alias equals the entity's own name" } });
+        e.aliases = (e.aliases ?? []).filter((a) => a !== e.name.toLowerCase());
+      }
+      // group the entity's foreign aliases by shape: 'kiln' + 'the kiln' are one thing
+      const groups = new Map<string, string[]>();
+      for (const a of e.aliases ?? []) {
+        if (sameShape(a, e.name)) continue; // a genuine variant of the canonical — stays an alias
+        const s = nameShape(a);
+        const key = `${s.base}|${s.quals}`;
+        groups.set(key, [...(groups.get(key) ?? []), a]);
+      }
+      if (!groups.size) continue;
+      const { rows: factRows } = await this.pool.query<{ id: string; statement: string }>(
+        `SELECT id, statement FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded') ORDER BY created_at`,
+        [e.id],
+      );
+      const facts = factRows.map((f) => ({ id: f.id, statement: this.dec(f.statement) }));
+      const canonRe = nameRe(e.name);
+      const { rows: rels } = await this.pool.query<{ id: string; from_entity: string; to_entity: string; relation: string; other: string }>(
+        `SELECT r.id, r.from_entity, r.to_entity, r.relation,
+                CASE WHEN r.from_entity = $1 THEN t.name ELSE f.name END AS other
+         FROM memory_relations r
+         JOIN memory_entities f ON f.id = r.from_entity
+         JOIN memory_entities t ON t.id = r.to_entity
+         WHERE r.from_entity = $1 OR r.to_entity = $1`,
+        [e.id],
+      );
+      for (const aliases of groups.values()) {
+        const alias = [...aliases].sort((x, y) => x.length - y.length)[0]!; // the bare form names the new entity
+        const res = aliases.map(nameRe);
+        // a longer sibling alias/name that CONTAINS this alias must not claim its statements
+        const longer = [e.name, ...(e.aliases ?? []).filter((o) => !aliases.includes(o))]
+          .filter((o) => o.toLowerCase() !== alias && nameRe(alias).test(o.toLowerCase()))
+          .map(nameRe);
+        const mine = facts.filter((f) => {
+          const s = f.statement.toLowerCase();
+          return res.some((re) => re.test(s)) && !canonRe.test(s) && !longer.some((re) => re.test(s));
+        });
+        const myRels = rels.filter((r) => {
+          const other = r.other.toLowerCase();
+          const fromMe = r.from_entity === e.id;
+          return hints!.some((h) =>
+            h.relation === r.relation &&
+            (fromMe ? aliases.includes(h.from) && h.to === other : aliases.includes(h.to) && h.from === other),
+          );
+        });
+        if (!mine.length && !myRels.length) {
+          // nothing attributable — the alias stays; the report says so honestly
+          unsplit.push({
+            canonical: e.name, kind: e.kind, alias, factsOnCanonical: facts.length,
+            reason: "no fact names this twin (statements carry no subject) and no relation was recorded under its name — re-teach it",
+          });
+          continue;
+        }
+        const split: (typeof splits)[number] = { canonical: e.name, kind: e.kind, alias, aliases: aliases.filter((a) => a !== alias), facts: mine.map((f) => f.statement), relations: myRels.length };
+        if (opts.apply) {
+          const client = await this.pool.connect();
+          try {
+            await client.query("BEGIN");
+            // the thing's own earlier row (superseded by the merge) tells us its kind + original casing;
+            // the bare form is preferred over an article variant ('kiln' over 'the kiln')
+            const { rows: prior } = await client.query<{ name: string; kind: string }>(
+              `SELECT name, kind FROM memory_entities WHERE lower(name) = ANY($1::text[]) AND status = 'superseded'
+               ORDER BY (lower(name) = $2) DESC, updated_at DESC LIMIT 1`,
+              [aliases, alias],
+            );
+            const newName = prior[0]?.name ?? alias;
+            const newAliases = aliases.filter((a) => a !== newName.toLowerCase());
+            const { rows: created } = await client.query<{ id: string }>(
+              `INSERT INTO memory_entities (kind, name, attributes, aliases, status, provenance, confidence, sensitivity)
+               VALUES ($1,$2,$3,$4,'user_statement',$5,1.0,'personal') RETURNING id`,
+              [
+                prior[0]?.kind ?? e.kind,
+                newName,
+                this.enc(""),
+                newAliases,
+                `reconciliation: split from '${e.name}' — a name-variant merge had folded this separately-taught thing in`,
+              ],
+            );
+            split.aliases = newAliases;
+            const newId = created[0]!.id;
+            if (mine.length) {
+              await client.query(`UPDATE memory_facts SET entity_id = $1 WHERE id = ANY($2::uuid[])`, [newId, mine.map((f) => f.id)]);
+            }
+            for (const r of myRels) {
+              const col = r.from_entity === e.id ? "from_entity" : "to_entity";
+              await client.query(
+                `UPDATE memory_relations r SET ${col} = $1 WHERE r.id = $2
+                   AND NOT EXISTS (SELECT 1 FROM memory_relations x WHERE x.from_entity = CASE WHEN $3 = 'from_entity' THEN $1 ELSE r.from_entity END
+                                                                     AND x.to_entity = CASE WHEN $3 = 'to_entity' THEN $1 ELSE r.to_entity END
+                                                                     AND x.relation = r.relation)`,
+                [newId, r.id, col],
+              );
+            }
+            await client.query(`UPDATE memory_entities SET aliases = array(SELECT unnest(aliases) EXCEPT SELECT unnest($2::text[])), updated_at = now() WHERE id = $1`, [e.id, aliases]);
+            await client.query("COMMIT");
+            split.entityId = newId;
+            await this.audit.append({
+              actor: "kernel",
+              event: "entity_alias_split",
+              payload: { canonical: e.name, kind: e.kind, alias, aliases: split.aliases, facts: mine.length, relations: myRels.length, entityId: newId },
+            });
+            if (this.semantic) void this.semantic.index("entity", newId, [prior[0]?.name ?? alias, prior[0]?.kind ?? e.kind].join(". "));
+            if (this.onMemoryChange) {
+              void this.onMemoryChange({
+                kind: "split",
+                about: prior[0]?.name ?? alias,
+                text: `I had been treating "${alias}" as another name for "${e.name}"; they are different things, so "${alias}" is its own entry again with its ${mine.length} fact(s)${myRels.length ? ` and ${myRels.length} relation(s)` : ""}. Nothing was deleted.`,
+              }).catch(() => undefined);
+            }
+          } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+          } finally {
+            client.release();
+          }
+        }
+        splits.push(split);
+      }
+    }
+    return { applied: Boolean(opts.apply), splits, unsplit };
+  }
+
+  /**
+   * G-02/G-04 read-side lever (2026-09-11): when an exact lookup misses, name
+   * the similarly-named entities that DO exist — as different things — so the
+   * agent can say "not found for X (I do know X two)" instead of answering from
+   * the sibling. Qualifier twins first, then names that contain or are
+   * contained by the asked name on a word boundary.
+   */
+  async nearNames(name: string, limit = 5): Promise<{ name: string; kind: string; twin: boolean }[]> {
+    const q = name.toLowerCase().trim();
+    if (!q) return [];
+    const { rows } = await this.pool.query<{ name: string; kind: string; aliases: string[] | null }>(
+      `SELECT name, kind, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 500`,
+    );
+    const contains = (a: string, b: string) => new RegExp(`(^|[^a-z0-9])${b.replace(/[^a-z0-9]+/g, "[^a-z0-9]+")}([^a-z0-9]|$)`).test(a);
+    return rows
+      .filter((r) => r.name.toLowerCase() !== q && !sameShape(q, r.name)) // an article/case variant is the same thing, not a neighbour
+      .map((r) => {
+        const n = r.name.toLowerCase();
+        const twin = qualifierTwin(q, n) || (r.aliases ?? []).some((a) => qualifierTwin(q, a));
+        const near = twin || contains(n, q) || contains(q, n);
+        return { name: r.name, kind: r.kind, twin, near };
+      })
+      .filter((r) => r.near)
+      .sort((a, b) => Number(b.twin) - Number(a.twin) || a.name.length - b.name.length)
+      .slice(0, limit)
+      .map(({ name: n, kind, twin }) => ({ name: n, kind, twin }));
+  }
+
+  /**
+   * G-03 reconciliation (2026-09-11): ONE HOME per attribute. Longitude-XL
+   * found three ways a value ends up with two homes that then disagree —
+   * two active facts on the same slot ('status colour is ochre' + 'status
+   * colour is slate'), a fact vs a preference (`weather_mast_two_assigned_number
+   * = 7` beside "assigned number is 3"), and a fact vs the entity's free-text
+   * attributes ("status colour: cobalt" written at first mention, never
+   * corrected) — and the agent then answered "conflicting records" or the
+   * stale one (45 hedges + 52 misattributed answers under the strict rubric).
+   * Rule: the NEWER record wins, the older is retired with history (a fact is
+   * superseded, a preference is soft-deleted, an attribute clause is removed —
+   * the audit carries before/after); agreeing duplicates are left alone;
+   * private/secret facts are never touched. Dry-run by default.
+   */
+  async reconcileHomes(opts: {
+    apply?: boolean;
+    prefs?: {
+      matchKeys(subject: string, hint?: string): Promise<{ key: string; value: string }[]>;
+      get(key: string): Promise<{ key: string; value: string; updated_at: string; sensitivity?: string } | null>;
+      delete(key: string): Promise<boolean>;
+    };
+  } = {}): Promise<{
+    applied: boolean;
+    conflicts: { entity: string; slot: string; kept: { home: "fact" | "preference"; value: string; at: string }; retired: { home: "fact" | "preference" | "attributes"; value: string; at?: string; key?: string } }[];
+  }> {
+    const conflicts: { entity: string; slot: string; kept: { home: "fact" | "preference"; value: string; at: string }; retired: { home: "fact" | "preference" | "attributes"; value: string; at?: string; key?: string } }[] = [];
+    const { rows: ents } = await this.pool.query<{ id: string; name: string; kind: string; attributes: string }>(
+      `SELECT id, name, kind, attributes FROM memory_entities WHERE status NOT IN ('deleted','superseded') ORDER BY updated_at DESC LIMIT 300`,
+    );
+    for (const e of ents) {
+      const { rows: factRows } = await this.pool.query<{ id: string; statement: string; created_at: string; sensitivity: string }>(
+        `SELECT id, statement, created_at::text, sensitivity FROM memory_facts
+         WHERE entity_id = $1 AND status NOT IN ('deleted','superseded') ORDER BY created_at ASC LIMIT 40`,
+        [e.id],
+      );
+      type Home = { home: "fact" | "preference" | "attributes"; id?: string; key?: string; slot: string; value: string; at: string; raw: string };
+      const homes: Home[] = [];
+      for (const f of factRows) {
+        if (f.sensitivity === "private" || f.sensitivity === "secret") continue;
+        const text = this.dec(f.statement);
+        const p = parseSlot(text, e.name);
+        if (p) homes.push({ home: "fact", id: f.id, slot: p.slot, value: p.value, at: f.created_at, raw: text });
+      }
+      const attrs = this.dec(e.attributes ?? "");
+      const attrClauses = attrs ? attrs.split(/\s*[;|]\s*|\s*,\s*(?=[a-z][a-z ]+[:=]|\s*[a-z ]+ is )/i).map((c) => c.trim()).filter(Boolean) : [];
+      for (const c of attrClauses) {
+        const p = parseSlot(c, e.name);
+        if (p) homes.push({ home: "attributes", slot: p.slot, value: p.value, at: "", raw: c });
+      }
+      if (opts.prefs) {
+        try {
+          for (const m of await opts.prefs.matchKeys(e.name)) {
+            const pref = await opts.prefs.get(m.key);
+            if (!pref || pref.sensitivity === "private" || pref.sensitivity === "secret") continue;
+            const subject = normalizeSlot(e.name);
+            const slotToks = [...normalizeSlot(m.key)].filter((t) => !subject.has(t));
+            if (!slotToks.length) continue;
+            homes.push({ home: "preference", key: m.key, slot: slotToks.sort().join(" "), value: normValue(pref.value), at: pref.updated_at, raw: `${m.key} = ${pref.value}` });
+          }
+        } catch { /* preference side is best-effort */ }
+      }
+      // group by slot (exact token set, or a one-unit-word difference: 'meeting' ~ 'meeting day')
+      const groups: Home[][] = [];
+      for (const h of homes) {
+        const g = groups.find((grp) => sameSlot(grp[0]!.slot, h.slot));
+        if (g) g.push(h); else groups.push([h]);
+      }
+      for (const g of groups) {
+        const dated = g.filter((h) => h.home !== "attributes").sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)); // newest first
+        if (!dated.length) continue;
+        const winner = dated[0]!;
+        for (const h of g) {
+          if (h === winner || h.value === winner.value) continue; // agreeing records are not a conflict
+          const conflict = { entity: e.name, slot: g[0]!.slot, kept: { home: winner.home as "fact" | "preference", value: winner.value, at: winner.at }, retired: { home: h.home, value: h.value, ...(h.at ? { at: h.at } : {}), ...(h.key ? { key: h.key } : {}) } };
+          conflicts.push(conflict);
+          if (!opts.apply) continue;
+          if (h.home === "fact" && h.id) {
+            await this.pool.query(`UPDATE memory_facts SET status = 'superseded', superseded_by = $2 WHERE id = $1`, [h.id, winner.home === "fact" ? winner.id ?? null : null]);
+            await this.audit.append({ actor: "kernel", event: "fact_superseded_by_reconciliation", payload: { entity: e.name, slot: conflict.slot, retiredFactId: h.id, retiredValue: h.value, keptHome: winner.home, keptValue: winner.value } });
+          } else if (h.home === "preference" && h.key && opts.prefs) {
+            await opts.prefs.delete(h.key);
+            await this.audit.append({ actor: "kernel", event: "preference_superseded_by_reconciliation", payload: { entity: e.name, slot: conflict.slot, key: h.key, retiredValue: h.value, keptHome: winner.home, keptValue: winner.value } });
+          } else if (h.home === "attributes") {
+            const before = attrs;
+            const after = attrClauses.filter((c) => c !== h.raw).join("; ");
+            await this.pool.query(`UPDATE memory_entities SET attributes = $2, updated_at = now() WHERE id = $1`, [e.id, this.enc(after)]);
+            await this.audit.append({ actor: "kernel", event: "entity_attributes_reconciled", payload: { entity: e.name, slot: conflict.slot, removedClause: h.raw, before, after, keptHome: winner.home, keptValue: winner.value } });
+          }
+        }
+      }
+    }
+    if (opts.apply && conflicts.length && this.onMemoryChange) {
+      const sample = conflicts.slice(0, 3).map((c) => `${c.entity}'s ${c.slot}: kept ${c.kept.value} (${c.kept.home}, newer), retired ${c.retired.value} (${c.retired.home})`).join("; ");
+      void this.onMemoryChange({
+        kind: "split",
+        about: "memory reconciliation",
+        text: `While tidying memory I found ${conflicts.length} attribute(s) recorded in two places with different values and kept the newer one each time, e.g. ${sample}. The older records are in history — tell me if any of these is wrong.`,
+      }).catch(() => undefined);
+    }
+    return { applied: Boolean(opts.apply), conflicts };
   }
 
   async listEntities(kind?: string): Promise<Entity[]> {
@@ -763,6 +1563,7 @@ export class EntityMemory {
     entitiesScanned: number;
     duplicatesMerged: number;
     merged: string[];         // "entity: kept 'x' ⊃ superseded 'y'"
+    refused: string[];        // G-28: judge merges declined because the facts are about different things
     entitiesMerged: number;   // cross-kind same-name entities folded together
     entityMerges: string[];   // "name: merged 'thing' into 'project'"
     staleProposals: string[]; // entity names proposed for review
@@ -770,7 +1571,24 @@ export class EntityMemory {
     const overlap = Math.min(0.95, Math.max(0.5, opts?.overlap ?? 0.7));
     const staleDays = Math.max(7, opts?.staleDays ?? 90);
     const merged: string[] = [];
+    const refused: string[] = [];
     let duplicatesMerged = 0;
+    // G-28: every merge is its own audit row (ids only — statements stay
+    // encrypted) and is announced by name, so nothing is folded silently.
+    const recordMerge = async (entity: string, kept: { id: string; text: string }, old: { id: string; text: string }, by: "model" | "heuristic") => {
+      await this.audit.append({
+        actor: "kernel",
+        event: "fact_merged_by_consolidation",
+        payload: { entity, kept: kept.id, superseded: old.id, by },
+      });
+      if (this.onMemoryChange) {
+        void this.onMemoryChange({
+          kind: "fact-merge",
+          about: entity,
+          text: `While tidying memory I folded a note about "${entity}" into another: kept "${kept.text}", retired "${old.text}" (still in history). If those were different things, tell me and I'll restore it.`,
+        }).catch(() => undefined);
+      }
+    };
 
     const { rows: entities } = await this.pool.query<{ id: string; name: string }>(
       `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded')
@@ -801,13 +1619,18 @@ export class EntityMemory {
           privacy,
         );
         if (groups) {
-          handledByJudge = true; // judged — trust the model's call (even if empty)
+          handledByJudge = true; // judged — the model's call on WORDING; the slot guard below has the last word
           for (const g of groups) {
             const keep = decoded[g.keep];
             if (!keep || gone.has(keep.id)) continue;
             for (const si of g.supersede) {
               const old = decoded[si];
               if (!old || gone.has(old.id) || old.id === keep.id) continue;
+              // G-28: a fact may only be folded into a fact about the SAME thing
+              if (!judgeMergeAllowed(old.text, keep.text, e.name)) {
+                refused.push(`${e.name}: kept both — "${old.text}" and "${keep.text}" are about different things`);
+                continue;
+              }
               // status re-check: skip if a LIVE write changed it since we read it
               const { rowCount } = await this.pool.query(
                 `UPDATE memory_facts SET status = 'superseded', superseded_by = $1
@@ -819,6 +1642,7 @@ export class EntityMemory {
               gone.add(old.id);
               duplicatesMerged++;
               merged.push(`${e.name}: kept "${keep.text}" ⊇ superseded "${old.text}" (model)`);
+              await recordMerge(e.name, keep, old, "model");
             }
           }
         }
@@ -849,6 +1673,7 @@ export class EntityMemory {
             gone.add(a.id);
             duplicatesMerged++;
             merged.push(`${e.name}: kept "${b.text}" ⊃ superseded "${a.text}"`);
+            await recordMerge(e.name, b, a, "heuristic");
             break; // a is merged; move to the next older fact
           }
         }
@@ -914,17 +1739,18 @@ export class EntityMemory {
        ORDER BY updated_at ASC LIMIT 10`,
       [staleDays],
     );
-    if (duplicatesMerged || entitiesMerged || stale.length) {
+    if (duplicatesMerged || entitiesMerged || stale.length || refused.length) {
       await this.audit.append({
         actor: "kernel",
         event: "memory_consolidated",
-        payload: { entitiesScanned: entities.length, duplicatesMerged, entitiesMerged, staleProposed: stale.length },
+        payload: { entitiesScanned: entities.length, duplicatesMerged, mergesRefused: refused.length, entitiesMerged, staleProposed: stale.length },
       });
     }
     return {
       entitiesScanned: entities.length,
       duplicatesMerged,
       merged,
+      refused,
       entitiesMerged,
       entityMerges,
       staleProposals: stale.map((s) => s.name),
@@ -1063,38 +1889,88 @@ export class EntityMemory {
    * to lexical name/fact matching when no embedder is available (never a mock).
    */
   async recallGraph(query: string, limit = 5): Promise<GraphRecall> {
-    const seedIds = new Set<string>();
-    let mode: GraphRecall["mode"] = "semantic";
+    // D-0080: identity BEFORE similarity. The pre-D-0080 version ran the
+    // name-match branch only when vector search returned nothing — which, with
+    // a live embedder, is never — so the graph was always seeded by nearest
+    // neighbours ('optics vendor' for a question about 'optics vendor two').
+    // Longitude-XL measured that as 64% of all recall misses.
+    let identityFirst = true;
+    if (this.identityFirst) {
+      try { identityFirst = await this.identityFirst(); } catch { identityFirst = true; }
+    }
+    const q = query.toLowerCase();
+    const ranked: { id: string; name: string; via: "identity" | "similarity" }[] = [];
+    const have = new Set<string>();
+    const push = (id: string, name: string, via: "identity" | "similarity") => {
+      if (have.has(id)) return;
+      have.add(id);
+      ranked.push({ id, name, via });
+    };
+    const { rows: all } = await this.pool.query<{ id: string; name: string; aliases: string[] | null }>(
+      `SELECT id, name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 500`,
+    );
+    const nameOf = new Map(all.map((r) => [r.id, r.name]));
+
+    // 1) identity seeds — always computed; most specific (longest) name first
+    const identity = all
+      .map((r) => ({
+        r,
+        // G-17: an alias that is a qualifier twin of the entity's name never seeds it;
+        // G-26: a declared alias matches as a whole word at any length ('ravi')
+        len: Math.max(identityMatch(q, r.name), ...(r.aliases ?? []).filter((a) => !qualifierTwin(a, r.name)).map((a) => aliasMatch(q, a))),
+      }))
+      .filter((x) => x.len > 0)
+      .sort((a, b) => b.len - a.len);
+    if (identityFirst) for (const x of identity) push(x.r.id, x.r.name, "identity");
+
+    // 2) similarity seeds — vector entry points (entities + facts→their entity).
+    //    Counted BEFORE dedupe: a similarity hit that repeats an identity seed
+    //    still means the embedder contributed, and `mode` should say so.
+    let similarityHits = 0;
     if (this.semantic) {
       const hits = await this.semantic.search(query, { kinds: ["entity", "fact"], limit: limit * 2 });
       for (const h of hits) {
-        if (h.sourceKind === "entity") seedIds.add(h.sourceId);
-        else if (h.sourceKind === "fact") {
+        let id: string | undefined = h.sourceKind === "entity" ? h.sourceId : undefined;
+        if (h.sourceKind === "fact") {
           const { rows } = await this.pool.query<{ entity_id: string }>(
             `SELECT entity_id FROM memory_facts WHERE id = $1`,
             [h.sourceId],
           );
-          if (rows[0]) seedIds.add(rows[0].entity_id);
+          id = rows[0]?.entity_id;
         }
+        if (!id) continue;
+        similarityHits++;
+        let name = nameOf.get(id);
+        if (name === undefined) {
+          const { rows } = await this.pool.query<{ name: string }>(`SELECT name FROM memory_entities WHERE id = $1`, [id]);
+          name = rows[0]?.name ?? "";
+        }
+        push(id, name, "similarity");
       }
     }
-    if (seedIds.size === 0) {
-      // lexical fallback: entity names appearing in the query, or query terms in names
-      mode = "lexical";
-      const { rows } = await this.pool.query<{ id: string; name: string }>(
-        `SELECT id, name FROM memory_entities WHERE status NOT IN ('deleted','superseded') LIMIT 200`,
-      );
-      const q = query.toLowerCase();
-      for (const r of rows) {
+
+    // 3) fallbacks: identity when the knob is off and similarity found nothing;
+    //    then the old loose word match (a name's word appears in the query)
+    if (!identityFirst && ranked.length === 0) for (const x of identity) push(x.r.id, x.r.name, "identity");
+    if (ranked.length === 0) {
+      for (const r of all) {
         const n = r.name.toLowerCase();
-        if (q.includes(n) || n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) seedIds.add(r.id);
+        if (n.split(/\s+/).some((w) => w.length > 3 && q.includes(w))) push(r.id, r.name, "identity");
       }
     }
+    const hasIdentity = ranked.some((s) => s.via === "identity");
+    const hasSimilarity = similarityHits > 0;
+    const mode: GraphRecall["mode"] = hasIdentity && hasSimilarity ? "hybrid" : hasSimilarity ? "semantic" : "lexical";
+    const chosen = ranked.slice(0, limit);
+    const seedIds = new Set(chosen.map((s) => s.id));
     const seeds = [...seedIds].slice(0, limit);
     const entities: GraphRecall["entities"] = [];
     const relations: GraphRecall["relations"] = [];
     const included = new Set<string>();
-    const addEntity = async (id: string) => {
+    // Query terms (for ranking a seed's facts): the words the asker actually
+    // used, minus the entity names themselves and trivial stopwords.
+    const qTerms = q.split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !GRAPH_STOP.has(w));
+    const addEntity = async (id: string, isSeed = false) => {
       if (included.has(id) || included.size >= limit * 3) return;
       const { rows } = await this.pool.query<{ id: string; name: string; kind: string }>(
         `SELECT id, name, kind FROM memory_entities WHERE id = $1 AND status NOT IN ('deleted','superseded')`,
@@ -1102,16 +1978,25 @@ export class EntityMemory {
       );
       if (!rows[0]) return;
       included.add(id);
-      const { rows: facts } = await this.pool.query<{ statement: string }>(
-        `SELECT statement FROM memory_facts
+      // D-0080: a SEED entity shows up to 8 facts, the ones mentioning the
+      // asker's words first, newest first within that — the old flat cap of 3
+      // hid the asked fact behind unrelated ones ('boat shed two' seeded
+      // correctly and still missed its service day). Expansion nodes keep 3.
+      const { rows: facts } = await this.pool.query<{ statement: string; created_at: string }>(
+        `SELECT statement, created_at FROM memory_facts
          WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')
-         ORDER BY confidence DESC, created_at DESC LIMIT 3`,
+         ORDER BY created_at DESC LIMIT 40`,
         [id],
       );
-      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: facts.map((f) => this.dec(f.statement)) });
+      const decoded = facts.map((f) => this.dec(f.statement));
+      const score = (t: string) => qTerms.reduce((n, w) => n + (t.toLowerCase().includes(w) ? 1 : 0), 0);
+      const ordered = isSeed
+        ? decoded.map((t, i) => ({ t, i, s: score(t) })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.t)
+        : decoded;
+      entities.push({ name: rows[0].name, kind: rows[0].kind, facts: ordered.slice(0, isSeed ? 8 : 3) });
     };
     for (const id of seeds) {
-      await addEntity(id);
+      await addEntity(id, true);
       // one-hop expansion: pull in connected entities + the connecting edges
       const { rows: rels } = await this.pool.query<{
         from_entity: string; to_entity: string; relation: string; from_name: string; to_name: string;
@@ -1137,7 +2022,7 @@ export class EntityMemory {
       seen.add(k);
       return true;
     });
-    return { entities, relations: uniqueRelations, mode };
+    return { entities, relations: uniqueRelations, mode, seeds: chosen.map((s) => ({ name: s.name, via: s.via })) };
   }
 
   private hydrateEntity(r: Record<string, unknown>): Entity {

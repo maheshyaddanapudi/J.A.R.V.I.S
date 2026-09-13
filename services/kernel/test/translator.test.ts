@@ -95,6 +95,34 @@ describe("openai_compat translation (OpenAI / OpenRouter / Grok / vLLM dialect)"
     expect(bodies[0]).not.toHaveProperty("reasoning_effort");
     expect(bodies[0]!.temperature).toBe(0.2);
   });
+
+  // G-23 (2026-09-12, found in the field): omitting `reasoning_effort` is "no
+  // preference", NOT "thinking off" — on OpenRouter the Qwen family reasons by
+  // default, so a fast role pinned off still spent 400+ reasoning tokens and
+  // ~10 s per call. A provider that declares the dialect gets the explicit
+  // switch; everyone else must keep the byte-identical body above.
+  const openrouter = () => createOpenAiCompatAdapter({ id: "or", local: false, reasoningDialect: "openrouter" });
+
+  it('openrouter dialect: thinking "off" sends reasoning.enabled=false and no reasoning_effort', async () => {
+    stubFetch(OPENAI_SSE);
+    await drain(openrouter().chatStream(req(), "qwen/qwen3.8-flash", undefined, { thinking: "off" }));
+    expect(bodies[0]!.reasoning).toEqual({ enabled: false });
+    expect(bodies[0]).not.toHaveProperty("reasoning_effort");
+  });
+
+  it("openrouter dialect: a thinking target still sends reasoning_effort and never the off switch", async () => {
+    stubFetch(OPENAI_SSE);
+    await drain(openrouter().chatStream(req(), "qwen/qwen3.8-max-0902", undefined, { thinking: "on", effort: "high" }));
+    expect(bodies[0]!.reasoning_effort).toBe("high");
+    expect(bodies[0]).not.toHaveProperty("reasoning");
+  });
+
+  it("a provider WITHOUT the dialect never sends the OpenRouter-only field (plain OpenAI would 400)", async () => {
+    stubFetch(OPENAI_SSE);
+    await drain(adapter().chatStream(req(), "gpt-4.1", undefined, { thinking: "off" }));
+    expect(bodies[0]).not.toHaveProperty("reasoning");
+    expect(bodies[0]).not.toHaveProperty("reasoning_effort");
+  });
 });
 
 describe("ollama translation (think booleans/levels; gpt-oss level ceiling)", () => {

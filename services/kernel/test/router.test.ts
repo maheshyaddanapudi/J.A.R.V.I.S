@@ -97,6 +97,51 @@ describe("GatewayRouter policy", () => {
     expect(auditRows[0]![5]).toBe(false); // ok=false
   });
 
+  it("G-25: a retryable error before anything streamed is retried on the SAME target with backoff — a single-target role survives a 429", async () => {
+    const router = new GatewayRouter(baseConfig, fakePool, false);
+    router.setRetryPolicy(async () => ({ maxRetries: 2, baseDelayMs: 1 }));
+    let calls = 0;
+    async function* flaky() {
+      calls++;
+      if (calls < 3) throw new ProviderError("localA HTTP 429: rate-limited", "localA", true);
+      yield* okStream();
+    }
+    stubAdapters(router, { localA: flaky });
+    const result = await router.chat(req());
+    expect(calls).toBe(3);
+    expect(result.provider).toBe("localA");
+    expect(result.fallbackFrom).toBeUndefined();
+    // every attempt is its own audit row: two failures, one success
+    expect(auditRows.filter((r) => r[5] === false).length).toBe(2);
+    expect(auditRows.filter((r) => r[5] === true).length).toBe(1);
+  });
+
+  it("G-25: retries exhausted → the fallback chain moves on; a NON-retryable error never retries", async () => {
+    const router = new GatewayRouter(baseConfig, fakePool, false);
+    router.setRetryPolicy(async () => ({ maxRetries: 1, baseDelayMs: 1 }));
+    let localCalls = 0;
+    async function* alwaysLimited() {
+      localCalls++;
+      throw new ProviderError("localA HTTP 429", "localA", true);
+    }
+    stubAdapters(router, { localA: alwaysLimited, remoteB: okStream });
+    const result = await router.chat(req({ privacyClass: "STANDARD" }));
+    expect(localCalls).toBe(2); // one try + one retry
+    expect(result.provider).toBe("remoteB");
+    expect(result.fallbackFrom).toEqual(["localA/local-model"]);
+
+    let fatalCalls = 0;
+    async function* fatal() {
+      fatalCalls++;
+      throw new ProviderError("localA HTTP 400: bad request", "localA", false);
+    }
+    const router2 = new GatewayRouter(baseConfig, fakePool, false);
+    router2.setRetryPolicy(async () => ({ maxRetries: 3, baseDelayMs: 1 }));
+    stubAdapters(router2, { localA: fatal });
+    await expect(router2.chat(req())).rejects.toThrow(/400/);
+    expect(fatalCalls).toBe(1);
+  });
+
   it("offline mode refuses remote providers entirely", async () => {
     const router = new GatewayRouter(baseConfig, fakePool, true);
     await expect(
@@ -113,6 +158,8 @@ describe("GatewayRouter policy", () => {
 
   it("falls back to next target on retryable pre-stream failure (STANDARD)", async () => {
     const router = new GatewayRouter(baseConfig, fakePool, false);
+    // retries off: this test is about the FALLBACK contract (G-25 retry tests cover the rest)
+    router.setRetryPolicy(async () => ({ maxRetries: 0, baseDelayMs: 1 }));
     stubAdapters(router, {
       // eslint-disable-next-line require-yield
       localA: async function* () {

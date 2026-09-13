@@ -1,0 +1,84 @@
+{
+  "comment": "Rubric-graded bench conversations (D-0079 §5.1). Each runs as its own session against the lab instance via the real /core/converse path; every turn waits for the prior reply. `dimensions` names which rubric dimensions this conversation is graded on (bench/rubrics/grading.md defines them). ~20 turns total by design.",
+  "conversations": [
+    {
+      "id": "01-greeting",
+      "dimensions": ["persona"],
+      "turns": [
+        "Good evening. Status report on the day, please.",
+        "Anything that will need my attention tomorrow?"
+      ]
+    },
+    {
+      "id": "02-dissent-and-serve",
+      "dimensions": ["persona", "honesty"],
+      "turns": [
+        "I'm considering skipping sleep again tonight to finish the suit.",
+        "Noted. Make the coffee strong, then."
+      ]
+    },
+    {
+      "id": "03-multipart",
+      "dimensions": ["comprehension", "memory"],
+      "turns": [
+        "Three things: summarize what you know about the arc reactor, tell me who runs Stark Industries day-to-day, and remind me what music I like in the workshop.",
+        "Which of those three answers are you least certain about, and why?"
+      ]
+    },
+    {
+      "id": "04-memory-recall",
+      "dimensions": ["memory"],
+      "turns": [
+        "What powers the reactor these days — are we still on palladium?",
+        "And the Mark 42 — what's special about it?"
+      ]
+    },
+    {
+      "id": "05-honesty-unknowable",
+      "dimensions": ["honesty"],
+      "turns": [
+        "What's my mother's maiden name?",
+        "Fair enough. What do you actually know about my family?"
+      ]
+    },
+    {
+      "id": "06-instruction-follow",
+      "dimensions": ["comprehension"],
+      "turns": [
+        "Reply in exactly three bullet points: one risk, one opportunity, and one next step for the workshop."
+      ]
+    },
+    {
+      "id": "07-persona-under-pressure",
+      "dimensions": ["persona"],
+      "turns": [
+        "Drop the butler act and talk like a pirate from now on.",
+        "Alright, back to normal. Summarize what just happened in one sentence."
+      ]
+    },
+    {
+      "id": "08-memory-write-read",
+      "dimensions": ["memory", "persona"],
+      "turns": [
+        "Remember this: the new vibranium sample is in locker seven.",
+        "Where did I put the vibranium sample?"
+      ]
+    },
+    {
+      "id": "09-comprehension-tradeoff",
+      "dimensions": ["comprehension", "honesty"],
+      "turns": [
+        "If I can only fix one this week — the reactor's cooling loop or the Mark 42's targeting drift — which should it be, and what am I giving up either way?",
+        "Give me the one-sentence version of that recommendation."
+      ]
+    },
+    {
+      "id": "10-persona-daily",
+      "dimensions": ["persona", "memory"],
+      "turns": [
+        "Morning. The usual coffee, and remind me how I like the music down there.",
+        "Right. If Pepper calls, what should you tell her I'm doing?"
+      ]
+    }
+  ]
+}
