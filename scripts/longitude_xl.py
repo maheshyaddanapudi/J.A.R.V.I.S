@@ -825,13 +825,45 @@ def announced_truth(state: dict, fid: str) -> str:
     return f["values"][state.get("announced", {}).get(fid, 0) % len(f["values"])]
 
 
+def preference_has_value(topic: str, value: str) -> bool:
+    """Is the announced value held by a PREFERENCE about this topic? The key
+    must contain every token of the topic, so `archive digitisation` matches
+    `archive_digitisation_assigned_number` but never a different subject."""
+    toks = [t for t in re.split(r"[^a-z0-9]+", topic.lower()) if t]
+    if not toks:
+        return False
+    try:
+        rows = httpx.get(f"{K}/memory/preferences", params={"limit": 1000}, timeout=30).json()
+    except Exception:
+        return False
+    items = rows if isinstance(rows, list) else (rows.get("items") or rows.get("preferences") or [])
+    v = value.lower()
+    for p in items:
+        k = str(p.get("key", "")).lower()
+        if all(t in k for t in toks) and v in str(p.get("value", "")).lower():
+            return True
+    return False
+
+
 def kernel_has_value(topic: str, pref: bool, value: str) -> bool:
-    """G-24 instrument: is the announced value on file for EXACTLY this topic —
-    the entity row of that name (never a look-alike) or the preference key of
-    that name? Read-only; any transport failure counts as 'not on file'."""
+    """G-24 instrument: is the announced value on file for EXACTLY this topic?
+    A topic is satisfied by EITHER store, because the world legitimately keeps
+    some attributes as preferences: the entity the store resolves the topic to
+    (by name or recorded alias, never a look-alike — `findEntity` refuses a
+    qualifier twin, G-17), or a preference whose key covers the topic.
+
+    Checking entity facts alone was wrong twice on live days (2026-09-13):
+    `lena moreau` reads through a legacy attribute-shaped canonical name (G-29),
+    and `archive digitisation`'s assigned number lives in the preference store,
+    where the kernel's one-home guard correctly REFUSES a duplicate entity fact
+    (R-MEM-08). Both made the instrument re-issue a teach the kernel would
+    refuse again, every re-teach day. Read-only; a transport failure counts as
+    'not on file'."""
     from urllib.parse import quote
     v = value.lower()
     try:
+        if preference_has_value(topic, value):
+            return True
         if pref:
             key = re.sub(r"[^a-z0-9]+", "_", topic.lower()).strip("_")
             rows = httpx.get(f"{K}/memory/preferences", params={"limit": 1000}, timeout=30).json()
