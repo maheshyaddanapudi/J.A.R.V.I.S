@@ -50,7 +50,14 @@ SETS = {
              "vendor": "winch works", "pref": "summer drink", "prefval": "black filter", "deep": "helium recovery", "junk": "sorting"},
     "sump": {"thing": "sump pump", "p1": "ilse brandt", "p2": "rafael ochoa", "place1": "west quay", "place2": "engine hall",
              "vendor": "pump works", "pref": "monsoon drink", "prefval": "oat cappuccino", "deep": "gyroscopic stabilisers", "junk": "labelling"},
+    "davit": {"thing": "davit crane", "p1": "mirela soto", "p2": "anders kjaer", "place1": "south jetty", "place2": "rope loft",
+              "vendor": "crane works", "pref": "harvest drink", "prefval": "matcha latte", "deep": "hydraulic accumulators", "junk": "stacking"},
+    "gantry": {"thing": "gantry hoist", "p1": "signe halvorsen", "p2": "bram teixeira", "place1": "coal wharf", "place2": "net store",
+               "vendor": "hoist works", "pref": "harvest drink", "prefval": "matcha latte", "deep": "cavitation damping", "junk": "bundling"},
 }
+# NOTE: `prefval` MUST be a value from longitude_xl.VALUE_POOLS["drink"] — the strict
+# rubric scores a preference answer against that pool, so an invented value reads as a
+# miss however correct the answer is (found 2026-09-14, cost a re-run of the mini-life).
 W = SETS[sys.argv[2] if len(sys.argv) > 2 else "brine"]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from longitude_xl_strict import StrictScorer  # noqa: E402
