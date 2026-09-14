@@ -292,3 +292,7 @@ Snapshot `docs/verification/longitude_xl/day1400/` (30 MB). Day-1400 battery its
 **54 strict misses: `honest` 24, `twin` 14, `wrong` 13, `misattributed` 3, fabrications 0.** Thirteen wrong values in 1,078 answers; the zero-fabrication record now spans 1,078 act-three answers on top of the 2,166 published for acts one and two.
 
 **Weak layers stable, not degrading:** `retired` 80.0 % (was 76.7 % at day 1300) and `alias` 82.5 % (was 83.3 %) — these remain the two soft spots to report honestly against T5 and T6, with `hop` at 88.3 % between them.
+
+### ACT THREE COMPLETE (2026-09-14 18:35 UTC)
+
+`LONGITUDE-XL COMPLETE`, checkpoint `next_day 1501`, **audit chain intact at 39,030 entries**. Day-1500 snapshot preserved (32 MB). Final record: **`docs/verification/LONGITUDE_XL_ACT3_2026-09-14.md`** — 1,348 scored answers, **96.2 % lenient / 94.8 % strict**, no decay across five centuries (94.8 · 94.8 · 94.4 · 95.9 · 94.1), **202/202 on facts taught during the act**, 0 fabrications, and the pre-registered targets scored **8 met / 4 missed** (T5 nicknames 86 %, T6 retirements 82 %, T7 3-of-4 promotions with the missing one attributable to the pre-swap rate-limit window, T11 cost on the ledger's list prices though the real bill was $11.03 for 492 days). 50 batteries, 15 perfect. Two restart drills at 27/27 each, plus an unscheduled container restart ridden through without losing a day. G-28: 3 merges allowed and 5,408 refused across 497 nights.
