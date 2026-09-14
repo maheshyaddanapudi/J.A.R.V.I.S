@@ -756,3 +756,59 @@ describe.skipIf(!pool)("G-17 — qualifier twins are different things", () => {
     expect((await mem.splitTwinAliases({ relationHints: hints })).splits).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// G-32 — the LOOKUP side normalises spelling: a leading article and a trailing
+// possessive are not identity. Found 2026-09-14 reviewing act three, where all
+// fifty nickname questions were phrased "the X's …" and scored 86.0 % against
+// 95.1 % for every other phrasing — with at least one of those misses over a
+// memory that was perfectly correct (`rashid` was a recorded alias; `rashid's`
+// resolved to nothing).
+// ---------------------------------------------------------------------------
+import { lookupVariants } from "../src/memory/entities.js";
+
+describe("G-32 — lookupVariants", () => {
+  it("strips a leading article and a trailing possessive, and nothing else", () => {
+    expect(lookupVariants("rashid's").variants).toContain("rashid");
+    expect(lookupVariants("the rashid").variants).toContain("rashid");
+    expect(lookupVariants("the rashid's").variants).toContain("rashid");
+    expect(lookupVariants("Ravi Lindholm's").variants).toContain("ravi lindholm");
+    expect(lookupVariants("  the   coral   census  ").variants).toContain("coral census");
+    // never ADDS a token — a qualifier can't appear out of nowhere
+    expect(lookupVariants("coral census").variants).not.toContain("coral census two");
+    // the raw form is kept for exact-match precedence, the bare form for the twin test
+    expect(lookupVariants("The Kiln's")).toMatchObject({ raw: "the kiln's", bare: "kiln" });
+  });
+});
+
+describe.skipIf(!pool)("G-32 — possessive and article forms resolve to the same entity", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  beforeEach(async () => { await p.query("TRUNCATE memory_entities, memory_facts, memory_relations CASCADE"); });
+
+  it("resolves an alias asked in possessive or article form, and still refuses a twin", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberEntity({ name: "rashid goncalves", kind: "person", provenance: "test" });
+    await mem.addAlias({ entityName: "rashid goncalves", alias: "rashid", provenance: "test" });
+    await mem.rememberFact({ entityName: "rashid goncalves", statement: "rashid goncalves meets on wednesday", provenance: "test" });
+    // the shape act three actually asked, over a correct memory
+    for (const asked of ["rashid", "rashid's", "the rashid", "the rashid's", "RASHID'S"]) {
+      const hit = await mem.recall(asked);
+      expect(hit?.entity.name, `asked ${asked}`).toBe("rashid goncalves");
+    }
+    // a qualifier twin is still a different thing, however it is spelled (G-17)
+    await mem.rememberEntity({ name: "coral census two", kind: "project", provenance: "test" });
+    for (const asked of ["coral census", "the coral census", "the coral census's"]) {
+      expect(await mem.recall(asked)).toBeNull();
+    }
+  });
+
+  it("an exact stored name still wins over a normalised match", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberEntity({ name: "the boat shed", kind: "place", provenance: "test" });
+    await mem.rememberEntity({ name: "boat shed", kind: "place", provenance: "test" });
+    expect((await mem.recall("boat shed"))!.entity.name).toBe("boat shed");
+    expect((await mem.recall("the boat shed"))!.entity.name).toBe("the boat shed");
+  });
+});

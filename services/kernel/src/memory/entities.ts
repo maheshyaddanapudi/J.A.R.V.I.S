@@ -169,6 +169,39 @@ function nameShape(name: string): { base: string; quals: string } {
   };
 }
 /**
+ * Longitude-XL G-32 (found 2026-09-14 reviewing act three): the STORE side learned
+ * to fold article variants (D-0085), but the LOOKUP side normalised nothing — a
+ * query had to arrive in exactly the stored spelling. With `rashid` correctly held
+ * as an alias of `rashid goncalves`, both `rashid's` and `the rashid` resolved to
+ * NOTHING, so a naturally-phrased "what is the rashid's meeting day?" opened with
+ * "not found" over a memory that was perfectly correct. Act three asked all fifty
+ * of its nickname questions in that shape and scored 86.0 % against 95.1 % for
+ * every other phrasing.
+ *
+ * A leading article and a trailing possessive are SPELLING, not identity, so both
+ * are stripped before matching. A qualifier IS identity and is never touched: this
+ * only ever REMOVES tokens, so `coral census` still cannot reach `coral census two`
+ * (G-17) and no lookup can widen into a different thing.
+ *
+ * Returns the asked name as given (`raw`, for exact-match precedence), the fully
+ * normalised form (`bare`, for the twin test) and every form to match on.
+ */
+export function lookupVariants(name: string): { raw: string; bare: string; variants: string[] } {
+  const raw = name.trim().toLowerCase().replace(/\s+/g, " ");
+  const strip = (s: string) => s.replace(/['’]s$/, "").replace(/['’]$/, "").trim();
+  const unarticle = (s: string) => s.replace(/^(the|a|an)\s+/, "").trim();
+  const out = new Set<string>();
+  for (const v of [raw, strip(raw)]) {
+    if (!v) continue;
+    out.add(v);
+    const u = unarticle(v);
+    if (u) out.add(u);
+  }
+  const bare = unarticle(strip(raw)) || raw;
+  return { raw, bare, variants: [...out] };
+}
+
+/**
  * Longitude-XL G-17 (2026-09-11): two names are QUALIFIER TWINS when they share
  * the same base words and differ only in qualifier tokens — 'coral census' ⇄
  * 'coral census two', 'the kiln' ⇄ 'kiln north', 'sensor importer two' ⇄
@@ -689,35 +722,42 @@ export class EntityMemory {
 
   /** Look up an active entity by name (case-insensitive) OR by a recorded alias
    *  (D-0075 — so 'Pepper' resolves to canonical 'Pepper Potts'), optionally by
-   *  kind. An exact-name match is preferred over an alias-only match. */
+   *  kind. An exact-name match is preferred over an alias-only match. Spelling
+   *  variants of the asked name (leading article, trailing possessive) resolve
+   *  too — see `lookupVariants` (G-32). */
   private async findEntity(name: string, kind?: string): Promise<Entity | null> {
+    const { raw, bare, variants } = lookupVariants(name);
     const { rows } = await this.pool.query(
       `SELECT id, kind, name, attributes, aliases, status, provenance, confidence, sensitivity, created_at, updated_at
        FROM memory_entities
-       WHERE ( lower(name) = lower($1) OR aliases && ARRAY[lower($1)]::text[] )
+       WHERE ( lower(name) = ANY($1::text[]) OR aliases && $1::text[] )
          AND status NOT IN ('deleted','superseded')
-         ${kind ? "AND kind = $2" : ""}
-       ORDER BY (lower(name) = lower($1)) DESC, updated_at DESC LIMIT 8`,
-      kind ? [name, kind] : [name],
+         ${kind ? "AND kind = $3" : ""}
+       ORDER BY (lower(name) = $2) DESC, (lower(name) = ANY($1::text[])) DESC, updated_at DESC LIMIT 8`,
+      kind ? [variants, raw, kind] : [variants, raw],
     );
     // G-17: an exact name wins; an alias hit counts only when the alias is a
     // genuine variant of the entity's name, never a qualifier twin left behind
     // by a pre-fix merge ('coral census' must not resolve to 'Coral Census Two').
+    // The twin test uses the NORMALISED asked name, so "the coral census's" is
+    // still refused a twin — normalisation only ever removes spelling, never a
+    // qualifier, so it cannot widen a lookup into a different thing.
     const row =
-      rows.find((r) => String(r.name).toLowerCase() === name.toLowerCase()) ??
-      rows.find((r) => !qualifierTwin(name, String(r.name)));
+      rows.find((r) => String(r.name).toLowerCase() === raw) ??
+      rows.find((r) => variants.includes(String(r.name).toLowerCase())) ??
+      rows.find((r) => !qualifierTwin(bare, String(r.name)));
     if (row) return this.hydrateEntity(row);
     // an article variant IS the same thing ('kiln' ⇄ 'the kiln') — same base, same qualifiers
-    const { rows: variants } = await this.pool.query(
+    const { rows: stored } = await this.pool.query(
       `SELECT id, kind, name, attributes, aliases, status, provenance, confidence, sensitivity, created_at, updated_at
        FROM memory_entities
-       WHERE regexp_replace(lower(name), '^the\\s+', '') = regexp_replace(lower($1), '^the\\s+', '')
+       WHERE regexp_replace(lower(name), '^(the|a|an)\\s+', '') = ANY($1::text[])
          AND status NOT IN ('deleted','superseded')
          ${kind ? "AND kind = $2" : ""}
        ORDER BY updated_at DESC LIMIT 1`,
-      kind ? [name, kind] : [name],
+      kind ? [variants, kind] : [variants],
     );
-    return variants[0] ? this.hydrateEntity(variants[0]) : null;
+    return stored[0] ? this.hydrateEntity(stored[0]) : null;
   }
 
   /**
