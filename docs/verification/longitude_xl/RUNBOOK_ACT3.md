@@ -280,3 +280,15 @@ Snapshot `docs/verification/longitude_xl/day1300/` (29 MB). Second kernel-restar
 
 **Two weak layers, named rather than averaged away:** `retired` **76.7 %** and `alias` **83.3 %** are the softest kinds of this act — retirement is legacy G-16/G-19 territory, alias is T5's own layer (and the twin class grew from 6 to 12 over this century, so the alias/twin family is the one to report honestly against its target). `hop` at 86.7 % sits between. The 96 % aggregate must not be allowed to hide these three.
 - **2026-09-14 14:30 UTC — container restart at ~day 1373; the act was UNAFFECTED.** The session container was reclaimed and restarted, taking every session-local watcher with it. The harness itself survived, because it is launched detached (`setsid nohup … & disown`) rather than as a child of the session: days 1372 and 1373 committed straight through the window (107 s / 102 s), the checkpoint advanced to 1374, Postgres was auto-healed by the `SessionStart` hook, the embedder and kernel were still serving, and `jarvis_xl` is intact at 220 active entities. Nothing was restored, relaunched or replayed — the only loss was the Monitor watch, re-armed. This is the detached-launch discipline (G-14) paying for itself: a container restart during an unattended act costs nothing but a watcher.
+
+### Day-1400 preserve (2026-09-14 15:15 UTC)
+
+Snapshot `docs/verification/longitude_xl/day1400/` (30 MB). Day-1400 battery itself: **27/27 · 27/27**.
+
+**1,078 scored answers, strict 1,024/1,078 (95.0 %).** By kind: **new 162/162 (100.0 %)**, base 691/716 (96.5 %), hop 106/120 (88.3 %), alias 33/40 (82.5 %), retired 32/40 (80.0 %). By century, strict: 94.8 % → 94.8 % → 94.4 % → **95.9 %** — no decay across 400 days, and the final century is the act's best. World steady at 220 entities / 443 active facts / 101 preferences, audit 37,307.
+
+**The headline holds and has never slipped: 162 of 162 newly-taught facts recalled**, measured per answer by the re-score classifier (the sound method adopted after the day-1300 correction), across four preserves.
+
+**54 strict misses: `honest` 24, `twin` 14, `wrong` 13, `misattributed` 3, fabrications 0.** Thirteen wrong values in 1,078 answers; the zero-fabrication record now spans 1,078 act-three answers on top of the 2,166 published for acts one and two.
+
+**Weak layers stable, not degrading:** `retired` 80.0 % (was 76.7 % at day 1300) and `alias` 82.5 % (was 83.3 %) — these remain the two soft spots to report honestly against T5 and T6, with `hop` at 88.3 % between them.
