@@ -812,3 +812,70 @@ describe.skipIf(!pool)("G-32 — possessive and article forms resolve to the sam
     expect((await mem.recall("the boat shed"))!.entity.name).toBe("the boat shed");
   });
 });
+
+// ---------------------------------------------------------------------------
+// G-31 / G-30 — the two reconciliation passes the act-three review opened.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("G-31 — a stale alias that names a different live entity is retracted", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  beforeEach(async () => { await p.query("TRUNCATE memory_entities, memory_facts, memory_relations CASCADE"); });
+
+  it("retracts only the alias shadowing another entity, and leaves genuine aliases alone", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    // the exact act-three damage: the plain twin exists AND is an alias of the qualified one
+    await mem.rememberEntity({ name: "coral census two", kind: "project", provenance: "test" });
+    await mem.rememberEntity({ name: "coral census", kind: "project", provenance: "test" });
+    await p.query("UPDATE memory_entities SET aliases = ARRAY['coral census'] WHERE lower(name) = 'coral census two'");
+    // a genuine alias: no entity of that name exists
+    await mem.rememberEntity({ name: "pepper potts", kind: "person", provenance: "test" });
+    await mem.addAlias({ entityName: "pepper potts", alias: "pepper", provenance: "test" });
+
+    const dry = await mem.retractShadowedAliases();
+    expect(dry.applied).toBe(false);
+    expect(dry.retracted).toEqual([{ entity: "coral census two", alias: "coral census", shadowed: "coral census" }]);
+
+    const done = await mem.retractShadowedAliases({ apply: true });
+    expect(done.retracted).toHaveLength(1);
+    const after = await p.query<{ name: string; aliases: string[] }>(
+      "SELECT name, aliases FROM memory_entities WHERE status NOT IN ('deleted','superseded') ORDER BY name");
+    expect(Object.fromEntries(after.rows.map((r) => [r.name, r.aliases ?? []]))).toMatchObject({
+      "coral census two": [], "coral census": [], "pepper potts": ["pepper"],
+    });
+    // both still resolve to themselves, and the genuine alias still works
+    expect((await mem.recall("coral census"))!.entity.name).toBe("coral census");
+    expect((await mem.recall("coral census two"))!.entity.name).toBe("coral census two");
+    expect((await mem.recall("pepper"))!.entity.name).toBe("pepper potts");
+    // idempotent
+    expect((await mem.retractShadowedAliases({ apply: true })).retracted).toEqual([]);
+  });
+});
+
+describe.skipIf(!pool)("G-30 — an article-only canonical name is renamed to the plain spelling", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  beforeEach(async () => { await p.query("TRUNCATE memory_entities, memory_facts, memory_relations CASCADE"); });
+
+  it("renames when no plain row exists, keeps the old spelling, and leaves real pairs to the fold", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberEntity({ name: "the morning swim north", kind: "thing", provenance: "test" });
+    await mem.rememberFact({ entityName: "the morning swim north", statement: "the morning swim north's home city is hobart", provenance: "test" });
+    // a REAL pair — the fold owns this one, the rename must not touch it
+    await mem.rememberEntity({ name: "boat shed", kind: "place", provenance: "test" });
+    await mem.rememberEntity({ name: "the boat shed", kind: "place", provenance: "test" });
+
+    const dry = await mem.normalizeArticleNames();
+    expect(dry.renamed).toEqual([{ from: "the morning swim north", to: "morning swim north", kind: "thing" }]);
+
+    const done = await mem.normalizeArticleNames({ apply: true });
+    expect(done.renamed).toHaveLength(1);
+    const hit = await mem.recall("morning swim north");
+    expect(hit!.entity.name).toBe("morning swim north");
+    expect(hit!.facts).toHaveLength(1); // a rename, not a merge — nothing moved, nothing lost
+    expect((await mem.recall("the morning swim north"))!.entity.name).toBe("morning swim north"); // old spelling still resolves
+    expect((await mem.recall("the boat shed"))!.entity.name).toBe("the boat shed"); // untouched
+    expect((await mem.normalizeArticleNames({ apply: true })).renamed).toEqual([]); // idempotent
+  });
+});

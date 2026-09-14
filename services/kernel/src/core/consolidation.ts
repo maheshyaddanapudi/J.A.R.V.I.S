@@ -346,6 +346,25 @@ export class SleepCycle {
           }
         }
       } catch { /* best-effort */ }
+      // G-30: a row whose ONLY spelling carries the article has no plain row to
+      // fold into, so the pass above can never reach it — rename it to the
+      // spelling the world actually uses, keeping the old one as a name.
+      // Runs AFTER the fold so a real pair is resolved by the fold, not renamed.
+      try {
+        const an = await this.deps.memory.normalizeArticleNames({ apply: true });
+        if (an.renamed.length) {
+          findings.push(`memory: renamed ${an.renamed.length} entry(ies) filed under "the …" to the plain name`);
+          for (const m of an.renamed.slice(0, 5)) notes.push(`article-name — "${m.from}" renamed to "${m.to}" (old spelling kept as another name)`);
+        }
+      } catch { /* best-effort */ }
+      // G-31: an alias that names a DIFFERENT live entity is a trap, not a name
+      try {
+        const ra = await this.deps.memory.retractShadowedAliases({ apply: true });
+        if (ra.retracted.length) {
+          findings.push(`memory: retracted ${ra.retracted.length} duplicate name(s) that belonged to a different entry`);
+          for (const m of ra.retracted.slice(0, 5)) notes.push(`alias-retract — "${m.alias}" removed from "${m.entity}" ("${m.shadowed}" is its own entry)`);
+        }
+      } catch { /* best-effort */ }
       // G-07: exclusive relations keep one current edge (newest); the rest go to history
       try {
         const rr = await this.deps.memory.reconcileRelations({ apply: true });

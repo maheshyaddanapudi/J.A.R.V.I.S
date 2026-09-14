@@ -410,7 +410,7 @@ export class EntityMemory {
    *  into an existing entity) or a reconciliation SPLIT is a memory change the
    *  user must be able to see and undo. The kernel wires this to the announcer;
    *  best-effort, never blocks the write. */
-  onMemoryChange?: (change: { kind: "merge" | "split" | "fact-merge"; text: string; about: string }) => Promise<unknown>;
+  onMemoryChange?: (change: { kind: "merge" | "split" | "fact-merge" | "alias-retract" | "rename"; text: string; about: string }) => Promise<unknown>;
 
   /** D-0080 knob (`memory.recall.identityFirst`, default true): when false,
    *  recallGraph ranks similarity first and uses identity only as a fallback —
@@ -1338,6 +1338,118 @@ export class EntityMemory {
       }
     }
     return { applied: Boolean(opts.apply), merged };
+  }
+
+  /**
+   * Longitude-XL G-31 (found 2026-09-14 reviewing act three): the twin split
+   * (G-17) gave each folded twin its own row back but never RETRACTED the plain
+   * name from the twin's alias array, so six names finished the act as both an
+   * entity and an alias of their own qualifier twin — `coral census` is a live
+   * entity AND an alias of `Coral Census Two`.
+   *
+   * Latent, not active: exact name beats alias, so every one of them still
+   * resolved correctly. That is exactly why it is worth retracting — the damage
+   * is invisible until some later change to lookup precedence makes it answer,
+   * and by then the cause is a year of history away. An alias that names a
+   * different live entity is never a useful alias; it is only a trap.
+   */
+  async retractShadowedAliases(opts: { apply?: boolean } = {}): Promise<{
+    applied: boolean;
+    retracted: { entity: string; alias: string; shadowed: string }[];
+  }> {
+    const { rows } = await this.pool.query<{ id: string; name: string; aliases: string[] | null }>(
+      `SELECT id, name, aliases FROM memory_entities
+        WHERE status NOT IN ('deleted','superseded') AND coalesce(array_length(aliases, 1), 0) > 0`,
+    );
+    const live = await this.pool.query<{ name: string }>(
+      `SELECT name FROM memory_entities WHERE status NOT IN ('deleted','superseded')`,
+    );
+    const byName = new Map(live.rows.map((r) => [r.name.toLowerCase().trim(), r.name]));
+    const retracted: { entity: string; alias: string; shadowed: string }[] = [];
+    for (const r of rows) {
+      for (const alias of r.aliases ?? []) {
+        const key = String(alias).toLowerCase().trim();
+        const owner = byName.get(key);
+        if (!owner || owner.toLowerCase().trim() === r.name.toLowerCase().trim()) continue;
+        retracted.push({ entity: r.name, alias: String(alias), shadowed: owner });
+        if (!opts.apply) continue;
+        await this.pool.query(
+          `UPDATE memory_entities SET aliases = array_remove(coalesce(aliases, '{}'), $2), updated_at = now() WHERE id = $1`,
+          [r.id, alias],
+        );
+        await this.audit.append({
+          actor: "kernel",
+          event: "entity_alias_retracted",
+          payload: { entity: r.name, alias: String(alias), shadowed: owner, reason: "alias names a different live entity" },
+        });
+        if (this.onMemoryChange) {
+          void this.onMemoryChange({
+            kind: "alias-retract",
+            about: r.name,
+            text: `"${alias}" was listed as another name for "${r.name}", but "${owner}" is its own separate entry — I've removed the duplicate name so "${alias}" only ever means "${owner}". Tell me if they really are the same thing.`,
+          }).catch(() => undefined);
+        }
+      }
+    }
+    return { applied: Boolean(opts.apply), retracted };
+  }
+
+  /**
+   * Longitude-XL G-30 (found 2026-09-14, act three day 1014): `reconcileArticleVariants`
+   * folds `the X` INTO an existing `X` — so a family whose ONLY row is the
+   * articled spelling is structurally unreachable by it. Seven rows finished the
+   * act named `the morning swim north`, `The Sensor Importer Two`, `the test
+   * range`, `the kiln`, `the lena moreau`, `the monthly backup north`, `The
+   * Filament Shop Two`, with no plain row to fold into. The world then teaches
+   * and asks in the plain form, so facts accrete under a name nobody says.
+   *
+   * This renames the row to the plain spelling and keeps the articled one as an
+   * alias. It is a RENAME, not a merge: no facts move, nothing is superseded,
+   * and it is skipped when a plain-named row already exists (that is the fold's
+   * job) or when the plain name would collide with another live entity.
+   */
+  async normalizeArticleNames(opts: { apply?: boolean } = {}): Promise<{
+    applied: boolean;
+    renamed: { from: string; to: string; kind: string }[];
+  }> {
+    const { rows } = await this.pool.query<{ id: string; name: string; kind: string }>(
+      `SELECT id, name, kind FROM memory_entities
+        WHERE status NOT IN ('deleted','superseded') AND lower(name) ~ '^(the|a|an)\\s+'`,
+    );
+    const live = await this.pool.query<{ name: string }>(
+      `SELECT name FROM memory_entities WHERE status NOT IN ('deleted','superseded')`,
+    );
+    const taken = new Set(live.rows.map((r) => r.name.toLowerCase().trim()));
+    const renamed: { from: string; to: string; kind: string }[] = [];
+    for (const r of rows) {
+      const plain = r.name.trim().replace(/^(?:the|a|an)\s+/i, "").trim();
+      if (!plain || taken.has(plain.toLowerCase())) continue; // the fold handles a real pair
+      renamed.push({ from: r.name, to: plain, kind: r.kind });
+      taken.add(plain.toLowerCase());
+      if (!opts.apply) continue;
+      await this.pool.query(
+        `UPDATE memory_entities
+            SET name = $2,
+                aliases = CASE WHEN coalesce(aliases, '{}') @> ARRAY[$3]::text[] THEN aliases
+                               ELSE array_append(coalesce(aliases, '{}'), $3) END,
+                updated_at = now()
+          WHERE id = $1`,
+        [r.id, plain, r.name.toLowerCase()],
+      );
+      await this.audit.append({
+        actor: "kernel",
+        event: "entity_article_name_normalised",
+        payload: { from: r.name, to: plain, kind: r.kind },
+      });
+      if (this.onMemoryChange) {
+        void this.onMemoryChange({
+          kind: "rename",
+          about: plain,
+          text: `I had "${r.name}" filed under that exact spelling, which is not how you refer to it — I've renamed the entry to "${plain}" and kept "${r.name}" as another name for it. Nothing about it was changed or lost.`,
+        }).catch(() => undefined);
+      }
+    }
+    return { applied: Boolean(opts.apply), renamed };
   }
 
   async splitTwinAliases(

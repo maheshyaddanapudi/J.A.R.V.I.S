@@ -87,6 +87,19 @@ export function registerMemoryRoutes(
       return entities.reconcileArticleVariants({ apply: body.apply === true });
     });
 
+    // G-30: rename a row filed under "the X" when no plain "X" row exists for
+    // the fold to work with. G-31: retract an alias that names a different live
+    // entity. Both dry-run by default, like every other reconciler.
+    app.post("/memory/normalize-article-names", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.normalizeArticleNames({ apply: body.apply === true });
+    });
+
+    app.post("/memory/retract-shadowed-aliases", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.retractShadowedAliases({ apply: body.apply === true });
+    });
+
     app.post("/memory/reconcile-homes", async (req) => {
       const body = (req.body ?? {}) as { apply?: boolean };
       return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });
