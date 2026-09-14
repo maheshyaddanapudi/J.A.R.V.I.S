@@ -265,3 +265,17 @@ Snapshot `docs/verification/longitude_xl/day1200/` (27 MB).
 **Strict-miss classification over all 538 answers, 28 misses:** `honest` 14, `wrong` 7, `twin` 6, `misattributed` 1, **fabrications 0**. Half of every strict penalty is J.A.R.V.I.S. declining rather than guessing; seven wrong values in 538 answers. The zero-fabrication record now spans 538 act-three answers on top of the 2,166 published for acts one and two. One NEW class appeared in the second century — a single `misattributed` — one answer in 270, recorded as a watch item rather than a finding.
 
 **Cost still falling: $5.80 over 192 days = $0.030/day** (was $0.041/day at the day-1100 preserve). The remaining 300 days project to **≈ $9** against **$23.80** on hand. The act is funded to completion with margin; no top-up.
+
+### Day-1300 preserve (2026-09-14 11:45 UTC) — includes a CORRECTION to earlier entries
+
+Snapshot `docs/verification/longitude_xl/day1300/` (29 MB). Second kernel-restart continuity drill: **post-restart quiz 27/27**, as at day 1100.
+
+**CORRECTION — the "newly-taught facts N/N" figures in the day-1100 and day-1200 entries were derived wrongly.** They summed `quiz_new_hits` over `quiz_new_asked`, two counters that do NOT share a denominator: `quiz_new_hits` exceeded `quiz_new_asked` at day 1240 (5 vs 4), and `quiz_reteach_strict` routinely runs 5–9 against a `quiz_reteach_asked` of 3. The ratio framing was invalid and should have been caught the first time a strict count exceeded its asked count. The sound figure comes from the per-answer re-score classifier, and the claim survives it — see the per-kind table.
+
+**Per-kind strict recall over 808 act-three answers:** **new 121/121 (100.0 %)**, base 518/537 (96.5 %), hop 78/90 (86.7 %), alias 25/30 (83.3 %), retired 23/30 (76.7 %). So *121 of 121 newly-taught facts recalled with zero misses* stands, now derived per answer rather than from mismatched counters.
+
+**Thirty batteries — 777/808 lenient (96.2 %) · 765/808 strict (94.7 %).** By century, lenient recall RISES throughout: 1001–1100 **95.5 %**, 1101–1200 **96.3 %**, 1201–1300 **96.7 %** (strict 94.8 / 94.8 / 94.4). World steady at 220 entities, 443 active facts, 101 preferences, audit 35,520.
+
+**43 strict misses: `honest` 18, `twin` 12, `wrong` 10, `misattributed` 3, fabrications 0.**
+
+**Two weak layers, named rather than averaged away:** `retired` **76.7 %** and `alias` **83.3 %** are the softest kinds of this act — retirement is legacy G-16/G-19 territory, alias is T5's own layer (and the twin class grew from 6 to 12 over this century, so the alias/twin family is the one to report honestly against its target). `hop` at 86.7 % sits between. The 96 % aggregate must not be allowed to hide these three.
