@@ -880,8 +880,25 @@ def kernel_has_value(topic: str, pref: bool, value: str) -> bool:
         # read as "not on file" and the recap was re-issued forever (G-29).
         # A qualifier twin still cannot satisfy this: `findEntity` refuses to
         # resolve `coral census` to `coral census two` (G-17).
-        names = {str(e.get("name", "")).lower()} | {str(a).lower() for a in (e.get("aliases") or [])}
-        if topic.lower() not in names:
+        # A leading article is not an identity difference. Seven rows in the
+        # day-1000 world carry an article-prefixed CANONICAL name with no plain
+        # row to fold into ("the morning swim north", "The Sensor Importer Two",
+        # "the test range", "the kiln", "the lena moreau", "the monthly backup
+        # north", "The Filament Shop Two"), so D-0085's reconcileArticleVariants
+        # — which folds `the X` INTO an existing `X` — structurally cannot reach
+        # them (G-30). The kernel resolves `morning swim north` to that row and
+        # stores facts on it correctly, with read-back receipts in the audit;
+        # only this checker, comparing raw strings, called it "not on file" and
+        # re-issued a teach that had already landed (found live, day 1014, after
+        # the same shape on days 1008 and 1012).
+        # Stripping the article on BOTH sides keeps the G-17 twin exclusion
+        # exactly as it was: `morning swim` still never matches `morning swim
+        # north`, because the qualifier, not the article, is the difference.
+        def _bare(s: str) -> str:
+            return re.sub(r"^(the|a|an)\s+", "", str(s).strip().lower())
+
+        names = {_bare(e.get("name", ""))} | {_bare(a) for a in (e.get("aliases") or [])}
+        if _bare(topic) not in names:
             return False
         return any(v in str(f.get("statement") or f.get("content") or "").lower() for f in (d.get("facts") or []))
     except Exception:
