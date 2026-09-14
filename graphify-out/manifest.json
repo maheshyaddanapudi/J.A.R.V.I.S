@@ -1567,9 +1567,9 @@
   },
   "docs/IMPLEMENTATION_PLAN.md": {
     "mtime": 1789257535.160586,
-    "seen": 1789257899.2174387,
+    "seen": 1789349038.842925,
     "ast_hash": "5f4fe168c2b9772b8343c3b7a34a8bc0",
-    "semantic_hash": ""
+    "semantic_hash": "5f4fe168c2b9772b8343c3b7a34a8bc0"
   },
   "docs/MAC_BRINGUP.md": {
     "mtime": 1787690224.8882782,
@@ -1584,10 +1584,10 @@
     "semantic_hash": "3c62455dad242cb6a8ac14ef55460b6b"
   },
   "docs/REQUIREMENTS_TRACEABILITY.md": {
-    "mtime": 1789257604.5525904,
-    "seen": 1789257899.2175188,
-    "ast_hash": "f88b4d978c4ba72ffdd702830a953f35",
-    "semantic_hash": ""
+    "mtime": 1789322504.146403,
+    "seen": 1789349038.843002,
+    "ast_hash": "4d27f221ad38cf7a5f986d335758fa54",
+    "semantic_hash": "4d27f221ad38cf7a5f986d335758fa54"
   },
   "docs/RESEARCH_VERIFICATION.md": {
     "mtime": 1787690224.8882782,
@@ -2100,10 +2100,10 @@
     "semantic_hash": "143861d85b37ac5762d678ffaac24fb6"
   },
   "docs/verification/LONGITUDE_XL_GAP_LEDGER.md": {
-    "mtime": 1789257469.9285824,
-    "seen": 1789257899.2180107,
-    "ast_hash": "38f45efa75e0ec2c34ea2572e8a51338",
-    "semantic_hash": ""
+    "mtime": 1789324112.383492,
+    "seen": 1789349038.8434515,
+    "ast_hash": "0d372516cac1fbb3a0e8a0cfa3e3ed3b",
+    "semantic_hash": "0d372516cac1fbb3a0e8a0cfa3e3ed3b"
   },
   "docs/verification/longitude_xl/day700/README.md": {
     "mtime": 1789006590.729103,
@@ -2208,16 +2208,16 @@
     "semantic_hash": "c459cb03a21aef437674efd25ac0d5cc"
   },
   "scripts/minilife_r10.py": {
-    "mtime": 1789246429.947926,
-    "seen": 1789256236.8861237,
-    "ast_hash": "9910b80ae93075f86e870972b4c77d47",
-    "semantic_hash": "9910b80ae93075f86e870972b4c77d47"
+    "mtime": 1789352597.5816476,
+    "seen": 1789352601.0818667,
+    "ast_hash": "79739f3d958cff73a11aac45052a93a8",
+    "semantic_hash": "79739f3d958cff73a11aac45052a93a8"
   },
   "docs/verification/longitude_xl/RUNBOOK_ACT3.md": {
-    "mtime": 1789324112.408316,
-    "seen": 1789324760.3874593,
-    "ast_hash": "b619d11b9562c189685bdc167965734f",
-    "semantic_hash": "b619d11b9562c189685bdc167965734f"
+    "mtime": 1789348133.0947373,
+    "seen": 1789349038.8437552,
+    "ast_hash": "e6a623090f27190096f0d05f9bba138e",
+    "semantic_hash": "e6a623090f27190096f0d05f9bba138e"
   },
   "docs/verification/longitude_xl/day1000/replay_after_r10.json": {
     "mtime": 1789168994.448221,
@@ -2268,15 +2268,21 @@
     "semantic_hash": "e18d381706c0114a32fe507ff8ce2666"
   },
   "docs/verification/longitude_xl/ROUTINE_ACT3.md": {
-    "mtime": 1789322017.4185078,
-    "seen": 1789324760.3874576,
-    "ast_hash": "04c0a28c971807a98d6ea48206aaceb6",
-    "semantic_hash": "04c0a28c971807a98d6ea48206aaceb6"
+    "mtime": 1789325601.2148647,
+    "seen": 1789349038.8437538,
+    "ast_hash": "ff7311ea0b6d0f080ce6bca7f037b723",
+    "semantic_hash": "ff7311ea0b6d0f080ce6bca7f037b723"
   },
   "docs/verification/refinement/R12_minilife_qwen_attempt4_run1.md": {
     "mtime": 1789258212.165616,
     "seen": 1789324760.3877726,
     "ast_hash": "1208ea0897f6784e38d5e02070b8c604",
     "semantic_hash": "1208ea0897f6784e38d5e02070b8c604"
+  },
+  "docs/verification/refinement/R13_minilife_ling3flash.md": {
+    "mtime": 1789351270.0205913,
+    "seen": 1789351336.819212,
+    "ast_hash": "0f5711956dd67869585ba61fd39b6fb4",
+    "semantic_hash": "0f5711956dd67869585ba61fd39b6fb4"
   }
 }
