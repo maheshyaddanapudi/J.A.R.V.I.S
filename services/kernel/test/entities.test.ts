@@ -879,3 +879,85 @@ describe.skipIf(!pool)("G-30 — an article-only canonical name is renamed to th
     expect((await mem.normalizeArticleNames({ apply: true })).renamed).toEqual([]); // idempotent
   });
 });
+
+// ---------------------------------------------------------------------------
+// G-29 — an attribute phrase is never a fuller name for the thing itself, and
+// the five rows the act left behind are folded back onto their base entity.
+// ---------------------------------------------------------------------------
+import { possessiveBase } from "../src/memory/entities.js";
+
+describe("G-29 — possessiveBase", () => {
+  it("recognises an attribute phrase and leaves ordinary names alone", () => {
+    expect(possessiveBase("Lena Moreau's meeting")).toBe("Lena Moreau");
+    expect(possessiveBase("quinn lindholm's meets")).toBe("quinn lindholm");
+    expect(possessiveBase("Diego Mbeki’s Meets")).toBe("Diego Mbeki"); // curly apostrophe
+    expect(possessiveBase("Pepper Potts")).toBeNull();
+    expect(possessiveBase("coral census two")).toBeNull();
+  });
+});
+
+describe.skipIf(!pool)("G-29 — possessive rows fold back onto the person", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  beforeEach(async () => { await p.query("TRUNCATE memory_entities, memory_facts, memory_relations CASCADE"); });
+
+  it("moves the phrase's facts to the base, skips duplicates, and leaves a baseless phrase alone", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberEntity({ name: "quinn lindholm", kind: "person", provenance: "test" });
+    await mem.rememberFact({ entityName: "quinn lindholm", statement: "quinn lindholm's preferred material is palladium", provenance: "test" });
+    await mem.rememberEntity({ name: "quinn lindholm's meets", kind: "thing", provenance: "test" });
+    await mem.rememberFact({ entityName: "quinn lindholm's meets", statement: "Quinn Lindholm's meets occur on Tuesday.", provenance: "test" });
+    // a phrase whose base does NOT exist — its facts have no other home, leave it
+    await mem.rememberEntity({ name: "nobody's ledger", kind: "thing", provenance: "test" });
+    await mem.rememberFact({ entityName: "nobody's ledger", statement: "nobody's ledger is kept in the vault", provenance: "test" });
+
+    const dry = await mem.reconcilePossessiveNames();
+    expect(dry.folded.map((f) => f.phrase)).toEqual(["quinn lindholm's meets"]);
+
+    const done = await mem.reconcilePossessiveNames({ apply: true });
+    expect(done.folded[0]).toMatchObject({ phrase: "quinn lindholm's meets", base: "quinn lindholm", facts: 1 });
+    const quinn = await mem.recall("quinn lindholm");
+    expect(quinn!.facts.map((f) => f.statement).sort()).toEqual([
+      "Quinn Lindholm's meets occur on Tuesday.", "quinn lindholm's preferred material is palladium",
+    ]);
+    expect(await mem.recall("nobody's ledger")).not.toBeNull(); // untouched
+    expect((await mem.reconcilePossessiveNames({ apply: true })).folded).toEqual([]); // idempotent
+  });
+
+  it("an attribute phrase never becomes the canonical name for the person", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberEntity({ name: "Lena Moreau", kind: "person", provenance: "test" });
+    await mem.rememberEntity({ name: "Lena Moreau's meeting", kind: "person", provenance: "test" });
+    // the person keeps her own name — the phrase does not absorb her (G-29 at the source)
+    expect((await mem.recall("Lena Moreau"))!.entity.name).toBe("Lena Moreau");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T6 / G-16 — a retirement must survive as its own answerable fact. All nine
+// act-three retirement misses were one entity (`fusion sim north`) whose closure
+// had been recorded as a correction in act two and superseded away on the shared
+// word "status", leaving status colour and core material but nothing to answer
+// "is it still active?" with. This pins the CURRENT behaviour.
+// ---------------------------------------------------------------------------
+describe.skipIf(!pool)("T6 — a closure is its own fact, not a correction of another slot", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  beforeEach(async () => { await p.query("TRUNCATE memory_entities, memory_facts, memory_relations CASCADE"); });
+
+  it("a 'no longer active' statement does not supersede the status COLOUR", async () => {
+    const mem = new EntityMemory(p, audit, vault);
+    await mem.rememberEntity({ name: "fusion sim north", kind: "project", provenance: "test" });
+    await mem.rememberFact({ entityName: "fusion sim north", statement: "fusion sim north's status colour is cobalt", provenance: "test" });
+    await mem.rememberFact({ entityName: "fusion sim north", statement: "fusion sim north's core material is palladium", provenance: "test" });
+    await mem.rememberFact({ entityName: "fusion sim north", statement: "fusion sim north is no longer active", provenance: "test" });
+    const hit = await mem.recall("fusion sim north");
+    const facts = hit!.facts.map((f) => f.statement);
+    // the closure is answerable AND the colour survived it
+    expect(facts.some((f) => /no longer active/i.test(f))).toBe(true);
+    expect(facts.some((f) => /status colour is cobalt/i.test(f))).toBe(true);
+    expect(facts.some((f) => /core material is palladium/i.test(f))).toBe(true);
+  });
+});

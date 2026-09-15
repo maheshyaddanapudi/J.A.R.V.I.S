@@ -365,6 +365,15 @@ export class SleepCycle {
           for (const m of ra.retracted.slice(0, 5)) notes.push(`alias-retract — "${m.alias}" removed from "${m.entity}" ("${m.shadowed}" is its own entry)`);
         }
       } catch { /* best-effort */ }
+      // G-29: an attribute phrase that became its own entity is folded back onto
+      // the person, so her facts stop accreting under one of her own details
+      try {
+        const pn = await this.deps.memory.reconcilePossessiveNames({ apply: true });
+        if (pn.folded.length) {
+          findings.push(`memory: folded ${pn.folded.length} entry(ies) named after someone's own detail back onto them`);
+          for (const m of pn.folded.slice(0, 5)) notes.push(`possessive-name — "${m.phrase}" folded onto "${m.base}" (${m.facts} fact(s) moved, ${m.duplicates} already held)`);
+        }
+      } catch { /* best-effort */ }
       // G-07: exclusive relations keep one current edge (newest); the rest go to history
       try {
         const rr = await this.deps.memory.reconcileRelations({ apply: true });

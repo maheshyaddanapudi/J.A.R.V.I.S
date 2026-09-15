@@ -132,6 +132,19 @@ function mergeAttrs(oldA: string, newA: string): string {
  *  a name that CONTAINS the other wins ('Pepper' ⊂ 'Pepper Potts'); else the one
  *  with more word tokens ('Mark 42' vs 'Mark 42 suit'); else the longer string;
  *  final tie keeps `existing` for stability. */
+/**
+ * Longitude-XL G-29: `Lena Moreau's meeting` CONTAINS `Lena Moreau`, so the
+ * fuller-name rule above read the attribute phrase as the more complete name,
+ * promoted it to canonical and filed the PERSON under one of her own attributes
+ * — every later fact about her then accreted onto "her meeting". Returns the
+ * base name when a name is shaped `<base>'s <attribute>`, else null.
+ */
+export function possessiveBase(name: string): string | null {
+  const m = /^(.+?)['’]s\s+\S+$/.exec(name.trim());
+  const base = m?.[1]?.trim();
+  return base ? base : null;
+}
+
 function preferFuller(existing: string, incoming: string): string {
   const e = existing.trim();
   const i = incoming.trim();
@@ -140,6 +153,11 @@ function preferFuller(existing: string, incoming: string): string {
   const el = e.toLowerCase();
   const il = i.toLowerCase();
   if (el === il) return e;
+  // G-29: a thing's ATTRIBUTE is never a fuller name for the thing itself.
+  const eBase = possessiveBase(e)?.toLowerCase();
+  const iBase = possessiveBase(i)?.toLowerCase();
+  if (iBase === el && eBase !== il) return e;
+  if (eBase === il && iBase !== el) return i;
   const eInI = il.includes(el);
   const iInE = el.includes(il);
   if (eInI && !iInE) return i;
@@ -1450,6 +1468,108 @@ export class EntityMemory {
       }
     }
     return { applied: Boolean(opts.apply), renamed };
+  }
+
+  /**
+   * Longitude-XL G-29 (found 2026-09-13, act three day 1003; repaired here): five
+   * rows finished the act named `<person>'s <attribute>` — `Lena Moreau's meeting`,
+   * `Tessa Novak's meeting`, `quinn lindholm's meets`, `Diego Mbeki's Meets`,
+   * `kalinda matsuda's meet`. The fuller-name rule had promoted the attribute
+   * phrase over the person (fixed at the source in `preferFuller`), so facts about
+   * the person landed on "her meeting" instead.
+   *
+   * This folds the phrase row back into the base entity when that base is itself a
+   * live entity: active facts move across, a fact whose content the base already
+   * holds is left behind superseded rather than duplicated, and the phrase row is
+   * superseded with `superseded_by` so the history is walkable. An empty phrase row
+   * (no facts, no relations) is simply retired. Nothing is folded when the base
+   * does not exist — that row is the only home its facts have.
+   */
+  async reconcilePossessiveNames(opts: { apply?: boolean } = {}): Promise<{
+    applied: boolean;
+    folded: { phrase: string; base: string; facts: number; duplicates: number; relations: number }[];
+  }> {
+    const { rows } = await this.pool.query<{ id: string; name: string }>(
+      `SELECT id, name FROM memory_entities
+        WHERE status NOT IN ('deleted','superseded') AND name ~ '''s(\\s|$)'`,
+    );
+    const folded: { phrase: string; base: string; facts: number; duplicates: number; relations: number }[] = [];
+    for (const r of rows) {
+      const baseName = possessiveBase(r.name);
+      if (!baseName) continue;
+      const base = await this.findEntity(baseName);
+      if (!base || base.id === r.id) continue; // no base row → this is the fact's only home
+      const mine = await this.pool.query<{ id: string; statement: string }>(
+        `SELECT id, statement FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')`,
+        [r.id],
+      );
+      const theirs = await this.pool.query<{ statement: string }>(
+        `SELECT statement FROM memory_facts WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')`,
+        [base.id],
+      );
+      // compare on DECRYPTED content words — the ciphertext of equal text differs
+      const words = (s: string) => new Set(this.dec(s).toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 2));
+      const held = theirs.rows.map((t) => words(t.statement));
+      const dupe = (s: string) => {
+        const w = words(s);
+        if (!w.size) return false;
+        return held.some((h) => [...w].filter((x) => h.has(x)).length >= Math.max(2, Math.ceil(w.size * 0.6)));
+      };
+      const move = mine.rows.filter((f) => !dupe(f.statement));
+      const dup = mine.rows.length - move.length;
+      const rel = await this.pool.query<{ n: string }>(
+        `SELECT count(*) n FROM memory_relations WHERE from_entity = $1 OR to_entity = $1`, [r.id],
+      );
+      const relations = Number(rel.rows[0]!.n);
+      folded.push({ phrase: r.name, base: base.name, facts: move.length, duplicates: dup, relations });
+      if (!opts.apply) continue;
+      const client = await this.pool.connect();
+      try {
+        await client.query("BEGIN");
+        if (move.length) {
+          await client.query(`UPDATE memory_facts SET entity_id = $1 WHERE id = ANY($2::uuid[])`, [base.id, move.map((m) => m.id)]);
+        }
+        if (dup) {
+          await client.query(
+            `UPDATE memory_facts SET status = 'superseded' WHERE entity_id = $1 AND status NOT IN ('deleted','superseded')`,
+            [r.id],
+          );
+        }
+        await client.query(
+          `UPDATE memory_relations r SET from_entity = $1 WHERE r.from_entity = $2
+             AND NOT EXISTS (SELECT 1 FROM memory_relations x WHERE x.from_entity = $1 AND x.to_entity = r.to_entity AND x.relation = r.relation)`,
+          [base.id, r.id],
+        );
+        await client.query(
+          `UPDATE memory_relations r SET to_entity = $1 WHERE r.to_entity = $2
+             AND NOT EXISTS (SELECT 1 FROM memory_relations x WHERE x.to_entity = $1 AND x.from_entity = r.from_entity AND x.relation = r.relation)`,
+          [base.id, r.id],
+        );
+        await client.query(
+          `UPDATE memory_entities SET status = 'superseded', superseded_by = $1, updated_at = now() WHERE id = $2`,
+          [base.id, r.id],
+        );
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+      await this.audit.append({
+        actor: "kernel",
+        event: "entity_possessive_name_folded",
+        payload: { phrase: r.name, base: base.name, facts: move.length, duplicates: dup, relations },
+      });
+      if (this.onMemoryChange) {
+        void this.onMemoryChange({
+          kind: "merge",
+          about: base.name,
+          text: `"${r.name}" had become its own entry, so things you told me about ${base.name} were filing themselves under one of ${base.name}'s own details. I've moved ${move.length} fact(s) back onto "${base.name}"${dup ? ` (${dup} were already there)` : ""} and retired the stray entry. Tell me if "${r.name}" really is a separate thing.`,
+        }).catch(() => undefined);
+      }
+    }
+    return { applied: Boolean(opts.apply), folded };
   }
 
   async splitTwinAliases(

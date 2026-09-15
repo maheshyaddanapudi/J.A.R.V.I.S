@@ -100,6 +100,13 @@ export function registerMemoryRoutes(
       return entities.retractShadowedAliases({ apply: body.apply === true });
     });
 
+    // G-29: fold "<person>'s <attribute>" back onto the person when the person
+    // is a live entity of her own. Dry-run by default.
+    app.post("/memory/reconcile-possessive-names", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcilePossessiveNames({ apply: body.apply === true });
+    });
+
     app.post("/memory/reconcile-homes", async (req) => {
       const body = (req.body ?? {}) as { apply?: boolean };
       return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });
