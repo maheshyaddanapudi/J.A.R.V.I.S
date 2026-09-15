@@ -12,20 +12,34 @@ crons die with it. It is the only thing that can resume the act unattended.
 
 ## The act it guards
 
-Longitude-XL third act, chapter three, days 1001→1500, harness
-`scripts/longitude_xl.py 1500`. Provider OpenRouter, two models (D-0083):
-`fast_conversation` + the D-0075 memory judge on `qwen/qwen3.8-flash` with
-thinking OFF, `planning` and `deep_reasoning` on `qwen/qwen3.8-max-0902`.
-Gateway config `/tmp/xl-gw.json`; key `OPENROUTER_API_KEY` in the git-ignored
+**Longitude-XL FOURTH act, chapter four, days 1501→2000** (2026-09-15 →),
+harness `scripts/longitude_xl.py 2000`. Chapter four is pinned at day 1501 with
+hash `81e29522d604d863` and its own drift guard: any edit to the layer halts the
+run rather than quietly changing what is measured. Record + pre-registered
+targets T4′/T5′/T6′: `RUNBOOK_ACT4.md`. Preserves at 1600/1700/1800/1900/2000.
+
+Provider OpenRouter, unchanged from act three's second half so this act has NO
+model seam: `fast_conversation` + the D-0075 memory judge on
+`inclusionai/ling-3.0-flash` with `qwen/qwen3.8-flash` as the chain fallback,
+`planning` and `deep_reasoning` on `qwen/qwen3.8-max-0902`. Gateway config
+`/tmp/xl-gw.json`; key `OPENROUTER_API_KEY` in the git-ignored
 `.claude/graphify.env` (never print it). Cost cap `XL_COST_CAP_USD=450` on the
 world's cumulative ledger. Log `/tmp/longitude_xl/run.log`; checkpoint
-`/tmp/longitude_xl/state.json`; ops log `/tmp/longitude_xl/ops.log`; targets
-T1–T12 in `RUNBOOK_ACT3.md`.
+`/tmp/longitude_xl/state.json`.
 
-**Attempts 1–3 are preserved and EXCLUDED from every act-three number**
-(`/tmp/longitude_xl/jarvis_xl.act3-attempt*.sql.gz` + `*.act3-attempt*.*`).
-Never mix their rows in. The live attempt's first `model_calls` id is recorded
-in the ops log at each launch.
+**This container freezes often** — twice within an hour on 2026-09-15. A freeze
+costs NOTHING (the checkpoint holds, the harness restarts the kernel itself, no
+day is lost) but the run stalls until something relaunches it. **Relaunching a
+frozen run is the single most valuable thing this Routine does**; do it on every
+wake where the harness is gone and the last log line is neither FATAL nor HALT.
+
+**Budget is the one thing this Routine cannot fix.** Balance was ~$16.90 at day
+1535 against a projection near $10–15 for the remaining days. If the run halts on
+credits (OpenRouter 402), do NOT relaunch below $1 — tell the user once, with the
+balance and the day reached, and wait.
+
+The act-three history below still applies as procedure; where it says day 1500 or
+chapter three, read the fourth act's horizon and layer.
 
 ## A pause is not a freeze
 
