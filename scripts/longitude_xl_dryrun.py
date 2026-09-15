@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Longitude-XL third-act dry run — the whole day engine for days 1001–1500
+"""Longitude-XL dry run — the whole day engine for the act about to run
+(third act 1001–1500, fourth act 1501–2000; horizon from XL_DRYRUN_TO)
 WITHOUT the model or the kernel (no HTTP), on a copy of the real checkpoint.
 
 Proves before launch (RUNBOOK_ACT3.md step 6):
@@ -20,11 +21,13 @@ import copy
 import importlib.util
 import json
 import random
+import os
 import sys
 from pathlib import Path
 
 STATE = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/longitude_xl/state.json")
-sys.argv = ["x", "1500"]
+HORIZON = int(os.environ.get("XL_DRYRUN_TO", "1500"))
+sys.argv = ["x", str(HORIZON)]
 _spec = importlib.util.spec_from_file_location("xl", Path(__file__).with_name("longitude_xl.py"))
 xl = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(xl)
@@ -38,7 +41,8 @@ def check(cond: bool, msg: str) -> None:
         failures.append(msg)
 
 
-print(f"hashes: catalog {xl.CATALOG_HASH} · chapter two {xl.EXPANSION_HASH} · chapter three {xl.CHAPTER3_HASH}")
+print(f"hashes: catalog {xl.CATALOG_HASH} · chapter two {xl.EXPANSION_HASH} · chapter three {xl.CHAPTER3_HASH}"
+      + (f" · chapter four {xl.CHAPTER4_HASH}" if HORIZON > 1500 else ""))
 check(xl.CATALOG_HASH == "9206ceb12fd98ad6", "base catalog hash unchanged")
 check(xl.EXPANSION_HASH == "10a2cef1fd90db2c", "chapter-two hash unchanged")
 c3 = xl.CHAPTER3
@@ -54,8 +58,8 @@ check(state.get("expansion_hash") in (None, xl.EXPANSION_HASH), "checkpoint chap
 st = copy.deepcopy(state)
 kinds: collections.Counter = collections.Counter()
 per_day: dict[int, int] = {}
-start = max(int(st.get("next_day", 1001)), xl.CHAPTER3_FROM)
-for day in range(start, 1501):
+start = max(int(st.get("next_day", 1001)), xl.CHAPTER3_FROM if HORIZON <= 1500 else xl.CHAPTER4_FROM)
+for day in range(start, HORIZON + 1):
     rng = random.Random(xl.SEED * 100000 + day)
     st.setdefault("teach_queue", []).extend(xl.teach_due(day))
     teach_acts = [] if day in xl.QUIET else xl.drain_teach(st, day)
@@ -63,11 +67,16 @@ for day in range(start, 1501):
     per_day[day] = len(acts)
     for k, _ in acts:
         kinds[k] += 1
-print(f"day engine {start}–1500: acts/day {min(per_day.values())}–{max(per_day.values())}, kinds {dict(kinds)}")
+print(f"day engine {start}–{HORIZON}: acts/day {min(per_day.values())}–{max(per_day.values())}, kinds {dict(kinds)}")
 check(max(per_day.values()) <= 12, "no day exceeds the 12-act cap")
-check(sum(1 for f in xl.CH3_FACTS if f["fid"] in st["delivered"]) == len(xl.CH3_FACTS), "every chapter-three fact delivered by day 1500")
+if HORIZON > 1500:
+    check(sum(1 for f in xl.CH4_FACTS if f["fid"] in st["delivered"]) == len(xl.CH4_FACTS), "every chapter-four fact delivered by the horizon")
+    check(len({a["alias"] for a in xl.CHAPTER4["aliases"]} & xl.UNIQUE_HANDLES) == len(xl.CHAPTER4["aliases"]), "every chapter-four handle is unique in the world (G-12)")
+    check(all(r["name"] in {t2["name"] for t2 in xl.CHAPTER3["topics"]} for r in xl.CHAPTER4["retirements"]), "chapter-four retirements are chapter-three things (measured on what this kernel wrote)")
+else:
+    check(sum(1 for f in xl.CH3_FACTS if f["fid"] in st["delivered"]) == len(xl.CH3_FACTS), "every chapter-three fact delivered by day 1500")
 check(len(st.get("retaught", {})) == len(xl.RETEACH_FIDS), "every re-teach fact recapped")
-check(not st["teach_queue"], "teach queue drained by day 1500")
+check(not st["teach_queue"], "teach queue drained by the horizon")
 cur = xl.current_relations(1501)
 per_device = collections.Counter(r["to"] for r in cur if r["verb"] == "maintains")
 check(max(per_device.values()) == 1, "hop truth: one maintainer per device (current_relations)")

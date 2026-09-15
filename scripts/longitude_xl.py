@@ -379,6 +379,25 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
             acts.append(("agent", f"Plan next week's maintenance round: which devices does {who} maintain, "
                                   "and where is each of them located? Use what you know; say 'not found' for anything you don't."))
 
+    # 1e) chapter four: fresh handles, retirements of chapter-THREE things, and
+    # the re-teach of what R15 proved ABSENT from every store — so the layers
+    # that failed on missing data are measured on data that exists
+    if day >= CHAPTER4_FROM:
+        for a in CHAPTER4["aliases"]:
+            if a["day"] == day:
+                acts.append(("agent-teach", f"By the way, {a['person']} usually just goes by {a['alias']} — same person, remember that."))
+        for r in CHAPTER4["retirements"]:
+            if r["day"] == day:
+                acts.append(("agent-teach", f"We've wrapped up the {r['name']} — consider it closed. Keep its records, but it is no longer active."))
+        if day == CHAPTER4_FROM + 3:
+            acts.append(("agent-teach", "Setting the record straight on two things: the fusion sim north is closed — we wrapped it "
+                                        "up and it is no longer active; and my tea order is darjeeling. Store both."))
+        if day % 10 == 7 and day >= CHAPTER4_FROM + 90:
+            people = sorted(CH4_PEOPLE)
+            who = people[(day // 10) % len(people)]
+            acts.append(("agent", f"Plan next week's workshop round: which things does {who} maintain, "
+                                  "and where is each of them located? Use what you know; say 'not found' for anything you don't."))
+
     # 2) deep-topic corrections on schedule (the REAL promotion signal)
     for t in CATALOG:
         if t["kind"] == "deep" and day in t.get("correct_days", []):
@@ -398,10 +417,20 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
         if day in (CHAPTER3_FROM + 100, CHAPTER3_FROM + 101):
             # junk probe on auto: must stay fast (no learned topic behind an activity word)
             acts.append(("chat", f"Any thoughts on {JUNK_WORDS3[day - CHAPTER3_FROM - 100]} for tomorrow?"))
+    if day >= CHAPTER4_FROM:
+        for t4 in CHAPTER4["deep"]:
+            if day in t4["correct_days"]:
+                first = day == t4["correct_days"][0]
+                acts.append(("chat-deep",
+                             f"Any thoughts on {t4['name']} for tomorrow?" if first
+                             else f"How would you approach tuning the {t4['name']} side of things?"))
+        if day in (CHAPTER4_FROM + 100, CHAPTER4_FROM + 101):
+            acts.append(("chat", f"Any thoughts on {JUNK_WORDS4[day - CHAPTER4_FROM - 100]} for tomorrow?"))
 
     # 3) attention chats — mention topics naturally (keeps retrieval honest)
     pool = (CATALOG + ([t for t in EXPANSION["topics"] if t["facts"][0]["teach"] < day] if day >= EXPANSION_FROM else [])
-            + ([t for t in CHAPTER3["topics"] if t["facts"][0]["teach"] < day] if day >= CHAPTER3_FROM else []))
+            + ([t for t in CHAPTER3["topics"] if t["facts"][0]["teach"] < day] if day >= CHAPTER3_FROM else [])
+            + ([t for t in CHAPTER4["topics"] if t["facts"][0]["teach"] < day] if day >= CHAPTER4_FROM else []))
     due = [t for t in pool if t["facts"] and attention_due(t, day, rng)]
     for t in due[:3]:
         f = t["facts"][0]
@@ -417,7 +446,8 @@ def plan_day(day: int, rng: random.Random, teach_acts: list[str]) -> list[tuple[
     if day % 50 == 25:
         dt = DEEP_TOPICS[(day // 50) % len(DEEP_TOPICS)]
         if day >= CHAPTER3_FROM and (day // 50) % 2 == 0:
-            learned = [t["name"] for t in CHAPTER3["deep"] if not t["junk"] and t["correct_days"][-1] + 5 < day]
+            learned = [t["name"] for t in CHAPTER3["deep"] + (CHAPTER4["deep"] if day >= CHAPTER4_FROM else [])
+                       if not t["junk"] and t["correct_days"][-1] + 5 < day]
             if learned:
                 dt = learned[(day // 50) % len(learned)]
         acts.append(("chat", f"Any thoughts on {dt} drift compensation?"))
@@ -435,7 +465,8 @@ def teach_due(day: int) -> list[dict]:
     alias each other when the drain removes delivered items)."""
     items = []
     for f in (ALL_FACTS + (EXP_FACTS if day >= EXPANSION_FROM else [])
-              + (CH3_FACTS if day >= CHAPTER3_FROM else [])):
+              + (CH3_FACTS if day >= CHAPTER3_FROM else [])
+              + (CH4_FACTS if day >= CHAPTER4_FROM else [])):
         if f["teach"] == day:
             items.append({"fid": f["fid"], "kind": "teach", "seq": f"{f['fid']}:t"})
         for i, flip in enumerate(f["flips"]):
@@ -704,9 +735,138 @@ _TOPIC_NAMES = {t["name"] for t in CATALOG} | {t["name"] for t in EXPANSION["top
 assert set(RETEACH_TOPICS) <= _TOPIC_NAMES, sorted(set(RETEACH_TOPICS) - _TOPIC_NAMES)
 assert set(RETEACH_ANCHORS) <= {t["name"] for t in CATALOG if t["kind"] == "device"}
 RETEACH_FIDS = [f["fid"] for f in ALL_FACTS + EXP_FACTS if f["topic"] in RETEACH_TOPICS]
-_WORLD_FIRST = [t["name"].split()[0] for t in CATALOG + EXPANSION["topics"] + CHAPTER3["topics"] if t["kind"] == "person"]
+
+# ---------------------------------------------------- chapter four layer ---
+# FOURTH ACT, CHAPTER FOUR (day >= CHAPTER4_FROM). Runs on the world REPAIRED by
+# the R15 fix pass (D-0088): the article-only names renamed, the shadowed aliases
+# retracted, the possessive phrases folded back onto their people, and the
+# lookup-side defect G-32 fixed so a question phrased "the X's …" resolves.
+#
+# It exists to answer a question act three could not, because act three changed
+# BOTH the kernel build and the models and carried a model seam at day 1009:
+# on ONE build and ONE model set, over a repaired world, do the three layers that
+# missed their targets reach them? Those three are the pre-registered targets:
+#   T4' two-hop on FRESH chains (act three: 88.0 %, target >= 90 %)
+#   T5' nicknames on fresh handles through the G-26 write + G-32 lookup (100 %)
+#   T6' retirements INCLUDING the re-taught `fusion sim north` (>= 95 %)
+# Everything else rides along as a control: newly-taught facts (act three 202/202),
+# fabrications (0 across 3,514 answers), and no-decay on the old world.
+#
+# Seeded, hashed and delivered apart from the base and chapters two/three, whose
+# hashes are untouched — the day-1500 checkpoint resumes exactly as it stands.
+CHAPTER4_FROM = int(os.environ.get("XL_CHAPTER4_FROM", "1501"))
+LIFE4 = 2000
+FIRST4 = ["ansgar", "brielle", "caius", "delphine", "eamon", "freja", "gideon", "hestia", "ivo", "juno",
+          "korbin", "linnea", "mateus", "nerissa", "osric", "pilar", "quill", "rhoda", "silas", "thalia"]
+LAST4 = ["ashworth", "beaumont", "cavendish", "dubois", "eriksson", "fontaine", "galloway", "hirsch",
+         "ingram", "jovanovic", "kirkwood", "lindgren", "maddox", "nakamura", "ostrowski", "prescott"]
+assert not set(FIRST4) & (set(FIRST) | set(FIRST2) | set(FIRST3)), "chapter-four first names must be new (G-12)"
+NEW_THINGS4 = {
+    "workshop": ["lathe bench", "kiln annex", "solder station", "paint booth", "weld bay", "press brake"],
+    "waterway": ["lock gate", "fish ladder", "weir pool", "culvert run", "sluice channel", "reed bed"],
+}
+NEW_PREFS4 = [("preferred market day", "day"), ("evening drink", "drink"), ("workshop colour", "color"),
+              ("preferred writing hour", "hour"), ("preferred island city", "city"), ("desk flower", "plant")]
+DEEP_TOPICS4 = ["acoustic damping", "photonic lattices", "peat hydrology", "kiln refractories"]
+JUNK_WORDS4 = ["arranging", "collating"]   # activity words — must NOT promote
+RETIRE_DAYS4 = [1580, 1660, 1740, 1820]
+
+
+def build_chapter_four() -> dict:
+    rng = random.Random(SEED + 41337)
+    topics: list[dict] = []
+    tid = 3000  # base < 200, chapter two 1000-1099, chapter three 2000+
+
+    def mk(slot: str, pool: str, teach: int, pref: bool) -> dict:
+        vals = rng.sample(VALUE_POOLS[pool], k=min(4, len(VALUE_POOLS[pool])))
+        flips: list[int] = []
+        if rng.random() < 0.30 and teach + 40 < LIFE4 - 20:
+            n = rng.choice([1, 1, 2])
+            flips = sorted(rng.sample(range(teach + 30, LIFE4 - 20), k=n))
+        return {"slot": slot, "pool": pool, "values": vals, "teach": teach, "flips": flips, "pref": pref}
+
+    firsts, lasts = rng.sample(FIRST4, 12), rng.sample(LAST4, 12)
+    people = [f"{a} {b}" for a, b in zip(firsts, lasts)]
+    for i, name in enumerate(people):
+        teach = CHAPTER4_FROM + 4 + i * 9 + rng.randint(0, 3)
+        att = rng.choices(["weekly", "monthly", "rare"], weights=[2, 3, 3])[0]
+        slot, pool = ("preferred material", "material") if rng.random() < 0.2 else ("based in", "city")
+        topics.append({"id": tid, "name": name, "kind": "person", "attention": att, "facts": [
+            mk(slot, pool, teach, False), mk("meets on", "day", teach + rng.randint(0, 3), False)]}); tid += 1
+    i = 0
+    for kind, names in NEW_THINGS4.items():
+        for base in names:
+            teach = CHAPTER4_FROM + 8 + i * 11 + rng.randint(0, 5); i += 1
+            slots = rng.sample([("status colour", "color"), ("assigned number", "number"), ("home city", "city"),
+                                ("service day", "day"), ("core material", "material")], k=rng.choice([2, 2, 3]))
+            topics.append({"id": tid, "name": base, "kind": kind,
+                           "attention": rng.choices(["weekly", "monthly", "rare"], weights=[1, 3, 4])[0],
+                           "facts": [mk(s, p, teach + rng.randint(0, 4), False) for s, p in slots]}); tid += 1
+    for i, (pname, pool) in enumerate(NEW_PREFS4):
+        teach = CHAPTER4_FROM + 15 + i * 20 + rng.randint(0, 6)
+        topics.append({"id": tid, "name": pname, "kind": "preference", "attention": rng.choice(["monthly", "rare"]),
+                       "facts": [mk("is", pool, teach, True)]}); tid += 1
+    deep = []
+    for i, dt in enumerate(DEEP_TOPICS4):
+        d0 = CHAPTER4_FROM + 5 + i * 12
+        deep.append({"name": dt, "correct_days": [d0, d0 + 2], "junk": False})
+    for i, jw in enumerate(JUNK_WORDS4):
+        d0 = CHAPTER4_FROM + 60 + i * 12
+        deep.append({"name": jw, "correct_days": [d0, d0 + 2], "junk": True})
+    # T5': nicknames on FRESH handles, each unique across the whole world (G-12).
+    # Act three could only reach 86 % here because the alias write path did not
+    # exist for chapter-two people and the lookup could not read a possessive;
+    # both are fixed, so this is the clean measurement.
+    world_first = ([t["name"].split()[0] for t in CATALOG if t["kind"] == "person"]
+                   + [n.split()[0] for n in sorted(EXP_PEOPLE)]
+                   + [t["name"].split()[0] for t in CHAPTER3["topics"] if t["kind"] == "person"]
+                   + firsts)
+    aliases = []
+    for idx in (0, 3, 6, 9):
+        full = people[idx]
+        handle = full.split()[0]
+        assert world_first.count(handle) == 1, f"nickname collision: {handle} (G-12)"
+        aliases.append({"person": full, "alias": handle, "day": topics[idx]["facts"][0]["teach"] + 40})
+    # T6': retire chapter-THREE things, so the retirement layer is measured on
+    # material this kernel generation wrote itself rather than on legacy damage
+    cands = [t for t in CHAPTER3["topics"] if t["kind"] in ("instrument", "garden")]
+    retirements = [{"name": t["name"], "day": d} for t, d in zip(rng.sample(cands, len(RETIRE_DAYS4)), RETIRE_DAYS4)]
+    # T4': FRESH two-hop chains — a workshop thing located at a base place, a
+    # vendor supplying it, and maintainer handovers on chapter-three instruments
+    by = lambda k: [t for t in CATALOG if t["kind"] == k]
+    places, vendors = by("place"), by("vendor")
+    workshops = [t for t in topics if t["kind"] == "workshop"]
+    ch3_instruments = [t for t in CHAPTER3["topics"] if t["kind"] == "instrument"]
+    rels, day = [], CHAPTER4_FROM + 40
+    for i, w in enumerate(workshops):
+        rels.append({"rid": f"z{len(rels)}", "from": w["name"], "verb": "is located at",
+                     "to": places[(i * 4 + 1) % len(places)]["name"], "teach": day}); day += 8
+    for i, w in enumerate(workshops):
+        rels.append({"rid": f"z{len(rels)}", "from": vendors[(i * 5 + 2) % len(vendors)]["name"], "verb": "supplies",
+                     "to": w["name"], "teach": day}); day += 8
+    for i, p in enumerate(people[:6]):
+        rels.append({"rid": f"z{len(rels)}", "from": p, "verb": "maintains",
+                     "to": ch3_instruments[i % len(ch3_instruments)]["name"], "teach": day, "handover": True}); day += 8
+    return {"topics": topics, "deep": deep, "aliases": aliases, "retirements": retirements, "relations": rels}
+
+
+CHAPTER4 = build_chapter_four()
+CHAPTER4_HASH = hashlib.sha256(json.dumps(CHAPTER4, sort_keys=True).encode()).hexdigest()[:16]
+CH4_FACTS: list[dict] = []
+for t in CHAPTER4["topics"]:
+    for i, f in enumerate(t["facts"]):
+        CH4_FACTS.append({"fid": f"{t['id']}.{i}", "topic": t["name"], "kind": t["kind"],
+                          "attention": t["attention"], "layer": "four", **f})
+FACT_BY_ID.update({f["fid"]: f for f in CH4_FACTS})
+RELATIONS.extend(CHAPTER4["relations"])   # teach days >= CHAPTER4_FROM+40
+CH4_PEOPLE = {t["name"] for t in CHAPTER4["topics"] if t["kind"] == "person"}
+# R15 confirmed ABSENT from every store — re-taught in chapter four so the
+# layers that failed on missing data are measured on data that exists
+RETEACH4_TOPICS = sorted({"fusion sim north", "tea order"})
+
+_WORLD_FIRST = [t["name"].split()[0] for t in CATALOG + EXPANSION["topics"] + CHAPTER3["topics"] + CHAPTER4["topics"] if t["kind"] == "person"]
 # nickname questions in the third act use only handles that are unique in the world
-UNIQUE_HANDLES = {a["alias"] for a in EXPANSION["aliases"] + CHAPTER3["aliases"] if _WORLD_FIRST.count(a["alias"]) == 1}
+UNIQUE_HANDLES = {a["alias"] for a in EXPANSION["aliases"] + CHAPTER3["aliases"] + CHAPTER4["aliases"] if _WORLD_FIRST.count(a["alias"]) == 1}
 
 
 def current_relations(day: int) -> list[dict]:
@@ -954,6 +1114,7 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
     Scored per fact against the ANNOUNCED truth; full answers preserved."""
     delivered = state.get("delivered", {})
     act3 = day >= CHAPTER3_FROM
+    act4 = day >= CHAPTER4_FROM
     taught = [f for f in ALL_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
     if not taught:
         return {"day": day, "facts": [], "score": 0, "of": 0}
@@ -962,7 +1123,13 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
     # layer's recall curve is sampled every battery
     new_taught = [f for f in EXP_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
     ch3_sample: list[dict] = []
+    ch4_sample: list[dict] = []
     re_sample: list[dict] = []
+    if act4:
+        # chapter four takes its own reserved share (4), sampled from what it has
+        # actually delivered — the fourth act's own recall curve
+        ch4_taught = [f for f in CH4_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
+        ch4_sample = rng.sample(ch4_taught, min(4, len(ch4_taught)))
     if act3:
         ch3_taught = [f for f in CH3_FACTS if delivered.get(f["fid"], 10 ** 9) <= day - 1]
         ch3_sample = rng.sample(ch3_taught, min(4, len(ch3_taught)))
@@ -971,33 +1138,34 @@ def quiz_battery(day: int, rng: random.Random, state: dict) -> dict:
         re_sample = rng.sample(re_pool, min(3, len(re_pool)))
     exclude = {f["fid"] for f in re_sample}
     new_pool = [f for f in new_taught if f["fid"] not in exclude]
-    new_sample = rng.sample(new_pool, min(4 if act3 else 6, len(new_pool)))
-    n_base = QUIZ_FACTS - len(new_sample) - len(ch3_sample) - len(re_sample)
+    new_sample = rng.sample(new_pool, min(3 if act4 else (4 if act3 else 6), len(new_pool)))
+    n_base = QUIZ_FACTS - len(new_sample) - len(ch3_sample) - len(ch4_sample) - len(re_sample)
     prefs = [f for f in taught if f["pref"] and f["fid"] not in exclude]
     flipped = [f for f in taught if any(d <= day for d in f["flips"]) and not f["pref"] and f["fid"] not in exclude]
     plain = [f for f in taught if f not in prefs and f not in flipped and f["fid"] not in exclude]
     n_pref, n_flip = min(5, len(prefs), n_base), min(6, len(flipped), n_base)
     sample = (rng.sample(prefs, n_pref) + rng.sample(flipped, n_flip) +
               rng.sample(plain, min(max(0, n_base - n_pref - n_flip), len(plain))) + new_sample
-              + ch3_sample + re_sample)
+              + ch3_sample + ch4_sample + re_sample)
     rng.shuffle(sample)
     records, hits, strict_hits = [], 0, 0
-    S = scorer() if act3 else None
+    S = scorer() if act3 else None  # act four inherits the strict rubric
     # specials: one alias question and one retirement question when available
     # (third act: only handles that are unique in the world — G-12 — and the
     # chapter-three retirements join the pool)
     specials: list[tuple[str, str, str, str]] = []  # (kind, question, truth, fid)
-    alias_pool = EXPANSION["aliases"] + (CHAPTER3["aliases"] if act3 else [])
+    alias_pool = EXPANSION["aliases"] + (CHAPTER3["aliases"] if act3 else []) + (CHAPTER4["aliases"] if act4 else [])
     if act3:
         alias_pool = [a for a in alias_pool if a["alias"] in UNIQUE_HANDLES]
-    layer_facts = EXP_FACTS + (CH3_FACTS if act3 else [])
+    layer_facts = EXP_FACTS + (CH3_FACTS if act3 else []) + (CH4_FACTS if act4 else [])
     active_aliases = [a for a in alias_pool if a["day"] <= day - 1 and delivered.get(next(
         (f["fid"] for f in layer_facts if f["topic"] == a["person"] and f["slot"] == "meets on"), ""), 10 ** 9) <= day - 1]
     if active_aliases:
         a = rng.choice(active_aliases)
         fid = next(f["fid"] for f in layer_facts if f["topic"] == a["person"] and f["slot"] == "meets on")
         specials.append(("alias", f"What is the {a['alias']}'s meets on?", announced_truth(state, fid).lower(), fid))
-    retired = [r for r in EXPANSION["retirements"] + (CHAPTER3["retirements"] if act3 else []) if r["day"] <= day - 1]
+    retired = [r for r in EXPANSION["retirements"] + (CHAPTER3["retirements"] if act3 else [])
+               + (CHAPTER4["retirements"] if act4 else []) if r["day"] <= day - 1]
     if retired:
         r = rng.choice(retired)
         specials.append(("retired", f"Is the {r['name']} still active?", "closed", f"retired:{r['name']}"))
