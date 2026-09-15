@@ -1,6 +1,21 @@
 # PLATFORM — ACCEPTANCE RESULTS (R-VER-05)
 
-**Recorded:** 2026-07-17 · **last full re-run 2026-07-18** · **Environment:** Linux dev container (NOT the target Mac).
+**Recorded:** 2026-07-17 · **last full re-run 2026-08-28** · **Environment:** Linux dev container (NOT the target Mac).
+
+**2026-08-28 post-Night-Lab re-run (delta acceptance):** **32 PASS · 3
+verified-elsewhere · 4 NEEDS-MAC · 0 SKIP · 0 FAIL** on a fresh scratch DB with
+the REAL Anthropic Sonnet-5 serving the model rows (no local model in this
+container). Two harness assumptions had been invalidated by legitimate platform
+changes and were fixed — the kernel itself was correct in both cases:
+P-REASON-01 probed only the role TABLE for deep-eligibility, but conversations
+run at the privacy-first LOCAL_ONLY default, so a remote-only `deep_reasoning`
+pin must take the honest-downgrade branch (now derived from `/gateway/status`
+locality; the downgrade path is asserted, not failed); P-PROMPT-01 counted
+active prompts across ALL kinds, and since D-0079 L1a the kernel boot-seeds 5
+always-active judge templates — one-active is a per-KIND invariant (now counts
+personas). Night Lab itself is verified separately in
+`NIGHT_LAB_2026-08-28.md` (real scheduler-fired campaign nights, not harness
+rows).
 **Primary harness:** `scripts/acceptance_platform.py` against the live stack
 (kernel :4150, Postgres :5433, a local model for the agent/voice rows).
 **Result:** **30 PASS · 3 verified-elsewhere · 4 NEEDS-MAC · 0 FAIL**

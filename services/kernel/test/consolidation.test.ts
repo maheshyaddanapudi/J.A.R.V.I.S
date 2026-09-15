@@ -136,6 +136,34 @@ describe.skipIf(!pool)("SleepCycle consolidation (D-0051)", () => {
     expect((await tuner.autotune()).signalThreshold).toBe(1);
   });
 
+  it("G-27: a D-0052 override is ANNOUNCED through the announcer (dedupe-keyed), not only journaled", async () => {
+    const store = prefStore();
+    const tuner = new ReasoningTuner(store);
+    await tuner.setThreshold(2, "user", "stay conservative");
+    await seedDecisions(pool!, [
+      { requested: "deep", mode: "deep", reason: "override", role: "deep_reasoning", n: 6 },
+    ]);
+    const raised: { text: string; dedupeKey?: string; source: string; urgency?: string }[] = [];
+    const announcer = {
+      raise: async (i: { text: string; dedupeKey?: string; source: string; urgency?: string }) => {
+        raised.push(i);
+        return {};
+      },
+    };
+    const r = await new SleepCycle({ pool: pool!, tuner, store, announcer }).run();
+    expect(r.adjustments.some((a) => a.includes("changed your manual setting 2→1"))).toBe(true);
+    expect(raised.length).toBe(1);
+    expect(raised[0]!.text).toMatch(/cleared the bar of 6/);
+    expect(raised[0]!.text).toMatch(/hold it twice as long/);
+    expect(raised[0]!.source).toBe("sleep-cycle");
+    expect(raised[0]!.dedupeKey).toMatch(/^sleep-cycle:override:/);
+    // a respected pin announces nothing
+    await tuner.setThreshold(2, "user", "I really mean it");
+    const r2 = await new SleepCycle({ pool: pool!, tuner, store, announcer }).run();
+    expect(r2.adjustments).toEqual([]);
+    expect(raised.length).toBe(1);
+  });
+
   it("raises the threshold back (1→2) when the user repeatedly forces fast", async () => {
     await seedDecisions(pool!, [
       { requested: "fast", mode: "fast", reason: "override", role: "fast_conversation", n: 4 },

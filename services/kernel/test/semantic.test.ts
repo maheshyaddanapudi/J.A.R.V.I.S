@@ -98,6 +98,10 @@ describe.skipIf(!pool)("SemanticMemory (vector recall over pgvector)", () => {
     await mem.record({ summary: "calibrated the arc reactor palladium core", provenance: "test" });
     await mem.record({ summary: "scheduled a board meeting with Pepper", provenance: "test" });
     await mem.record({ summary: "watered the rooftop garden plants", provenance: "test" });
+    // Indexing is DECOUPLED from the write by design (`void semantic.index(...)`
+    // — a write never blocks on the embedder), so the count lands a tick later;
+    // under full-suite load an immediate read raced it (seen 2026-09-01). Poll.
+    for (let i = 0; i < 50 && (await sm.count()) < 3; i++) await new Promise((r) => setTimeout(r, 40));
     expect(await sm.count()).toBe(3); // each record auto-indexed
 
     // query shares no exact substring with the summary ("reactor core" vs "arc reactor palladium core")

@@ -17,9 +17,10 @@ afterAll(async () => { await pool?.end(); });
 
 const audit = { append: vi.fn(async () => ({ seq: 1, chainHash: "x" })) } as unknown as AuditLog;
 const activity = { emit: vi.fn() } as unknown as ActivityBus;
-const settings = (holdInQuiet = true) => ({
+const settings = (holdInQuiet = true, quietEnabled = true) => ({
   num: async (k: string, f: number) => (k === "proactive.quietHours.start" ? 22 : k === "proactive.quietHours.end" ? 7 : f),
-  bool: async (k: string, f: boolean) => (k === "announce.holdInQuietHours" ? holdInQuiet : f),
+  bool: async (k: string, f: boolean) =>
+    k === "announce.holdInQuietHours" ? holdInQuiet : k === "proactive.quietHours.enabled" ? quietEnabled : f,
 }) as unknown as SettingsRegistry;
 
 const DAY = new Date(2026, 6, 19, 14, 0, 0);   // 14:00 — awake
@@ -45,6 +46,13 @@ describe.skipIf(!pool)("Announcer (D-0068) — initiative to speak", () => {
     expect(pendingNight).not.toContain("routine reminder");     // non-urgent held
     // released once quiet hours pass
     expect((await ann.pending(DAY)).map((x) => x.text)).toContain("routine reminder");
+  });
+
+  it("quiet hours switched OFF hold nothing back, even inside the window (live find 2026-08-28)", async () => {
+    const ann = new Announcer(pool!, audit, settings(true, false), activity);
+    const a = await ann.raise({ text: "night lab report", urgency: "info", source: "night-lab", now: NIGHT });
+    expect(a.deferred).toBe(false); // window says 23:30 is quiet, but quiet hours are disabled
+    expect((await ann.pending(NIGHT)).map((x) => x.text)).toContain("night lab report");
   });
 
   it("dedupes repeats within the window", async () => {
