@@ -1498,6 +1498,17 @@ def main() -> None:
             elif state["chapter3_hash"] != CHAPTER3_HASH:
                 log(f"FATAL: state chapter3_hash {state['chapter3_hash']} != {CHAPTER3_HASH} — chapter-three drift")
                 sys.exit(2)
+        if day >= CHAPTER4_FROM:
+            # chapter four drift guard — one act, one chapter: pinned the day it
+            # first appears, and any later edit to the layer halts the run
+            if state.get("chapter4_hash") is None:
+                state["chapter4_hash"] = CHAPTER4_HASH
+                log(f"  [chapter four] begins day {day}: {len(CH4_FACTS)} facts / {len(CHAPTER4['topics'])} topics, "
+                    f"{len(CHAPTER4['aliases'])} aliases, {len(CHAPTER4['retirements'])} retirements, "
+                    f"{len(CHAPTER4['relations'])} cross-links | hash {CHAPTER4_HASH}")
+            elif state["chapter4_hash"] != CHAPTER4_HASH:
+                log(f"FATAL: state chapter4_hash {state['chapter4_hash']} != {CHAPTER4_HASH} — chapter-four drift")
+                sys.exit(2)
         state.setdefault("teach_queue", []).extend(teach_due(day))
         teach_acts = [] if day in QUIET else drain_teach(state, day)
         empty_replies = 0
