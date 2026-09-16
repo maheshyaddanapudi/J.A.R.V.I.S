@@ -106,8 +106,8 @@ Nothing on the ledger is open without a named closure path; the third act
 
 **Status: WONTFIX-BY-DESIGN (data provenance, not a live defect).**
 
-, , ,  were taught as aliases around simulated day 607,
-during act two, on a kernel build with no alias write path — 
+`ravi`, `pavel`, `theo`, `hiro` were taught as aliases around simulated day 607,
+during act two, on a kernel build with no alias write path — `EntityMemory.addAlias`
 arrived with G-26 (D-0084) afterwards. Those entities carry `aliases = NULL`; the
 handle was never storable. `identityMatch`'s short-name gate (>=5 chars or >=2
 tokens) also stops a 4-letter first name resolving incidentally, so answers are
