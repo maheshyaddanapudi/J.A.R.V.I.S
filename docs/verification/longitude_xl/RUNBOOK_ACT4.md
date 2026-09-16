@@ -124,3 +124,50 @@ name and have no value pool. It printed FABRICATION against 3 rows. The correct
 question is whether a STATED term is invented (in no pool, matching no known
 entity); the answer is 0. Any future fabrication count must be computed that way
 — a false alarm against the 0-fabrications claim is worse than no check.
+
+### 2026-09-16 12:11 UTC — day-1700 preserve + second per-kind read
+
+Preserve `day1700/` at day 1702 (36 MB). Sample doubled to 598 act-four answers.
+
+| kind | n | strict | at day 1605 | target |
+|---|---|---|---|---|
+| hop (T4′) | 60 | **96.7 %** | 93.3 % (n=30) | ≥ 90 % ✅ |
+| alias (T5′) | 20 | **95.0 %** | 100 % (n=10) | 100 % ⚠️ |
+| retired (T6′) | 20 | **100 %** | 100 % (n=10) | ≥ 95 % ✅ |
+| new (control) | 60 | 100 % | 100 % | — |
+| base (old world) | 438 | 96.1 % | 97.2 % | — |
+| **total** | **598** | **96.7 %** | 97.3 % | act three 94.8 % |
+
+**0 fabrications in 598 answers** (stated-term test, not the pool test).
+
+#### The single alias miss, traced — a legacy handle, not a regression
+
+Day 1690 `What is the ravi's meets on?` → "not found — no record of a 'ravi'".
+`ravi` is a **chapter-two** handle (`EXPANSION['aliases']`, taught simulated day
+607, during act two) on a kernel build that had **no alias write path at all** —
+`EntityMemory.addAlias` arrived with G-26 in D-0084, after act two ran. The live
+entity `Ravi Lindholm` has `aliases = None`: the alias was never storable, and
+`identityMatch`'s short-name gate (≥5 chars or ≥2 tokens) stops a 4-letter first
+name resolving incidentally. Day 1580 answered the same question correctly and
+day 1690 did not — inconsistent because nothing is stored to be consistent about.
+
+Audit confirms the write path is healthy on this build: `entity_alias_added` for
+all four chapter-three handles (jiro/lucan/rashid/halvard) and all four
+chapter-four handles (nerissa/osric/pilar/freja), each read back. The eight
+`entity_alias_retracted` rows are dated 2026-09-14T20:29 — the R15 pass, run
+BEFORE the act launched, not mid-act behaviour.
+
+Split by provenance:
+
+| handles | taught | strict |
+|---|---|---|
+| fresh (ch3 + ch4) | on THIS build, via G-26 | **18/18 (100 %)** |
+| legacy (ch2: ravi, pavel, theo, hiro) | before the alias path existed | **1/2 (50 %)** |
+
+T5′ was pre-registered as "nicknames on **fresh handles**", so on its own written
+terms it is 18/18 and met — that wording predates the act and is not a post-hoc
+rescue. But the honest headline next to act three's 86.0 % is **19/20 (95.0 %)
+across all alias rows**. This corroborates act three's own diagnosis (T5 missed
+"because the alias path did not exist before G-26", recovering to 92.5 % once
+chapter three's handles flowed); the mechanism is now isolated cleanly — legacy
+handles are unrecoverable without a re-teach, fresh ones are perfect.
