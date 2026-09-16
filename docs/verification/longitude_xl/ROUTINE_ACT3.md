@@ -57,12 +57,24 @@ the run over an unanswered question.
 
 ## Every wake, in order
 
-1. **Look.** `tail -n 3 /tmp/longitude_xl/run.log`; `next_day` from
-   `state.json`; `pgrep -af "longitude_xl.py 150[0]"` (bracket trick — never put
-   the plain pattern on the same command line as `pkill`); `pg_isready -h
-   127.0.0.1`; `curl -s -m 5 http://127.0.0.1:9302/v1/models`; `curl -s -m 5
-   http://127.0.0.1:4160/health`. Always the full `http://127.0.0.1:PORT` form —
-   a bare `:PORT/path` makes curl print nothing and looks like a dead service.
+1. **Look.** Run `bash /tmp/longitude_xl/check.sh` — it prints liveness, both
+   services, the log mtime against the wall clock, `next_day` and the last three
+   log lines in one go. Use it rather than an ad-hoc `pgrep`.
+
+   **`pgrep -f "longitude_xl.py …"` LIES.** The wake command's own `bash -c`
+   wrapper carries that pattern inside its command string, so `pgrep -f` matches
+   the shell asking the question and reports ALIVE over a dead harness — it did
+   exactly that at 06:08 UTC on 2026-09-16, with the kernel down and the log 56
+   minutes stale. (Second time in this project: the same self-match reported an
+   aborted `minilife_r10.py` as running.) `check.sh` matches the **python
+   executable** instead (`ps -C python3` filtered for the script path), and
+   cross-checks the log mtime — a harness that is genuinely alive touches
+   `run.log` within ~200 s. If those two ever disagree, believe the mtime.
+
+   The bracket trick (`longitude_xl.py 150[0]`) only defeats `grep`'s self-match;
+   it does NOT defeat the wrapper-shell match, which is a different process.
+   Always the full `http://127.0.0.1:PORT` form for curl — a bare `:PORT/path`
+   makes curl print nothing and looks like a dead service.
 2. **Harness running?** Print one line (day, last wall-clock) and go to step 4.
 3. **Harness gone.** Read the last log line:
    - **FATAL on credits/billing** (OpenRouter 402, "insufficient credits"):

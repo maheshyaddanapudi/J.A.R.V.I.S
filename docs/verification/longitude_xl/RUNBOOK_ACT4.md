@@ -73,3 +73,16 @@ clean: 0 empty replies, 0 deep-on-auto, no provider failures.
 The recycles are the ops story of this act: each wake yields 2–5 simulated days
 before the container is reclaimed, so the 500 days are pacing at days of
 wall-clock rather than the ~15–20 h the day time alone would suggest.
+
+### 2026-09-16 06:09 UTC — false-alive caught, relaunched from day 1555
+
+The wake's liveness check reported "harness ALIVE" on a **dead** harness:
+`pgrep -f "longitude_xl.py 2000"` matched the wake command's own `bash -c`
+wrapper, whose command string contains the pattern. Kernel and embedder were
+down and `run.log` was 56 minutes stale. Caught by cross-checking the mtime.
+
+Replaced with `scripts/longitude_xl/check.sh` (deployed to
+`/tmp/longitude_xl/check.sh`), which matches the python executable via
+`ps -C python3` and prints the log mtime against the wall clock. `ROUTINE_ACT3.md`
+step 1 now mandates it. Nothing was lost — days 1553–1554 had committed before
+the recycle and the checkpoint resumed cleanly at 1555.
