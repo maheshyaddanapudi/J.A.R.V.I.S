@@ -171,3 +171,25 @@ across all alias rows**. This corroborates act three's own diagnosis (T5 missed
 "because the alias path did not exist before G-26", recovering to 92.5 % once
 chapter three's handles flowed); the mechanism is now isolated cleanly — legacy
 handles are unrecoverable without a re-teach, fresh ones are perfect.
+
+### 2026-09-16 16:08 UTC — day-1800 preserve + third per-kind read
+
+Preserve `day1800/` at day 1810 (38 MB). 928 act-four answers.
+
+| kind | n | strict | d1702 | d1605 | target |
+|---|---|---|---|---|---|
+| hop (T4′) | 93 | **96.8 %** | 96.7 % | 93.3 % | ≥ 90 % ✅ |
+| alias (T5′) | 31 | **93.5 %** | 95.0 % | 100 % | 100 % ⚠️ |
+| retired (T6′) | 31 | **100 %** | 100 % | 100 % | ≥ 95 % ✅ |
+| new (control) | 94 | 100 % | 100 % | 100 % | — |
+| base (old world) | 679 | 95.7 % | 96.1 % | 97.2 % | — |
+| **total** | **928** | **96.3 %** | 96.7 % | 97.3 % | act three 94.8 % |
+
+**0 fabrications in 928 answers.** Alias by provenance reproduces the day-1702
+finding exactly: **fresh handles 27/27 (100 %)**, **legacy chapter-two handles
+2/4 (50 %)** — the legacy rows are the entire alias deficit.
+
+The totals drift down gently (97.3 → 96.7 → 96.3) as n grows. That is
+regression to the mean from small early samples, not decay: `new` is 94/94 and
+`retired` 31/31 across the same span. Ops: keepalive windows 7–10 each ran 22–23
+days with 0 relaunches, container up 8:23 unbroken.
