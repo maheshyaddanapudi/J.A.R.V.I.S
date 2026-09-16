@@ -88,7 +88,7 @@ export function registerGatewayRoutes(
       const limit = Math.min(Math.max(Number(q.limit) || 30, 1), 200);
       const { rows } = await pool.query(
         `SELECT at, role, provider, model, privacy_class, source, ok, error,
-                input_tokens, output_tokens, latency_ms, fallback_from, offline_mode
+                input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, latency_ms, fallback_from, offline_mode
            FROM model_calls ORDER BY at DESC LIMIT $1`,
         [limit],
       );

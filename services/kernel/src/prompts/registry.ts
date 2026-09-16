@@ -98,8 +98,16 @@ export class PromptRegistry {
         [input.name, kind],
       );
       const nextVersion = (prev.rows[0]?.version ?? 0) + 1;
-      // deactivate every currently-active prompt of this kind (one active persona)
-      await client.query(`UPDATE prompts SET active = false, updated_at = now() WHERE kind = $1 AND active`, [kind]);
+      // ONE active persona (the loop reads exactly one) — but named templates
+      // and system prompts coexist: only THIS name's earlier version steps down.
+      // Longitude-XL G-15 (2026-09-11): deactivating the whole kind meant every
+      // boot re-seeded the judge templates as fresh version-1 rows and only the
+      // last-seeded template was ever actually served from the registry.
+      if (kind === "persona") {
+        await client.query(`UPDATE prompts SET active = false, updated_at = now() WHERE kind = $1 AND active`, [kind]);
+      } else {
+        await client.query(`UPDATE prompts SET active = false, updated_at = now() WHERE kind = $1 AND name = $2 AND active`, [kind, input.name]);
+      }
       const { rows } = await client.query<Prompt>(
         `INSERT INTO prompts (name, kind, content, active, version, provenance)
          VALUES ($1,$2,$3,true,$4,$5) RETURNING ${COLS}`,
@@ -130,7 +138,11 @@ export class PromptRegistry {
         await client.query("ROLLBACK");
         return false;
       }
-      await client.query(`UPDATE prompts SET active = false, updated_at = now() WHERE kind = $1 AND active`, [kind]);
+      if (kind === "persona") {
+        await client.query(`UPDATE prompts SET active = false, updated_at = now() WHERE kind = $1 AND active`, [kind]);
+      } else {
+        await client.query(`UPDATE prompts SET active = false, updated_at = now() WHERE kind = $1 AND name = $2 AND active`, [kind, name]);
+      }
       await client.query(
         `UPDATE prompts SET active = true, updated_at = now()
          WHERE id = (SELECT id FROM prompts WHERE name = $1 AND kind = $2 ORDER BY version DESC LIMIT 1)`,

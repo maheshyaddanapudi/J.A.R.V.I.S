@@ -1,0 +1,270 @@
+<title>The Longitude Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#F4F6F9; --panel:#FFFFFF; --ink:#1A222C; --muted:#5C6773; --faint:#8A95A1; --rule:#D8DFE6; --rule-soft:#E9EEF3;
+  --s-old:#2a78d6; --s-new:#eb6834; --s-name:#1baf7a; --s-hop:#eda100; --s-sup:#9aa6b2;
+  --good:#1f7a3a; --warn:#b26a00; --bad:#b3261e; --good-bg:#e6f3ea; --warn-bg:#fbf1dc; --bad-bg:#f9e3e1;
+  --grid:#E3E9EF; --tip:#1A222C; --tip-ink:#F4F6F9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#12171D; --panel:#1A2027; --ink:#E8EDF2; --muted:#A5B0BB; --faint:#7C8896; --rule:#2A333D; --rule-soft:#222A33;
+    --s-old:#3987e5; --s-new:#d95926; --s-name:#199e70; --s-hop:#c98500; --s-sup:#6c7885;
+    --good:#4fc26f; --warn:#e2a83a; --bad:#ef6b62; --good-bg:#17301f; --warn-bg:#332a12; --bad-bg:#3a1c1a;
+    --grid:#242d37; --tip:#E8EDF2; --tip-ink:#12171D;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#12171D; --panel:#1A2027; --ink:#E8EDF2; --muted:#A5B0BB; --faint:#7C8896; --rule:#2A333D; --rule-soft:#222A33;
+  --s-old:#3987e5; --s-new:#d95926; --s-name:#199e70; --s-hop:#c98500; --s-sup:#6c7885;
+  --good:#4fc26f; --warn:#e2a83a; --bad:#ef6b62; --good-bg:#17301f; --warn-bg:#332a12; --bad-bg:#3a1c1a;
+  --grid:#242d37; --tip:#E8EDF2; --tip-ink:#12171D;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;padding-inline:clamp(16px,4vw,48px);padding-block:32px 64px}
+h1,h2,h3{font-family:"Fraunces","Iowan Old Style",Georgia,serif;font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,4.5vw,44px);line-height:1.1;letter-spacing:-.01em}
+h2{font-size:22px;margin-bottom:6px}
+p{max-width:68ch;margin:0}
+.lede{color:var(--muted);margin-top:10px;font-size:16px}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:500}
+main{max-width:1180px;margin:0 auto;display:grid;gap:40px}
+header{display:grid;gap:8px}
+section{display:grid;gap:14px}
+.sub{color:var(--muted);font-size:14px;max-width:80ch}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;display:grid;gap:2px}
+.kpi .v{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .d{font-size:12px;color:var(--faint)}
+/* map */
+.map{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:14px 14px 8px;overflow-x:auto}
+.map svg{display:block;min-width:720px;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend i.line{height:3px;border-radius:2px;width:16px;vertical-align:3px}
+.stones{display:grid;gap:0;border:1px solid var(--rule);border-radius:6px;background:var(--panel);overflow:hidden}
+.act{padding:10px 14px;border-bottom:1px solid var(--rule);background:var(--rule-soft)}
+.act .eyebrow{color:var(--muted)}
+.stone{display:grid;grid-template-columns:70px 110px 1fr;gap:12px;padding:8px 14px;border-bottom:1px solid var(--rule-soft);align-items:baseline;font-size:14px}
+.stone:last-child{border-bottom:0}
+.stone .day{font-family:"IBM Plex Mono",monospace;color:var(--muted);font-variant-numeric:tabular-nums}
+.kind{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;padding:2px 7px;border-radius:3px;justify-self:start;white-space:nowrap}
+.k-learned,.k-override{background:color-mix(in srgb,var(--s-old) 14%,transparent);color:var(--s-old)}
+.k-pin{background:var(--rule-soft);color:var(--muted)}
+.k-lab-keep{background:color-mix(in srgb,var(--s-name) 16%,transparent);color:var(--s-name)}
+.k-restart,.k-quiet,.k-start,.k-act,.k-upgrade,.k-hygiene{background:var(--rule-soft);color:var(--muted)}
+.k-chapter,.k-alias,.k-retire,.k-links{background:color-mix(in srgb,var(--s-new) 16%,transparent);color:var(--s-new)}
+.k-outage,.k-restart-act{background:var(--warn-bg);color:var(--warn)}
+/* charts */
+.chart{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:14px;position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.chart .title{font-weight:600;margin-bottom:2px}
+.chart .note{font-size:13px;color:var(--muted);margin-bottom:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:820px){.two{grid-template-columns:1fr}.stone{grid-template-columns:56px 1fr;grid-template-rows:auto auto}.stone .text{grid-column:1/-1}}
+.tip{position:absolute;pointer-events:none;background:var(--tip);color:var(--tip-ink);font-size:12.5px;padding:6px 9px;border-radius:4px;white-space:nowrap;transform:translate(-50%,calc(-100% - 10px));display:none;font-family:"IBM Plex Mono",monospace;line-height:1.35}
+/* tables */
+.tablewrap{background:var(--panel);border:1px solid var(--rule);border-radius:6px;overflow:auto}
+.ledger .tablewrap{max-height:62vh}
+table{border-collapse:collapse;width:100%;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+th,td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--rule-soft)}
+th{position:sticky;top:0;background:var(--panel);font-family:"IBM Plex Sans",sans-serif;font-weight:500;color:var(--muted);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--rule);z-index:1}
+th.l,td.l{text-align:left}
+td.day{color:var(--muted)}
+td .dl{color:var(--faint);font-size:11px;margin-left:3px}
+td .up{color:var(--good)}
+td .dn{color:var(--bad)}
+tr.q td{background:color-mix(in srgb,var(--s-old) 6%,transparent)}
+tr.marked td.day{color:var(--ink);font-weight:500}
+.pill{display:inline-block;padding:1px 6px;border-radius:3px;font-family:"IBM Plex Sans",sans-serif;font-size:11px;font-weight:500;margin-right:4px}
+.pill.g{background:var(--good-bg);color:var(--good)} .pill.w{background:var(--warn-bg);color:var(--warn)} .pill.b{background:var(--bad-bg);color:var(--bad)} .pill.n{background:var(--rule-soft);color:var(--muted)}
+.pct{font-weight:500}
+.controls{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--muted)}
+.controls input{font:inherit;padding:5px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--panel);color:var(--ink);width:90px}
+.controls label{display:inline-flex;gap:6px;align-items:center}
+.controls input:focus,button:focus-visible{outline:2px solid var(--s-old);outline-offset:1px}
+.notes{display:grid;gap:8px;font-size:14px;color:var(--muted);max-width:90ch}
+.notes li{margin-left:1.2em}
+.updated{font-size:13px;color:var(--faint)}
+@media (prefers-reduced-motion:no-preference){.chart path.line{transition:opacity .2s}}
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">Longitude-XL · one continuous life of J.A.R.V.I.S. · days 1 → 1000</div>
+  <h1>The Longitude Ledger</h1>
+  <p class="lede">Every simulated day of the run in one fixed format: what the memory grew by, what changed, what was asked back and what it knew. Same rows the harness writes, nothing summarised away.</p>
+  <div class="updated" id="updated"></div>
+</header>
+
+<section>
+  <div class="kpis" id="kpis"></div>
+</section>
+
+<section>
+  <div><h2>The map</h2><p class="sub">Milestones on the day axis. Learning events sit on the top row, the user/J.A.R.V.I.S. tug-of-war over the escalation setting on the second, lab and drills on the third, chapter two on the fourth. Hover a mark for its text.</p></div>
+  <div class="map"><div id="map"></div><div class="legend" id="maplegend"></div><div class="tip" id="maptip"></div></div>
+  <div class="stones" id="stones"></div>
+</section>
+
+<section>
+  <div><h2>Growth</h2><p class="sub">Active memory by day. Superseded facts are the history kept when a value changed; they never count as knowledge, but every flip that landed leaves one behind.</p></div>
+  <div class="two">
+    <div class="chart" id="growth"><div class="title">Memory rows, active</div><div class="note">facts · entities · preferences · superseded history</div><div id="growthsvg"></div><div class="tip" id="growthtip"></div></div>
+    <div class="chart" id="recall"><div class="title">Recall per battery</div><div class="note">every 10 days, 20 facts + specials, scored against the announced truth</div><div id="recallsvg"></div><div class="tip" id="recalltip"></div></div>
+  </div>
+</section>
+
+<section>
+  <div><h2>Batteries</h2><p class="sub">One row per quiz. <em>Old world</em> is the first act's 353 facts (some over 600 days old when asked); <em>chapter two</em> the facts that arrived after day 540. <em>Honest</em> misses are "not found" answers; <em>wrong</em> are a stale or neighbouring value.</p></div>
+  <div class="tablewrap"><table id="batteries"></table></div>
+</section>
+
+<section class="ledger">
+  <div><h2>Daily ledger</h2><p class="sub">Every day. Δ is against the previous day. Night: <em>sleep</em> = the ordinary nightly cycle, <em>lab</em> = a Night Lab experiment ran, <em>quiet</em> = a quiet fortnight day. Quiz days are tinted.</p></div>
+  <div class="controls">
+    <label for="from">from day <input id="from" type="number" min="1" value="1"></label>
+    <label for="to">to <input id="to" type="number" min="1"></label>
+    <label for="only">notes contain <input id="only" type="text" placeholder="alias, lab…" style="width:140px"></label>
+    <label><input id="quizonly" type="checkbox"> quiz days only</label>
+    <span id="count"></span>
+  </div>
+  <div class="tablewrap"><table id="ledger"></table></div>
+</section>
+
+<section>
+  <div><h2>Reading notes</h2></div>
+  <ul class="notes" id="notes">
+    <li><strong>What "recall" means.</strong> A hit is the current announced value appearing in the model's numbered answer line, and the line not saying "not found". The scorer is lenient about phrasing and strict about the value.</li>
+    <li><strong>Most old-world misses are old.</strong> A handful of first-act facts never landed in memory in the first place (the agent skipped a statement or wrote it to a wrong home before the D-0080 fixes); they return as honest "not found" every time they are sampled. The second-act kernel cannot retroactively store them.</li>
+    <li><strong>Day 500 → 501 is a kernel change, not a world change.</strong> The same database continued; the code that reads, corrects and learns was upgraded (D-0080). Compare the batteries either side.</li>
+    <li><strong>Days 540–581 ran twice.</strong> Attempt 1 lost its provider credits at day 540 (four void days rolled back by verified replay) and was then stopped at day 581 when the audit showed a preference-selector defect in the fix under test. It is preserved separately; this ledger is attempt 2, restarted from the day-500 snapshot on the corrected build.</li>
+    <li><strong>Wall-clock freezes cost time, never data.</strong> The container idled twice; every resume continued from the checkpoint. A day is only committed once its model calls succeeded.</li>
+  </ul>
+</section>
+</main>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+  const D = JSON.parse(document.getElementById('data').textContent);
+  const days = D.days, bats = D.batteries, ms = D.milestones;
+  const last = days[days.length-1];
+  const fmt = n => (n==null?'—':Number(n).toLocaleString('en-US'));
+  document.getElementById('updated').textContent = `Ledger through simulated day ${last.day} of 1000 · ${days.length} daily rows · ${bats.length} batteries · base world ${D.base.facts} facts / ${D.base.topics} topics (hash ${D.base.hash}) · chapter two ${D.chapter_two.facts} facts / ${D.chapter_two.topics} topics from day ${D.chapter_two.from}`;
+  document.getElementById('to').value = last.day;
+
+  // ---- KPIs
+  const d1 = days[0], d500 = days.find(d=>d.day===500) || d1;
+  const recent = bats.slice(-5); const rs = recent.reduce((a,b)=>a+b.score,0), ro = recent.reduce((a,b)=>a+b.of,0);
+  const act1 = bats.filter(b=>b.day<=500), a1s = act1.reduce((a,b)=>a+b.score,0), a1o = act1.reduce((a,b)=>a+b.of,0);
+  const act2 = bats.filter(b=>b.day>500), a2s = act2.reduce((a,b)=>a+b.score,0), a2o = act2.reduce((a,b)=>a+b.of,0);
+  const newAll = act2.reduce((a,b)=>[a[0]+b.new.hits,a[1]+b.new.asked],[0,0]);
+  const oldAll = act2.reduce((a,b)=>[a[0]+b.base.hits,a[1]+b.base.asked],[0,0]);
+  const kp = [
+    ['Day', `${last.day}`, 'of 1000'],
+    ['Facts active', fmt(last.facts), `day 1: ${fmt(d1.facts)} · day 500: ${fmt(d500.facts)}`],
+    ['Entities', fmt(last.entities), `day 500: ${fmt(d500.entities)}`],
+    ['Preferences', fmt(last.prefs), `day 500: ${fmt(d500.prefs)}`],
+    ['History rows', fmt(last.superseded), 'values superseded by a change'],
+    ['Recall, first act', a1o?`${Math.round(100*a1s/a1o)}%`:'—', `${a1s}/${a1o} over ${act1.length} batteries`],
+    ['Recall, second act', a2o?`${Math.round(100*a2s/a2o)}%`:'—', `${a2s}/${a2o} over ${act2.length} batteries`],
+    ['Old world, second act', oldAll[1]?`${Math.round(100*oldAll[0]/oldAll[1])}%`:'—', `${oldAll[0]}/${oldAll[1]} facts up to ${Math.max(...bats.map(b=>b.oldest_age))} days old`],
+    ['Chapter two', newAll[1]?`${Math.round(100*newAll[0]/newAll[1])}%`:'—', `${newAll[0]}/${newAll[1]} · ${last.chapter2_delivered||0}/${D.chapter_two.facts} facts arrived`],
+    ['Learned deep topics', `${last.topics}`, 'from repeated corrections'],
+    ['Spend', `$${(last.spend||0).toFixed(2)}`, 'Anthropic, whole life'],
+  ];
+  document.getElementById('kpis').innerHTML = kp.map(([l,v,d])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+
+  // ---- map
+  const rows = [['learned','override','pin','hygiene'],['lab-keep','restart','quiet','start','act','upgrade'],['chapter','links','alias','retire'],['outage','restart-act']];
+  const rowName = ['learning & the escalation setting','lab, drills, acts','chapter two','instrument events'];
+  const colorOf = k => ({learned:'var(--s-old)',override:'var(--s-old)',pin:'var(--faint)',hygiene:'var(--faint)','lab-keep':'var(--s-name)',restart:'var(--faint)',quiet:'var(--s-sup)',start:'var(--faint)',act:'var(--ink)',upgrade:'var(--ink)',chapter:'var(--s-new)',links:'var(--s-new)',alias:'var(--s-new)',retire:'var(--s-new)',outage:'var(--warn)','restart-act':'var(--warn)'})[k]||'var(--faint)';
+  const W=1100,H=190,L=40,R=20,T=18,rowH=34;
+  const x = d => L + (d-1)/(1000-1)*(W-L-R);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="milestone map by day">`;
+  svg += `<line x1="${L}" x2="${W-R}" y1="${T+rows.length*rowH}" y2="${T+rows.length*rowH}" stroke="var(--rule)" stroke-width="1"/>`;
+  [1,100,200,300,400,500,600,700,800,900,1000].forEach(d=>{svg+=`<line x1="${x(d)}" x2="${x(d)}" y1="${T}" y2="${T+rows.length*rowH}" stroke="var(--grid)" stroke-width="1"/><text x="${x(d)}" y="${T+rows.length*rowH+16}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${d}</text>`;});
+  // acts shading
+  svg += `<rect x="${x(1)}" y="${T-6}" width="${x(500)-x(1)}" height="6" fill="var(--rule)"/><rect x="${x(501)}" y="${T-6}" width="${x(last.day)-x(501)}" height="6" fill="var(--s-old)" opacity=".55"/><rect x="${x(last.day)}" y="${T-6}" width="${x(1000)-x(last.day)}" height="6" fill="var(--rule-soft)"/>`;
+  svg += `<text x="${x(250)}" y="${T-10}" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="IBM Plex Sans, sans-serif">first act · original kernel</text><text x="${x(Math.min(last.day, 501+(last.day-501)/2))}" y="${T-10}" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="IBM Plex Sans, sans-serif">second act · D-0080 kernel</text>`;
+  const QUIET=[[200,215],[450,465],[800,830]];
+  QUIET.forEach(([a,b])=>{ if(a<=last.day) svg+=`<rect x="${x(a)}" y="${T}" width="${x(b)-x(a)}" height="${rows.length*rowH}" fill="var(--s-sup)" opacity=".18"/>`;});
+  rows.forEach((kinds,i)=>{ const y=T+i*rowH+rowH/2; svg+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="10" fill="var(--faint)" font-family="IBM Plex Sans, sans-serif">${i+1}</text>`;
+    ms.filter(m=>kinds.includes(m.kind)).forEach(m=>{ const c=colorOf(m.kind); const isBig=['act','upgrade','chapter','lab-keep','start'].includes(m.kind);
+      svg += `<g class="mk" data-text="day ${m.day} · ${m.text.replace(/"/g,'&quot;')}"><circle cx="${x(m.day)}" cy="${y}" r="${isBig?6:4}" fill="${c}" stroke="var(--panel)" stroke-width="2"/><circle cx="${x(m.day)}" cy="${y}" r="10" fill="transparent"/></g>`; });
+  });
+  svg += '</svg>';
+  document.getElementById('map').innerHTML = svg;
+  document.getElementById('maplegend').innerHTML = rowName.map((n,i)=>`<span><b>${i+1}</b> ${n}</span>`).join('') + `<span><i style="background:var(--s-old)"></i>learning / J.A.R.V.I.S. adjusting</span><span><i style="background:var(--faint)"></i>user pin, drill, hygiene</span><span><i style="background:var(--s-name)"></i>lab keep</span><span><i style="background:var(--s-new)"></i>chapter two</span><span><i style="background:var(--warn)"></i>instrument event</span><span><i style="background:var(--s-sup);opacity:.5"></i>quiet fortnight</span>`;
+  const mtip=document.getElementById('maptip'), mapEl=document.getElementById('map');
+  mapEl.addEventListener('mousemove',e=>{const g=e.target.closest('.mk'); if(!g){mtip.style.display='none';return;} const r=mapEl.parentElement.getBoundingClientRect(); mtip.textContent=g.dataset.text; mtip.style.display='block'; mtip.style.whiteSpace='normal'; mtip.style.maxWidth='420px'; mtip.style.left=Math.max(200,Math.min(e.clientX-r.left,r.width-200))+'px'; mtip.style.top=(e.clientY-r.top)+'px';});
+  mapEl.addEventListener('mouseleave',()=>mtip.style.display='none');
+
+  // stones list grouped by act
+  const acts=[['First act · days 1–500 · original kernel',m=>m.day<=500],['Second act · days 501–1000 · D-0080 kernel, chapter two from 540',m=>m.day>500]];
+  document.getElementById('stones').innerHTML = acts.map(([t,f])=>`<div class="act"><span class="eyebrow">${t}</span></div>`+ms.filter(f).map(m=>`<div class="stone"><span class="day">day ${m.day}</span><span class="kind k-${m.kind}">${m.kind.replace('-',' ')}</span><span class="text">${m.text}</span></div>`).join('')).join('');
+
+  // ---- charts
+  function lineChart(el, tipEl, series, opts){
+    const W=560,H=280,L=44,R=14,T=14,B=34; const xs=opts.x, xmax=opts.xmax||Math.max(...xs), xmin=opts.xmin||Math.min(...xs);
+    const ymax=opts.ymax||Math.max(...series.flatMap(s=>s.v.filter(v=>v!=null))), ymin=0;
+    const X=v=>L+(v-xmin)/(xmax-xmin)*(W-L-R), Y=v=>T+(1-(v-ymin)/(ymax-ymin))*(H-T-B);
+    let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.label}">`;
+    const ticks=opts.yticks||5; for(let i=0;i<=ticks;i++){const v=ymin+(ymax-ymin)*i/ticks; s+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end" font-size="10.5" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${opts.yfmt?opts.yfmt(v):Math.round(v)}</text>`;}
+    (opts.xticks||[1,100,200,300,400,500,600,700,800,900,1000]).filter(v=>v>=xmin&&v<=xmax).forEach(v=>{s+=`<text x="${X(v)}" y="${H-B+16}" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${v}</text>`;});
+    s+=`<line x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--rule)"/>`;
+    if(opts.vline){s+=`<line x1="${X(opts.vline)}" x2="${X(opts.vline)}" y1="${T}" y2="${H-B}" stroke="var(--rule)" stroke-dasharray="3 3"/><text x="${X(opts.vline)+4}" y="${T+10}" font-size="10" fill="var(--faint)" font-family="IBM Plex Sans, sans-serif">${opts.vlabel||''}</text>`;}
+    series.forEach(se=>{ const pts=[]; xs.forEach((x,i)=>{ if(se.v[i]!=null) pts.push([X(x),Y(se.v[i])]); }); if(!pts.length) return;
+      s+=`<path class="line" d="${pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')}" fill="none" stroke="${se.c}" stroke-width="${se.w||2}" stroke-linejoin="round" stroke-linecap="round" opacity="${se.o||1}"/>`;
+      if(se.dots){ pts.forEach(p=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${se.c}" stroke="var(--panel)" stroke-width="1.5"/>`;}); }
+      const e=pts[pts.length-1]; s+=`<circle cx="${e[0]}" cy="${e[1]}" r="3.5" fill="${se.c}" stroke="var(--panel)" stroke-width="2"/>`; });
+    s+=`<line id="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-width="1" opacity="0"/></svg>`;
+    el.innerHTML=s + `<div class="legend" style="margin-top:8px">${series.map(se=>`<span><i class="line" style="background:${se.c}"></i>${se.n}</span>`).join('')}</div>`;
+    const svgEl=el.querySelector('svg'), xh=svgEl.querySelector('#xh'), box=el.parentElement;
+    svgEl.addEventListener('mousemove',e=>{ const r=svgEl.getBoundingClientRect(); const px=(e.clientX-r.left)*W/r.width; let bi=0,bd=1e9; xs.forEach((x,i)=>{const d=Math.abs(X(x)-px); if(d<bd){bd=d;bi=i;}}); if(bd>40){tipEl.style.display='none';xh.setAttribute('opacity','0');return;}
+      xh.setAttribute('x1',X(xs[bi]));xh.setAttribute('x2',X(xs[bi]));xh.setAttribute('opacity','.6');
+      tipEl.innerHTML=`<b>day ${xs[bi]}</b><br>`+series.map(se=>se.v[bi]==null?'':`${se.n}: ${opts.tfmt?opts.tfmt(se.v[bi],se):se.v[bi]}`).filter(Boolean).join('<br>'); tipEl.style.display='block';
+      const rb=box.getBoundingClientRect(); tipEl.style.left=Math.max(90,Math.min(e.clientX-rb.left,rb.width-90))+'px'; tipEl.style.top=(e.clientY-rb.top)+'px'; });
+    svgEl.addEventListener('mouseleave',()=>{tipEl.style.display='none';xh.setAttribute('opacity','0');});
+  }
+  lineChart(document.getElementById('growthsvg'), document.getElementById('growthtip'), [
+    {n:'facts',c:'var(--s-old)',v:days.map(d=>d.facts)},
+    {n:'entities',c:'var(--s-new)',v:days.map(d=>d.entities)},
+    {n:'preferences',c:'var(--s-name)',v:days.map(d=>d.prefs)},
+    {n:'superseded history',c:'var(--s-sup)',v:days.map(d=>d.superseded)},
+  ], {x:days.map(d=>d.day), xmax:1000, label:'memory growth by day', vline:501, vlabel:'D-0080 kernel'});
+  const bx=bats.map(b=>b.day);
+  lineChart(document.getElementById('recallsvg'), document.getElementById('recalltip'), [
+    {n:'battery total %',c:'var(--faint)',w:1.5,o:.9,v:bats.map(b=>b.pct)},
+    {n:'old world %',c:'var(--s-old)',v:bats.map(b=>b.base.asked?Math.round(100*b.base.hits/b.base.asked):null)},
+    {n:'chapter two %',c:'var(--s-new)',dots:true,v:bats.map(b=>b.new.asked?Math.round(100*b.new.hits/b.new.asked):null)},
+  ], {x:bx, xmax:1000, ymax:100, yfmt:v=>v+'%', tfmt:v=>v+'%', label:'recall per battery', vline:501, vlabel:'D-0080 kernel'});
+
+  // ---- batteries table
+  const cell = s => s.asked? `${s.hits}/${s.asked}` : '—';
+  const pctClass = p => p>=95?'g':(p>=85?'w':'b');
+  document.getElementById('batteries').innerHTML = `<thead><tr><th class="l">day</th><th>score</th><th>%</th><th>old world</th><th>chapter two</th><th>nickname</th><th>retired</th><th>2-hop</th><th>honest</th><th>wrong</th><th>oldest asked</th><th>flipped asked</th></tr></thead><tbody>`+
+    bats.map(b=>`<tr><td class="l day">${b.day}</td><td>${b.score}/${b.of}</td><td><span class="pill ${pctClass(b.pct)}">${b.pct}%</span></td><td>${cell(b.base)}</td><td>${cell(b.new)}</td><td>${cell(b.alias)}</td><td>${cell(b.retired)}</td><td>${cell(b.hop)}</td><td>${b.honest_misses}</td><td>${b.wrong_value}</td><td>${b.oldest_age}d</td><td>${b.flipped_asked}</td></tr>`).join('')+'</tbody>';
+
+  // ---- ledger
+  const dl = v => v==null||v===0 ? '' : `<span class="dl ${v>0?'up':'dn'}">${v>0?'+':''}${v}</span>`;
+  const nightPill = n => n==='lab'?'<span class="pill w">lab</span>':(n==='quiet'?'<span class="pill n">quiet</span>':'<span class="pill n">sleep</span>');
+  function renderLedger(){
+    const lo=+document.getElementById('from').value||1, hi=+document.getElementById('to').value||1e9, only=(document.getElementById('only').value||'').trim().toLowerCase(), qo=document.getElementById('quizonly').checked;
+    const rows=days.filter(d=>d.day>=lo&&d.day<=hi&&(!only||(d.notes||'').includes(only))&&(!qo||d.quiz));
+    document.getElementById('count').textContent=`${rows.length} day${rows.length===1?'':'s'}`;
+    document.getElementById('ledger').innerHTML=`<thead><tr><th class="l">day</th><th>entities</th><th>facts</th><th>history</th><th>prefs</th><th>vectors</th><th>topics</th><th>thr</th><th>deep auto</th><th>latency ms</th><th>night</th><th>spend $</th><th>Δ$</th><th>quiz</th><th class="l">notes</th></tr></thead><tbody>`+
+      rows.map(d=>`<tr class="${d.quiz?'q':''} ${d.notes?'marked':''}"><td class="l day">${d.day}</td><td>${d.entities}${dl(d.d_entities)}</td><td>${d.facts}${dl(d.d_facts)}</td><td>${d.superseded}${dl(d.d_superseded)}</td><td>${d.prefs}${dl(d.d_prefs)}</td><td>${d.vectors??''}</td><td>${d.topics}</td><td>${d.threshold??''}<span class="dl">${d.threshold_by==='user'?'user':(d.threshold_by==='jarvis'?'J':'')}</span></td><td>${d.deep_auto??0}</td><td>${d.latency_ms??''}</td><td>${nightPill(d.night)}</td><td>${(d.spend??0).toFixed(2)}</td><td>${d.d_spend==null?'':(d.d_spend>=0?'+':'')+d.d_spend.toFixed(2)}</td><td>${d.quiz?`<span class="pill ${pctClass(d.quiz_pct)}">${d.quiz}</span>`:''}</td><td class="l" style="font-family:'IBM Plex Sans',sans-serif;color:var(--muted)">${(d.notes||'').split(',').filter(Boolean).join(' · ')}</td></tr>`).join('')+'</tbody>';
+  }
+  ['from','to','only','quizonly'].forEach(id=>document.getElementById(id).addEventListener('input',renderLedger));
+  renderLedger();
+})();
+</script>

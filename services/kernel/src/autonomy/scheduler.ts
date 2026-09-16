@@ -36,6 +36,8 @@ export interface TickResult {
   agendaReviewed?: number;
   agendaCompleted?: number;
   brainUsed?: boolean;
+  /** Night Lab outcome for this tick (D-0079): skip reason or run summary */
+  lab?: string;
   skipped?: string;
 }
 
@@ -83,6 +85,15 @@ export class BackgroundScheduler {
       projects?: import("./projects.js").Projects;
       /** injectable clock for tests (defaults to real time) */
       now?: () => Date;
+      /**
+       * Night Lab (D-0079): one evidence-gated experiment campaign per quiet
+       * window. The closure re-checks EVERY precondition itself (lab.enabled,
+       * quiet hours, e-stop, live activity, one-night-per-window, token cap) —
+       * the scheduler only offers the beat. Runs at the END of a tick; the
+       * `ticking` overlap guard then keeps further beats out for the duration,
+       * which is the intended three-rhythm no-collide during quiet hours.
+       */
+      labNight?: () => Promise<{ skipped?: string; halted?: string; experiments: number; kept: number }>;
     },
   ) {}
 
@@ -240,7 +251,16 @@ export class BackgroundScheduler {
           );
         } catch { /* journal is best-effort */ }
       }
-      this.lastResult = { proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed };
+      // ---- Night Lab (D-0079): last in the tick so the beat's own work is
+      // done first; the closure enforces its own envelope end to end.
+      let lab: string | undefined;
+      if (!budgetBlock && this.deps.labNight) {
+        try {
+          const n = await this.deps.labNight();
+          lab = n.skipped ?? `${n.experiments} experiment(s), ${n.kept} kept${n.halted ? ` (halted: ${n.halted})` : ""}`;
+        } catch { /* the lab must never crash the tick */ }
+      }
+      this.lastResult = { proactiveSurfaced, consolidated, agendaReviewed, agendaCompleted, brainUsed, ...(lab ? { lab } : {}) };
       this.deps.activity.emit({
         kind: "decision",
         summary: `heartbeat: ${proactiveSurfaced} proactive${consolidated ? ", consolidated" : ""}, agenda ${agendaCompleted}/${agendaReviewed}${brainUsed ? " (thought)" : ""}${beatSummary ? ` — ${beatSummary.slice(0, 120)}` : ""}`,

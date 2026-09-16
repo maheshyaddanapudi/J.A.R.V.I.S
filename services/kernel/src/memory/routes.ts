@@ -71,6 +71,52 @@ export function registerMemoryRoutes(
       const name = decodeURIComponent((req.params as { name?: string }).name ?? "");
       return { forgotten: await entities.forgetEntity(name) };
     });
+    // G-17 reconciliation: split aliases that were separately-taught things
+    // folded in by a pre-fix name-variant merge. Dry-run unless {apply: true};
+    // every applied split is audited (`entity_alias_split`) and announced.
+    app.post("/memory/reconcile-twins", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.splitTwinAliases({ apply: body.apply === true });
+    });
+    // G-03 reconciliation: one home per attribute — the newer record wins, the
+    // older is retired with history. Dry-run unless {apply: true}; audited.
+    // G-21: fold article-variant duplicate rows ("the boat shed north" into
+    // "boat shed north"); dry-run by default like the other reconcilers
+    app.post("/memory/reconcile-articles", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileArticleVariants({ apply: body.apply === true });
+    });
+
+    // G-30: rename a row filed under "the X" when no plain "X" row exists for
+    // the fold to work with. G-31: retract an alias that names a different live
+    // entity. Both dry-run by default, like every other reconciler.
+    app.post("/memory/normalize-article-names", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.normalizeArticleNames({ apply: body.apply === true });
+    });
+
+    app.post("/memory/retract-shadowed-aliases", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.retractShadowedAliases({ apply: body.apply === true });
+    });
+
+    // G-29: fold "<person>'s <attribute>" back onto the person when the person
+    // is a live entity of her own. Dry-run by default.
+    app.post("/memory/reconcile-possessive-names", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcilePossessiveNames({ apply: body.apply === true });
+    });
+
+    app.post("/memory/reconcile-homes", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileHomes({ apply: body.apply === true, prefs: memory });
+    });
+    // G-07 reconciliation: exclusive relations keep their newest edge; the rest
+    // move to history. Twin-touched anchors are skipped (re-teach). Dry-run default.
+    app.post("/memory/reconcile-relations", async (req) => {
+      const body = (req.body ?? {}) as { apply?: boolean };
+      return entities.reconcileRelations({ apply: body.apply === true });
+    });
   }
   app.get("/memory/preferences", async (req) => {
     const q = (req.query as { q?: string }).q;

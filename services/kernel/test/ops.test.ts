@@ -85,3 +85,22 @@ describe.skipIf(!pool)("Ops (D-0071) — longevity", () => {
     await expect(ops.restore(b.path)).rejects.toThrow(/not empty/);
   });
 });
+
+describe.skipIf(!pool)("Ops health — memory hygiene counters (Longitude-XL G-11, 2026-09-11)", () => {
+  it("counts refused writes, corrections, merges/declines/splits, reconciliations and relation supersessions from the audit log", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "jarvis-ops-"));
+    const audit = new AuditLog(pool!);
+    await audit.append({ actor: "kernel", event: "tool_call", payload: { tool: "memory.rememberFact", ok: false, summary: "refused" } });
+    await audit.append({ actor: "kernel", event: "tool_call", payload: { tool: "memory.correct", ok: true, summary: "corrected" } });
+    await audit.append({ actor: "kernel", event: "entity_resolution_declined", payload: { mention: "coral census two", candidate: "coral census" } });
+    await audit.append({ actor: "kernel", event: "relation_superseded", payload: { relation: "maintains" } });
+    await audit.append({ actor: "kernel", event: "preference_superseded_by_reconciliation", payload: { key: "x" } });
+    const h = await new Ops(pool!, audit, settings(false, 30), dir).health();
+    expect(h.memoryHygiene.windowDays).toBe(7);
+    expect(h.memoryHygiene.refusedFactWrites).toBeGreaterThanOrEqual(1);
+    expect(h.memoryHygiene.corrections).toBeGreaterThanOrEqual(1);
+    expect(h.memoryHygiene.twinDeclines).toBeGreaterThanOrEqual(1);
+    expect(h.memoryHygiene.relationsSuperseded).toBeGreaterThanOrEqual(1);
+    expect(h.memoryHygiene.homesReconciled).toBeGreaterThanOrEqual(1);
+  });
+});
