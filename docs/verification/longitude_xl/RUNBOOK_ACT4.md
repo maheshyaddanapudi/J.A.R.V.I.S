@@ -86,3 +86,41 @@ Replaced with `scripts/longitude_xl/check.sh` (deployed to
 `ps -C python3` and prints the log mtime against the wall clock. `ROUTINE_ACT3.md`
 step 1 now mandates it. Nothing was lost — days 1553–1554 had committed before
 the recycle and the checkpoint resumed cleanly at 1555.
+
+### 2026-09-16 08:50 UTC — keepalive works; day-1600 preserve + first per-kind read
+
+Two 50-minute keepalive windows, **0 relaunches each**, container up 1:42
+continuously: days 1557→1605, **49 simulated days in 100 minutes** against the
+2 days/hour the recycle pattern was yielding. Remaining ~395 days project to
+~13 h of runtime rather than 9+ days of wall clock.
+
+Preserve `day1600/` written at day 1605 (34 MB), same six-file shape as
+day1300–day1500.
+
+**First per-kind read** (`longitude_xl_rescore.py`, 298 act-four answers), the
+pre-registered targets — derived from the per-answer classifier, NOT from the
+`quiz_*_asked`/`quiz_*_strict` counters, per the scoring rule above:
+
+| kind | n | lenient | strict | target | act three |
+|---|---|---|---|---|---|
+| hop (T4′) | 30 | 100 % | **93.3 %** | ≥ 90 % ✅ | 88.0 % |
+| alias (T5′) | 10 | 100 % | **100 %** | 100 % ✅ | 86.0 % |
+| retired (T6′) | 10 | 100 % | **100 %** | ≥ 95 % ✅ | 82.0 % |
+| new (control) | 30 | 100 % | 100 % | — | 202/202 |
+| base (old world) | 218 | 97.2 % | 97.2 % | — | — |
+| **total** | **298** | **98.0 %** | **97.3 %** | — | 96.2 / 94.8 |
+
+**0 fabrications in 298 answers.** The 8 strict misses: 2 honest "not found",
+3 twin substitutions, 3 wrong-but-real values.
+
+**These are on track, NOT established.** T5′ and T6′ rest on 10 answers each
+against act three's 50 — a single miss takes T5′ off 100 %. Re-read at day 1700.
+
+Instrument note: the first fabrication check written for this read was wrong in
+the dangerous direction. It asked "does the answer contain a value from the
+fact's pool?", which marks a "not found" answer — one that states no value at
+all — as invented, and cannot apply to two-hop rows, which answer with a place
+name and have no value pool. It printed FABRICATION against 3 rows. The correct
+question is whether a STATED term is invented (in no pool, matching no known
+entity); the answer is 0. Any future fabrication count must be computed that way
+— a false alarm against the 0-fabrications claim is worse than no check.
