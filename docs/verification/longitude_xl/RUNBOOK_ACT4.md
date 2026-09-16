@@ -39,4 +39,37 @@ Same as act three (`ROUTINE_ACT3.md` holds the procedure — look, report, relau
 rules, credit gate, 100-day preserves). Preserves at 1600 / 1700 / 1800 / 1900 / 2000.
 Chapter four has its own drift guard: an edit to the layer after day 1501 halts the run.
 
+## Scoring rule — do NOT read the per-kind counters as ratios
+
+`metrics.jsonl` carries `quiz_new_asked`/`quiz_new_hits`,
+`quiz_ch3_asked`/`quiz_ch3_strict` and `quiz_reteach_asked`/`quiz_reteach_strict`.
+**These pairs do not share a denominator.** `*_asked` is the count sampled into
+that battery's *specials* pool (`len(re_sample)`, `len(ch3_sample)`), while
+`*_strict` counts every fact in the WHOLE battery carrying that flag — including
+ones that arrived through the ordinary attention pool. So `reteach_strict` legally
+exceeds `reteach_asked` (day 1530: 7 of 3; day 1540: 6 of 3), exactly as
+`quiz_new_hits` exceeded `quiz_new_asked` at day 1240 in act three — where the
+invalid ratio reached two preserved reports before being caught.
+
+The counters are useful as **numerators only** (how many facts of that kind were
+answered correctly). Every per-kind rate in the act-four record must be derived at
+scoring time from the per-answer classifier over `rescore`, the way act three's
+valid 202/202 was — never by dividing these two fields. The harness is NOT edited
+to fix this mid-act: it is instrument reporting, the underlying per-answer data is
+intact, and an edit would put a seam in the middle of the act.
+
 ## Ops log
+
+### 2026-09-16 04:1x UTC — container recycle #n, relaunched from day 1548
+
+Container up 2 min at wake; harness, kernel and embedder all down. Restarted the
+embedder, relaunched from the checkpoint. Days 1548 (112 s) and 1549 (101 s)
+committed, next day 1550, spend $273.27 of the $450 cap.
+
+First four batteries (1510 / 1520 / 1530 / 1540): **116/118 lenient (98.3 %),
+115/118 strict (97.5 %)** — above act three's finishing 96.2 / 94.8. Instruments
+clean: 0 empty replies, 0 deep-on-auto, no provider failures.
+
+The recycles are the ops story of this act: each wake yields 2–5 simulated days
+before the container is reclaimed, so the 500 days are pacing at days of
+wall-clock rather than the ~15–20 h the day time alone would suggest.
