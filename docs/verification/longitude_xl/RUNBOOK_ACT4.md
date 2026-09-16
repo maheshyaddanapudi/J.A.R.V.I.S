@@ -193,3 +193,17 @@ The totals drift down gently (97.3 → 96.7 → 96.3) as n grows. That is
 regression to the mean from small early samples, not decay: `new` is 94/94 and
 `retired` 31/31 across the same span. Ops: keepalive windows 7–10 each ran 22–23
 days with 0 relaunches, container up 8:23 unbroken.
+
+### 2026-09-16 18:02 UTC — ACT FOUR PAUSED at day 1853; final record
+
+Full record: `docs/verification/LONGITUDE_XL_ACT4_2026-09-16.md`.
+
+352 days (1501–1852), 1,048 scored answers, **97.6 % lenient / 96.3 % strict**,
+0 fabrications, audit chain intact at 46,934. T4′ 96.2 % (met), T6′ 100 % (met),
+T5′ 100 % on fresh handles / 94.3 % all rows (both legacy chapter-two handles).
+No decay by century: 97.3 · 96.0 · 95.7 · 96.0.
+
+Stopped deliberately: chapter four's content ends at day 1820 (teaching 1639,
+aliases 1629), the tail is smalltalk that writes nothing, and the OpenRouter
+balance was $9.00. Preserve `day1850/` at day 1852. `PAUSED` documents the stop;
+the act resumes from day 1853 with the standard relaunch whenever wanted.

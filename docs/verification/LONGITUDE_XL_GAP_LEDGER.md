@@ -101,3 +101,24 @@ Details in `REFINEMENT_2026-09-11.md` R10.
 
 Nothing on the ledger is open without a named closure path; the third act
 (`longitude_xl/RUNBOOK_ACT3.md`) is the field retest on this build.
+
+## G-33 — legacy chapter-two alias handles are unstored (act four, 2026-09-16)
+
+**Status: WONTFIX-BY-DESIGN (data provenance, not a live defect).**
+
+, , ,  were taught as aliases around simulated day 607,
+during act two, on a kernel build with no alias write path — 
+arrived with G-26 (D-0084) afterwards. Those entities carry `aliases = NULL`; the
+handle was never storable. `identityMatch`'s short-name gate (>=5 chars or >=2
+tokens) also stops a 4-letter first name resolving incidentally, so answers are
+inconsistent (day 1580 right, day 1690 "not found") because nothing is stored to
+be consistent about.
+
+Act four evidence, stable across four reads: fresh handles taught on this build
+**31/31 (100 %)**, legacy handles **2/4 (50 %)**. Audit confirms
+`entity_alias_added` for all eight chapter-three/four handles, each read back —
+the write path is correct.
+
+**Action:** any future act reusing the day-1500+ world should RE-TEACH these four
+handles rather than scoring them; scoring them measures act two's build, not this
+one. No kernel change is warranted.
