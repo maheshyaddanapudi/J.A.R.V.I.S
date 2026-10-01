@@ -20,13 +20,23 @@
         ]
       }
     ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -x \"${CLAUDE_PROJECT_DIR:-.}/scripts/db_up.sh\" ] && JARVIS_DB_UP_NO_DAEMON_START=1 bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/db_up.sh\" 2>&1 | tail -2 || true"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "command -v setsid >/dev/null 2>&1 && [ -x scripts/graphify-auto-update.sh ] && setsid scripts/graphify-auto-update.sh > graphify-out/.hook-deep-update.log 2>&1 < /dev/null &"
+            "command": "command -v setsid >/dev/null 2>&1 && [ -x \"${CLAUDE_PROJECT_DIR:-.}/scripts/graphify-auto-update.sh\" ] && setsid \"${CLAUDE_PROJECT_DIR:-.}/scripts/graphify-auto-update.sh\" > \"${CLAUDE_PROJECT_DIR:-.}/graphify-out/.hook-deep-update.log\" 2>&1 < /dev/null &"
           }
         ]
       }

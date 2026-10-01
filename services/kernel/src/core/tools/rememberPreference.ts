@@ -35,10 +35,15 @@ export function rememberPreferenceTool(memory: MemoryService): Tool {
         status: "user_statement",
         provenance: "conversation (user asked me to remember)",
       });
+      // G-01 teach receipt (2026-09-11): confirm by reading back, quote what is stored.
+      const back = await memory.get(pref.key);
+      if (!back || back.value !== value) {
+        return { ok: false, summary: `written but did not read back intact — '${key}' = '${value}'`, data: { id: pref.id, key: pref.key, readBack: false } };
+      }
       return {
         ok: true,
-        summary: `Remembered '${key}' = '${value}' (${pref.status})`,
-        data: { id: pref.id, key: pref.key },
+        summary: `Remembered and read back '${back.key}' = '${back.value}' (${pref.status})`,
+        data: { id: pref.id, key: pref.key, value: back.value, readBack: true },
         rollback: async () => {
           await memory.delete(key);
         },

@@ -56,20 +56,33 @@ becomes a **silent no-op** — every guard clause exits 0 rather than erroring.
 
 ## The two refresh paths
 
-Both run the same pipeline — `graphify . --mode deep` → `cluster-only` →
-`label` — and share one lock (`graphify-out/.graphify-pipeline.lock`), so they
-can never race each other on `graph.json`.
+Both share one lock (`graphify-out/.graphify-pipeline.lock`), so they can
+never race each other on `graph.json`. Since 2026-08-28 they run DIFFERENT
+amounts of the pipeline:
 
-**Automatic** — `scripts/graphify-auto-update.sh`, fired by the `PostToolUse`
-hook in `.claude/settings.json` after every Claude Code `Edit`/`Write`. Runs
-detached (`setsid`) so it never blocks the edit. Uses a **non-blocking** lock:
-if a run is already in flight (a burst of rapid edits), this one skips rather
-than queueing another expensive run behind it — the next edit's firing picks
-up whatever changed. Output: `graphify-out/.hook-deep-update.log`.
+**Automatic (trimmed)** — `scripts/graphify-auto-update.sh`, fired by the
+`PostToolUse` hook in `.claude/settings.json` after every Claude Code
+`Edit`/`Write`. Runs `graphify . --mode deep --no-label --no-viz`: extraction
++ local clustering only — nodes/edges/communities stay current for
+`query`/`path`/`explain`, while the two big fixed costs (LLM naming of ~275
+communities, the 2.4MB `graph.html` rewrite) are skipped. Runs detached
+(`setsid`) so it never blocks the edit; **non-blocking** lock: if a run is in
+flight (a burst of rapid edits), this one skips rather than queueing — the
+next edit's firing picks up whatever changed. Output:
+`graphify-out/.hook-deep-update.log`. NOTE: the hook command is anchored to
+`$CLAUDE_PROJECT_DIR` — it previously tested a cwd-relative path and silently
+no-op'd whenever the session sat in a subdirectory (found 2026-08-28 after
+the graph quietly went stale).
 
-**Manual** — `scripts/graphify-refresh.sh`. Same pipeline, but a **blocking**
-lock (a human asking for a refresh should wait their turn and actually run,
-not silently skip) and foreground output so you can watch it.
+**Manual (full)** — `scripts/graphify-refresh.sh`. The whole pipeline —
+`graphify . --mode deep` → `cluster-only` → `label` (+ `graph.html`) — with a
+**blocking** lock (a human asking for a refresh should wait their turn and
+actually run, not silently skip) and foreground output so you can watch it.
+Run it when you want fresh community names or an updated visual graph.
+
+**Ignore list** — `.graphifyignore` (gitignore syntax) excludes
+`docs/screenshots/`: 69 image nodes extracted from UI screenshots all came
+back `name=None` — pure vision-call cost, zero graph value.
 
 ### Delta behaviour and cost
 
@@ -81,11 +94,11 @@ graphify caches per-file semantic extractions, so a refresh only sends
 - **Cold cache** (fresh container, `graphify-out/cache/` gone) → full
   re-extraction, ~$4 and several minutes at 2000-node scale.
 
-Honest caveat: `graphify label` (LLM community naming) runs on **every**
-invocation of either path, not just when the community structure actually
-changed. That is a deliberate choice; if it becomes annoying, drop the
-`graphify label .` line from `scripts/graphify-auto-update.sh` and let the
-manual script own relabeling.
+The old caveat here — `graphify label` running on **every** invocation of
+either path — became annoying exactly as predicted, and the predicted fix was
+applied on 2026-08-28: the auto-update path now skips labeling (`--no-label`)
+and the manual script owns relabeling. New communities carry "Community N"
+placeholders until the next `scripts/graphify-refresh.sh`.
 
 ---
 

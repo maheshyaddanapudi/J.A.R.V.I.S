@@ -101,8 +101,12 @@ export function assessDepth(
 // panel — the user can always see and edit what has been learned).
 //   1. instruction — "always think deeply about X" → teach(topic)
 //   2. correction  — the user explicitly forces deep on a turn the auto
-//      assessment judged fast; salient terms from such turns accumulate, and a
-//      term seen in ≥2 corrections is promoted to a learned topic.
+//      assessment judged fast; the topic of such turns accumulates, and a
+//      term seen in ≥2 corrections is promoted to a learned topic — but only
+//      once the judgment model has confirmed it at least once (D-0080 C2,
+//      R-MEM-10): the deterministic fallback extractor may ACCUMULATE, never
+//      PROMOTE. Longitude-XL showed the fallback learning six filler words
+//      during a 180-day dead-model window — learning worse than not learning.
 // ---------------------------------------------------------------------------
 
 export const DEEP_TOPICS_KEY = "reasoning_deep_topics";
@@ -110,6 +114,28 @@ export const DEEP_CANDIDATES_KEY = "reasoning_deep_candidates";
 export const AUTOTUNE_KEY = "reasoning_autotune";
 const PROMOTE_AT = 2;
 const MAX_TOPICS = 50;
+/** bound on the candidate ledger — an outage's fallback terms must not grow it
+ *  without limit; unjudged low-count entries are dropped first */
+const MAX_CANDIDATES = 200;
+
+/** A not-yet-promoted deep-topic candidate: `count` = corrections that
+ *  mentioned it, `judged` = how many of those the judgment model confirmed. */
+interface Candidate {
+  count: number;
+  judged: number;
+}
+
+/** Outcome of one learning-by-correction turn. */
+export interface CorrectionOutcome {
+  /** topics newly promoted to always-deep this turn */
+  promoted: string[];
+  /** terms accumulated (or advanced) this turn without promotion */
+  noted: string[];
+  /** true when no judgment model confirmed the extraction: the terms were
+   *  accumulated by the deterministic fallback and cannot promote until a
+   *  judge confirms them — the caller says so instead of learning silently */
+  deferred: boolean;
+}
 
 /**
  * Bounded self-adjustable knobs (D-0051, contract revised D-0052). The user's
@@ -166,7 +192,8 @@ export class ReasoningTuner {
   constructor(
     private readonly store: TunerStore,
     /** optional fast-model topic extractor (D-0075) — best-effort; a null result
-     *  (no judge / no eligible provider / failure) falls back to `salientTerms`.
+     *  (no judge / no eligible provider / failure) falls back to `salientTerms`,
+     *  which accumulates candidates but can never promote one (D-0080 C2).
      *  Only used off the hot path (learning-by-correction), never in `assessDepth`,
      *  which stays deterministic + zero-latency by design. */
     private readonly judge?: { extractTopics(text: string, privacy: "STANDARD" | "LOCAL_ONLY"): Promise<string[] | null> },
@@ -269,26 +296,51 @@ export class ReasoningTuner {
 
   /**
    * Learning-by-correction: called when the user explicitly forced deep on a
-   * turn the auto assessment judged fast. Returns any topics newly promoted.
+   * turn the auto assessment judged fast. Returns what was promoted, what was
+   * merely noted, and whether promotion is deferred for lack of a judge.
    */
-  async recordCorrection(text: string): Promise<string[]> {
-    const counts = await this.readJson<Record<string, number>>(DEEP_CANDIDATES_KEY, {});
+  async recordCorrection(text: string): Promise<CorrectionOutcome> {
+    const raw = await this.readJson<Record<string, number | Partial<Candidate>>>(DEEP_CANDIDATES_KEY, {});
+    // Backward-compat: pre-D-0080 rows stored a bare count per term. Whether
+    // those were judge-confirmed is unknowable, so they carry judged=0 — one
+    // confirmed mention promotes them (the count is already there).
+    const counts: Record<string, Candidate> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      counts[k] =
+        typeof v === "number" ? { count: v, judged: 0 } : { count: v.count ?? 0, judged: v.judged ?? 0 };
+    }
     const topics = await this.topics();
     const promoted: string[] = [];
+    const noted: string[] = [];
     // Prefer a fast-model extraction of the SPECIFIC topic (D-0075). The heuristic
-    // `salientTerms` grabbed filler words ('quick','one-line','intuition') from
+    // `salientTerms` grabs filler words ('quick','one-line','intuition') from
     // prompt phrasing; the model returns the real subject ('palladium'). A null
     // result (no judge / no eligible provider / failure) falls back to the
-    // heuristic; an empty list is a valid "no substantive topic" (no fallback).
+    // heuristic — which may accumulate but never promote (D-0080 C2); an empty
+    // list is a valid judged "no substantive topic" (no fallback).
     const extracted = this.judge ? await this.judge.extractTopics(text, "STANDARD") : null;
+    const judged = extracted !== null;
     const terms = extracted ?? salientTerms(text);
     for (const term of terms) {
       if (topics.includes(term)) continue;
-      counts[term] = (counts[term] ?? 0) + 1;
-      if (counts[term] >= PROMOTE_AT) {
+      const c = counts[term] ?? { count: 0, judged: 0 };
+      c.count += 1;
+      if (judged) c.judged += 1;
+      if (c.count >= PROMOTE_AT && c.judged >= 1) {
         promoted.push(term);
         delete counts[term];
+      } else {
+        counts[term] = c;
+        noted.push(term);
       }
+    }
+    // Keep the ledger bounded: drop never-judged entries, lowest count first.
+    const keys = Object.keys(counts);
+    if (keys.length > MAX_CANDIDATES) {
+      const droppable = keys
+        .filter((k) => counts[k]!.judged === 0)
+        .sort((a, b) => counts[a]!.count - counts[b]!.count);
+      for (const k of droppable.slice(0, keys.length - MAX_CANDIDATES)) delete counts[k];
     }
     await this.store.remember({
       key: DEEP_CANDIDATES_KEY,
@@ -302,6 +354,6 @@ export class ReasoningTuner {
         provenance: "learned-from-corrections",
       });
     }
-    return promoted;
+    return { promoted, noted, deferred: !judged && noted.length > 0 };
   }
 }

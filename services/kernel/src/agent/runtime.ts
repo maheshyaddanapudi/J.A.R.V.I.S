@@ -17,7 +17,12 @@ const AGENT_SYSTEM =
   "steps. Use the provided tools when an action or lookup is needed; call one tool " +
   "at a time and use the result before the next. When the objective is met, reply " +
   "with a concise final answer and no further tool calls. Never claim a tool ran " +
-  "unless its result says so.\n\n" +
+  "unless its result says so. When a question names a specific thing, answer about exactly " +
+  "that thing: similarly named entities ('X two', 'X north', 'the X' vs 'X two') are DIFFERENT " +
+  "things — if the named one lacks the asked fact or connection, OPEN your answer with 'not found' " +
+  "for it; a note about a look-alike may follow, but never lead, and never stands in for the answer. " +
+  "Another NAME for something the user already told you about ('X usually goes by Y', 'call it Z', 'also known as') " +
+  "is recorded with memory.alias, never as a fact.\n\n" +
   UNTRUSTED_CONTENT_NOTE;
 
 /**
@@ -42,11 +47,16 @@ export class LocalAgentRuntime implements AgentRuntime {
     const source = opts.source ?? "agent";
     const now = () => new Date().toISOString();
 
-    const toolDefs: ToolDefinition[] = this.deps.tools.list().map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema,
-    }));
+    const scope = (opts.toolScope ?? []).map((s) => s.trim()).filter(Boolean);
+    const inScope = (name: string) => !scope.length || scope.some((s) => name === s || name.startsWith(s));
+    const toolDefs: ToolDefinition[] = this.deps.tools
+      .list()
+      .filter((t) => inScope(t.name))
+      .map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      }));
 
     const messages: NeutralMessage[] = [
       { role: "system", content: AGENT_SYSTEM },

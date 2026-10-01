@@ -15,6 +15,13 @@
 # Every exit path here is silent and non-failing by design: this is a
 # best-effort background nicety, never something that should surface an
 # error to whoever triggered the edit.
+#
+# Per-edit runs are TRIMMED (2026-08-28): extraction + local clustering only.
+# --no-label skips the LLM naming of ~275 communities and --no-viz skips the
+# 2.4MB graph.html rewrite — together they were most of a ~12-minute fixed
+# cost per edit, regardless of change size. query/path/explain stay current
+# (nodes/edges/communities update); fresh community NAMES and graph.html come
+# from the full pipeline in scripts/graphify-refresh.sh.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 0
 
@@ -28,7 +35,5 @@ set -a
 set +a
 
 flock -n graphify-out/.graphify-pipeline.lock -c '
-  graphify . --mode deep &&
-  graphify cluster-only . &&
-  graphify label .
+  graphify . --mode deep --no-label --no-viz
 '

@@ -54,6 +54,10 @@ export class Announcer {
   }
 
   private async inQuietHours(now: Date): Promise<boolean> {
+    // quiet hours the user has switched off entirely hold nothing back
+    // (found live 2026-08-28: only the window was consulted, so disabling
+    // quiet hours didn't release deferred announcements)
+    if (!(await this.settings.bool("proactive.quietHours.enabled", true))) return false;
     const start = await this.settings.num("proactive.quietHours.start", 22);
     const end = await this.settings.num("proactive.quietHours.end", 7);
     const h = now.getHours();

@@ -1,4 +1,4 @@
-import { describe, expect, it, afterAll, beforeEach, vi } from "vitest";
+import { describe, expect, it, afterAll, beforeAll, beforeEach, vi } from "vitest";
 import pg from "pg";
 import { PromptRegistry } from "../src/prompts/registry.js";
 import type { AuditLog } from "../src/core/audit.js";
@@ -92,5 +92,26 @@ describe.skipIf(!pool)("PromptRegistry (R-CAP-01 prompts kind)", () => {
     expect(await reg.remove("butler")).toBe(true);
     expect(await reg.getActive("persona")).toBeNull();
     expect(await reg.remove("butler")).toBe(false); // idempotent
+  });
+});
+
+describe.skipIf(!pool)("templates coexist — one active per NAME, not per kind (G-15, 2026-09-11)", () => {
+  let p: pg.Pool;
+  beforeAll(() => { p = new pg.Pool({ connectionString: process.env.JARVIS_TEST_DATABASE_URL ?? "postgres://jarvis:jarvis-dev-only@127.0.0.1:5432/jarvis_test" }); });
+  afterAll(async () => { await p.end(); });
+  it("setting a second template keeps the first active, and re-setting bumps its version", async () => {
+    const { PromptRegistry } = await import("../src/prompts/registry.js");
+    const reg = new PromptRegistry(p, audit);
+    await p.query("DELETE FROM prompts WHERE kind = 'template'");
+    await reg.set({ name: "judge-a", kind: "template", content: "A v1", provenance: "builtin-seed" });
+    await reg.set({ name: "judge-b", kind: "template", content: "B v1", provenance: "builtin-seed" });
+    expect((await reg.get("judge-a", "template"))?.content).toBe("A v1");
+    expect((await reg.get("judge-b", "template"))?.content).toBe("B v1");
+    const a2 = await reg.set({ name: "judge-a", kind: "template", content: "A v2", provenance: "builtin-seed" });
+    expect(a2.version).toBe(2);
+    expect((await reg.get("judge-a", "template"))?.content).toBe("A v2");
+    expect((await reg.get("judge-b", "template"))?.content).toBe("B v1"); // untouched
+    expect(await reg.activate("judge-b", "template")).toBe(true);
+    expect((await reg.get("judge-a", "template"))?.content).toBe("A v2"); // activating b does not deactivate a
   });
 });

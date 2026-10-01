@@ -121,6 +121,16 @@ Rules:
 ### T14 — Remote model provider exposure (ADV7)
 **Mitigations:** local-capable-first routing; privacy classes gate what may ever be routed remotely; outbound-integration registry makes every egress identifiable/disableable; offline mode is a supported first-class configuration; provider adapters log destination + data class per call.
 
+### T15 — Night-Lab self-experimentation abuse (D-0079) — T-LAB-1…6
+**Vector:** the autonomous experiment loop (docs/NIGHT_LAB_SPEC.md) optimizes the wrong thing, escapes its envelope, or contaminates live state.
+**Mitigations (implemented 2026-08-28, tested in `services/kernel/test/lab*.test.ts`):**
+- **T-LAB-1 envelope self-editing:** `LAB_SURFACE` is a Z1-held allowlist (`kernel/src/lab/surface.ts`, R-CAP-08 protected path); envelope settings (`budget.*`, `lab.*`, `autonomy.*`, quiet-hours, announce channels, `gateway.*` …) are on an explicit forbidden-prefix list — `validateCandidate` refuses them deny-first, and `LabApplier` re-validates at apply time (defense in depth against a stale/hostile ledger row).
+- **T-LAB-2 metric gaming / Goodhart:** bench files are outside `LAB_SURFACE` and R-CAP-08-protected; every experiment row records the bench content hash; one metric per campaign with guard bands on every trial; 8 deterministic hard gates auto-discard regardless of score; the morning report shows actual diffs to a human.
+- **T-LAB-3 prompt injection via fixtures:** fixtures are versioned first-party repo files (`bench/fixtures/`); web-derived fixtures forbidden in v1; grader output is JSON-parsed, never executed.
+- **T-LAB-4 spend runaway:** dedicated `budget.lab.nightlyTokenCap` + the overall autonomy daily cap; both halt the loop between experiments; neither is lab-editable (forbidden prefixes).
+- **T-LAB-5 lab/live contamination:** experiments run in a separate kernel process on a scratch DB (`jarvis_lab`, own port); live memory is never read (fixtures only) or written; live changes happen only through the normal gated registries on an applied `keep`.
+- **T-LAB-6 kept change degrades live:** every apply captures exact prior state into `applied_ref`, is announced with its revert path, and `POST /lab/experiments/:id/revert` restores it; persona and user-pinned settings are never auto-applied (three-envelope rule, D-0052).
+
 ## 5. Prohibited-capability enforcement (R-AUTO-04)
 
 The prohibited list (autonomous weapons; unauthorized system access; bypassing access controls; covert surveillance; credential theft; malware; hidden persistence; disabling safety mechanisms; undisclosed impersonation; unauthorized purchases/communication/physical control) is enforced in Z1 as a **deny-first rule set evaluated before any other policy**, cannot be modified by generated capabilities (T3 hard limit), matches on action semantics (not just tool names), and every denial is audited and surfaced — never silent.
@@ -135,6 +145,7 @@ The prohibited list (autonomous weapons; unauthorized system access; bypassing a
 6. A capability manifest hash mismatch prevents load.
 7. Deleting a memory item removes it from all retrieval paths immediately.
 8. Simulation adapters cannot emit data unlabeled as SIMULATION (type-level enforcement).
+9. No Night-Lab candidate can touch anything outside `LAB_SURFACE`; envelope/budget/quiet-hours settings are structurally excluded, and out-of-surface candidates are discarded without ever running (tested in `lab.test.ts`).
 
 ## 7. Residual risks (accepted, revisited each phase gate)
 

@@ -1,0 +1,21 @@
+{
+  "comment": "Lab-bench fixture memory (D-0079). First-party, versioned, synthetic-by-design — loaded into the ISOLATED lab instance through the real gated tool path (LOW_REVERSIBLE auto-runs). Never touches live memory (R-LAB-01). Conversations in bench/conversations/ recall against exactly this world.",
+  "entities": [
+    { "name": "Arc Reactor", "kind": "thing", "attributes": "palladium-free power source in the workshop" },
+    { "name": "Pepper Potts", "kind": "person", "attributes": "CEO of Stark Industries" },
+    { "name": "Mark 42 suit", "kind": "thing", "attributes": "prototype with prehensile propulsion" },
+    { "name": "Workshop", "kind": "place", "attributes": "basement lab under the house" }
+  ],
+  "facts": [
+    { "entity": "Arc Reactor", "statement": "The arc reactor has run palladium-free since the redesign" },
+    { "entity": "Arc Reactor", "statement": "Peak output is 8 gigajoules per second" },
+    { "entity": "Pepper Potts", "statement": "Pepper Potts runs Stark Industries day-to-day as CEO" },
+    { "entity": "Mark 42 suit", "statement": "The Mark 42 uses prehensile propulsion — pieces fly to the wearer independently" },
+    { "entity": "Workshop", "statement": "Workshop access requires the user's voiceprint" }
+  ],
+  "preferences": [
+    { "key": "preferred_address", "value": "sir", "sensitivity": "personal" },
+    { "key": "coffee_order", "value": "black, no sugar", "sensitivity": "personal" },
+    { "key": "workshop_music", "value": "AC/DC, loud", "sensitivity": "personal" }
+  ]
+}

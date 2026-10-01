@@ -82,13 +82,14 @@ describe("ReasoningTuner", () => {
     expect(await tuner.topics()).toEqual([]);
   });
 
-  it("promotes a topic after two corrections about it — not one", async () => {
-    const tuner = new ReasoningTuner(fakeStore());
+  it("promotes a judge-confirmed topic after two corrections about it — not one", async () => {
+    const judge = { extractTopics: async () => ["vibranium"] };
+    const tuner = new ReasoningTuner(fakeStore(), judge);
     const first = await tuner.recordCorrection("check the vibranium shield tolerances");
-    expect(first).toEqual([]);
+    expect(first).toEqual({ promoted: [], noted: ["vibranium"], deferred: false });
     expect(await tuner.topics()).toEqual([]);
     const second = await tuner.recordCorrection("vibranium alloy stress numbers again");
-    expect(second).toEqual(["vibranium"]);
+    expect(second.promoted).toEqual(["vibranium"]);
     expect(await tuner.topics()).toContain("vibranium");
   });
 
@@ -98,17 +99,79 @@ describe("ReasoningTuner", () => {
     const judge = { extractTopics: async () => ["palladium"] };
     const tuner = new ReasoningTuner(fakeStore(), judge);
     await tuner.recordCorrection("Quick one-line intuition about palladium please");
-    const promoted = await tuner.recordCorrection("Quick one-line intuition about palladium please");
+    const { promoted } = await tuner.recordCorrection("Quick one-line intuition about palladium please");
     expect(promoted).toEqual(["palladium"]);
     expect(await tuner.topics()).toEqual(["palladium"]); // ONLY the topic, no filler
   });
 
-  it("falls back to heuristic terms when the judge returns null (offline)", async () => {
-    const judge = { extractTopics: async () => null };
-    const tuner = new ReasoningTuner(fakeStore(), judge);
-    await tuner.recordCorrection("check the vibranium shield tolerances");
-    const promoted = await tuner.recordCorrection("vibranium alloy stress numbers again");
-    expect(promoted).toContain("vibranium"); // heuristic path still works
+  // ---- D-0080 C2 (R-MEM-10): the fallback may accumulate, never promote ----
+
+  it("without a judge (null) the heuristic fallback accumulates but NEVER promotes, and says so", async () => {
+    const store = fakeStore();
+    const offline = new ReasoningTuner(store, { extractTopics: async () => null });
+    const a = await offline.recordCorrection("check the vibranium shield tolerances");
+    expect(a.promoted).toEqual([]);
+    expect(a.deferred).toBe(true);
+    expect(a.noted).toContain("vibranium");
+    const b = await offline.recordCorrection("vibranium alloy stress numbers again");
+    expect(b).toMatchObject({ promoted: [], deferred: true });
+    expect(await offline.topics()).toEqual([]); // pre-D-0080 this promoted 'vibranium' here
+    const ledger = JSON.parse(store.data.get("reasoning_deep_candidates")!) as Record<string, { count: number; judged: number }>;
+    expect(ledger["vibranium"]).toEqual({ count: 2, judged: 0 });
+
+    // …one judge-confirmed mention later, the accumulated count promotes it.
+    const online = new ReasoningTuner(store, { extractTopics: async () => ["vibranium"] });
+    const c = await online.recordCorrection("vibranium again, think about it");
+    expect(c).toEqual({ promoted: ["vibranium"], noted: [], deferred: false });
+    expect(await online.topics()).toEqual(["vibranium"]);
+  });
+
+  it("no judge configured at all behaves like judge=null (accumulate only)", async () => {
+    const tuner = new ReasoningTuner(fakeStore());
+    for (let i = 0; i < 3; i++) {
+      expect((await tuner.recordCorrection("vibranium shield tolerances")).deferred).toBe(true);
+    }
+    expect(await tuner.topics()).toEqual([]);
+  });
+
+  it("replay: the six Longitude-XL outage terms never promote without a judge", async () => {
+    const tuner = new ReasoningTuner(fakeStore(), { extractTopics: async () => null });
+    const outage = [
+      "remind me about lunch, second reminder please",
+      "does the coffee place do lunch? remind me",
+      "umbrella? the sky looks grey, second opinion",
+      "coffee first, then lunch — looks like rain, umbrella",
+    ];
+    for (let round = 0; round < 3; round++) {
+      for (const text of outage) expect((await tuner.recordCorrection(text)).promoted).toEqual([]);
+    }
+    expect(await tuner.topics()).toEqual([]);
+  });
+
+  it("reads a legacy numeric candidate map (pre-D-0080) as unjudged counts", async () => {
+    const store = fakeStore();
+    store.data.set("reasoning_deep_candidates", JSON.stringify({ vibranium: 1, umbrella: 5 }));
+    // an unjudged mention cannot promote even a high legacy count…
+    const offline = new ReasoningTuner(store, { extractTopics: async () => null });
+    expect((await offline.recordCorrection("umbrella again")).promoted).toEqual([]);
+    // …but one judge-confirmed mention promotes a legacy count that already reached the bar
+    const online = new ReasoningTuner(store, { extractTopics: async () => ["vibranium"] });
+    expect((await online.recordCorrection("vibranium please")).promoted).toEqual(["vibranium"]);
+    const ledger = JSON.parse(store.data.get("reasoning_deep_candidates")!) as Record<string, { count: number; judged: number }>;
+    expect(ledger["umbrella"]).toEqual({ count: 6, judged: 0 });
+    expect(ledger["vibranium"]).toBeUndefined();
+  });
+
+  it("bounds the candidate ledger during an outage (unjudged low-count entries dropped first)", async () => {
+    const store = fakeStore();
+    const tuner = new ReasoningTuner(store, { extractTopics: async () => null });
+    for (let i = 0; i < 40; i++) {
+      // 8 distinct ≥5-letter terms per correction → 320 candidates offered
+      await tuner.recordCorrection(Array.from({ length: 8 }, (_, j) => `term${String(i * 8 + j).padStart(4, "0")}x`).join(" "));
+    }
+    const ledger = JSON.parse(store.data.get("reasoning_deep_candidates")!) as Record<string, unknown>;
+    expect(Object.keys(ledger).length).toBeLessThanOrEqual(200);
+    expect(await tuner.topics()).toEqual([]);
   });
 
   it("a failing store never throws out of topics()", async () => {
@@ -200,7 +263,7 @@ describe("runConversation — deep-reasoning escalation (D-0048)", () => {
 
   it("auto-escalates on a learned topic and records corrections that promote new ones", async () => {
     const store = fakeStore();
-    const tuner = new ReasoningTuner(store);
+    const tuner = new ReasoningTuner(store, { extractTopics: async () => ["vibranium"] });
     await tuner.teach("palladium");
     const { loop, calls } = convLoop({ deepEligible: true });
     (loop as unknown as { deps: { reasoningTuner?: ReasoningTuner } }).deps.reasoningTuner = tuner;
@@ -217,6 +280,27 @@ describe("runConversation — deep-reasoning escalation (D-0048)", () => {
     // …and from now on it auto-escalates
     await drain(loop.runConversation({ text: "how is the vibranium doing?", source: "test" }));
     expect(calls[3]!.role).toBe("deep_reasoning");
+  });
+
+  it("without a judgment model a correction is honoured but learning is DEFERRED, and the decision says so (D-0080 C2)", async () => {
+    const store = fakeStore();
+    const tuner = new ReasoningTuner(store, { extractTopics: async () => null });
+    const { loop, calls } = convLoop({ deepEligible: true });
+    (loop as unknown as { deps: { reasoningTuner?: ReasoningTuner } }).deps.reasoningTuner = tuner;
+    const decisions: { mode: string; why: string; role: string }[] = [];
+    for (let i = 0; i < 3; i++) {
+      await drain(loop.runConversation({
+        text: "check the vibranium shield", source: "test", reasoning: "deep",
+        onDecision: (d) => decisions.push(d),
+      }));
+    }
+    // the turn itself still runs deep (the user asked), nothing was learned, and the why is honest
+    expect(calls.every((c) => c.role === "deep_reasoning")).toBe(true);
+    expect(await tuner.topics()).toEqual([]);
+    expect(decisions[2]!.why).toContain("once my judgment model is available");
+    // a later auto turn on the same subject stays fast — no silent promotion happened
+    await drain(loop.runConversation({ text: "how is the vibranium doing?", source: "test" }));
+    expect(calls[3]!.role).toBe("fast_conversation");
   });
 
   it("downgrades honestly (never errors) when deep_reasoning has no eligible provider", async () => {

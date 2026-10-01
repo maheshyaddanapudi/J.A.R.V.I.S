@@ -179,15 +179,23 @@ export function createAnthropicAdapter(opts: {
         ...(req.temperature !== undefined && !adaptiveGen ? { temperature: req.temperature } : {}),
         ...(thinking ? { thinking } : {}),
         ...(target?.effort && adaptiveGen ? { output_config: { effort: target.effort } } : {}),
-        ...(system ? { system } : {}),
+        // Longitude-XL E-01 (2026-09-11): the planning role re-sent ~12.6k
+        // tokens of tool catalogue + system prompt on EVERY agent step with no
+        // caching — 78% of a 1000-day run's bill. Anthropic prompt caching:
+        // the prefix is tools → system → messages, so a cache breakpoint on
+        // the last tool and on the system block caches the stable prefix;
+        // cached reads are billed at a fraction. Below the model's minimum
+        // cacheable length the marker is simply ignored — never an error.
+        ...(system ? { system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] } : {}),
         messages,
         stream: true,
         ...(req.tools?.length
           ? {
-              tools: req.tools.map((t) => ({
+              tools: req.tools.map((t, i, arr) => ({
                 name: toWire.get(t.name) ?? t.name,
                 description: t.description,
                 input_schema: t.inputSchema,
+                ...(i === arr.length - 1 ? { cache_control: { type: "ephemeral" } } : {}),
               })),
             }
           : {}),
@@ -221,7 +229,7 @@ export function createAnthropicAdapter(opts: {
         );
       }
 
-      const usage = { inputTokens: 0, outputTokens: 0 };
+      const usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number } = { inputTokens: 0, outputTokens: 0 };
       let finishReason: "stop" | "tool_use" | "length" = "stop";
       // accumulating tool_use blocks: index -> {id,name,jsonText}
       const pendingTools = new Map<number, { id: string; name: string; jsonText: string }>();
@@ -243,8 +251,10 @@ export function createAnthropicAdapter(opts: {
           const type = payload.type as string;
 
           if (type === "message_start") {
-            const msg = payload.message as { usage?: { input_tokens?: number } };
+            const msg = payload.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } };
             usage.inputTokens = msg.usage?.input_tokens ?? 0;
+            if (msg.usage?.cache_read_input_tokens !== undefined) usage.cacheReadTokens = msg.usage.cache_read_input_tokens;
+            if (msg.usage?.cache_creation_input_tokens !== undefined) usage.cacheWriteTokens = msg.usage.cache_creation_input_tokens;
           } else if (type === "content_block_start") {
             const block = payload.content_block as { type: string; id?: string; name?: string };
             if (block.type === "tool_use") {

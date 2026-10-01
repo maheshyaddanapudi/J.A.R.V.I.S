@@ -156,3 +156,21 @@ describe("anthropic adapter wire format", () => {
     expect(done.usage).toEqual({ inputTokens: 5, outputTokens: 7 });
   });
 });
+
+describe("anthropic adapter prompt caching (Longitude-XL E-01, 2026-09-11)", () => {
+  it("marks the system block and the LAST tool definition cacheable, and reports cache reads/writes in usage", async () => {
+    const events = await drain(
+      adapter().chatStream(
+        req({ tools: [TOOL, { name: "u", description: "e", inputSchema: { type: "object" } }], messages: [{ role: "system", content: "You are J.A.R.V.I.S." }, { role: "user", content: [{ type: "text", text: "hi" }] }] }),
+        "claude-sonnet-5",
+      ),
+    );
+    const body = bodies[bodies.length - 1]! as { system?: { type: string; text: string; cache_control?: unknown }[]; tools?: { name: string; cache_control?: unknown }[] };
+    expect(Array.isArray(body.system)).toBe(true);
+    expect(body.system![0]).toMatchObject({ type: "text", text: "You are J.A.R.V.I.S.", cache_control: { type: "ephemeral" } });
+    expect(body.tools![0]).not.toHaveProperty("cache_control");
+    expect(body.tools![1]).toMatchObject({ name: "u", cache_control: { type: "ephemeral" } });
+    const done = events.find((e) => e.type === "done") as { usage: { cacheReadTokens?: number; cacheWriteTokens?: number } } | undefined;
+    expect(done).toBeDefined();
+  });
+});
