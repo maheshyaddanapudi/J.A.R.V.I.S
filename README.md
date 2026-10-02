@@ -12,7 +12,7 @@ clearly-labeled `SIMULATION` adapter behind the same typed contract, or is marke
 **NEEDS-MAC** and never presented as running. (See [Non-negotiable rules](#non-negotiable-rules).)
 
 > **Target machine:** MacBook Pro M3 Max, 128 GB, macOS 26, single user.
-> **OSS-first:** the core is built on open-source components; proprietary OS/hardware APIs sit only behind
+> **OSS-first:** the core is open source (MIT); proprietary OS/hardware APIs sit only behind
 > replaceable, registered adapters.
 
 ---
@@ -222,7 +222,7 @@ things stand.
 
 ## License
 
-No license file has been added yet, so all rights are reserved by the author until one is.
+MIT License — see [LICENSE](LICENSE).
 
 ---
 
