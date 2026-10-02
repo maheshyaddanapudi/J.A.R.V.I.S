@@ -12,7 +12,7 @@ clearly-labeled `SIMULATION` adapter behind the same typed contract, or is marke
 **NEEDS-MAC** and never presented as running. (See [Non-negotiable rules](#non-negotiable-rules).)
 
 > **Target machine:** MacBook Pro M3 Max, 128 GB, macOS 26, single user.
-> **OSS-first:** the core is open source; proprietary OS/hardware APIs sit only behind
+> **OSS-first:** the core is open source (MIT); proprietary OS/hardware APIs sit only behind
 > replaceable, registered adapters.
 
 ---
@@ -105,7 +105,7 @@ services/kernel/     jarvisd — the trust core + platform (TypeScript, Node 22)
   src/knowledge/ web/ terminal/ research/   real, gated compute capabilities
   src/control/ devices/                     macOS + device HALs (SIMULATION + real adapters)
   src/mcp/ selfext/ skills/ prompts/ crypto/ agent/   registries, self-extension, vault, agent
-  src/db/migrations/ immutable SQL migrations (0001–0015)
+  src/db/migrations/ immutable, numbered SQL migrations
 services/ears/       jarvis-ears — speech daemon (Python)
 apps/command-center/ Next.js Command Center + Ambient Voice Orb
 apps/companion/      Tauri 2 shell + Rust kernel-client core (+ Swift bridge, Mac-built)
@@ -217,6 +217,12 @@ decision is explicitly reopened at a check-in):
 [`MAC_BRINGUP.md`](docs/MAC_BRINGUP.md), and [`verification/`](docs/verification/). Start at
 [`IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) → **Current state** to see where
 things stand.
+
+---
+
+## License
+
+MIT License — see [LICENSE](LICENSE).
 
 ---
 
